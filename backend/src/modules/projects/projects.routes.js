@@ -1,0 +1,156 @@
+const router = require('express').Router();
+const prisma = require('../../config/prisma');
+const { authenticate, sameCompany } = require('../../middleware/auth');
+const { success, created, paginated, notFound } = require('../../utils/response');
+const { paginate, paginateMeta } = require('../../utils/helpers');
+
+router.use(authenticate, sameCompany);
+
+// Projects
+router.get('/', async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, status, search } = req.query;
+    const { take, skip } = paginate(page, limit);
+    const where = {
+      companyId: req.companyId,
+      ...(status && { status }),
+      ...(search && { name: { contains: search, mode: 'insensitive' } }),
+    };
+    const [projects, total] = await Promise.all([
+      prisma.project.findMany({ where, take, skip, include: { milestones: true, members: true, _count: { select: { tasks: true } } }, orderBy: { createdAt: 'desc' } }),
+      prisma.project.count({ where }),
+    ]);
+    return paginated(res, projects, paginateMeta(total, page, limit));
+  } catch (err) { next(err); }
+});
+
+router.get('/:id', async (req, res, next) => {
+  try {
+    const project = await prisma.project.findFirst({
+      where: { id: req.params.id, companyId: req.companyId },
+      include: {
+        milestones: true,
+        members: true,
+        tasks: { include: { assignee: { select: { id: true, firstName: true, lastName: true, avatar: true } } } },
+        files: true,
+      },
+    });
+    if (!project) return notFound(res, 'Project not found');
+    return success(res, project);
+  } catch (err) { next(err); }
+});
+
+router.post('/', async (req, res, next) => {
+  try {
+    const project = await prisma.project.create({
+      data: { ...req.body, companyId: req.companyId },
+    });
+    return created(res, project, 'Project created');
+  } catch (err) { next(err); }
+});
+
+router.put('/:id', async (req, res, next) => {
+  try {
+    const project = await prisma.project.update({ where: { id: req.params.id }, data: req.body });
+    return success(res, project, 'Project updated');
+  } catch (err) { next(err); }
+});
+
+router.delete('/:id', async (req, res, next) => {
+  try {
+    await prisma.project.delete({ where: { id: req.params.id } });
+    return success(res, {}, 'Project deleted');
+  } catch (err) { next(err); }
+});
+
+// Tasks
+router.get('/tasks/all', async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, status, priority, assigneeId, projectId } = req.query;
+    const { take, skip } = paginate(page, limit);
+    const where = {
+      companyId: req.companyId,
+      ...(status && { status }),
+      ...(priority && { priority }),
+      ...(assigneeId && { assigneeId }),
+      ...(projectId && { projectId }),
+    };
+    const [tasks, total] = await Promise.all([
+      prisma.task.findMany({
+        where, take, skip,
+        include: {
+          assignee: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+          project: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.task.count({ where }),
+    ]);
+    return paginated(res, tasks, paginateMeta(total, page, limit));
+  } catch (err) { next(err); }
+});
+
+router.post('/tasks', async (req, res, next) => {
+  try {
+    const task = await prisma.task.create({
+      data: { ...req.body, companyId: req.companyId, creatorId: req.userId },
+      include: { assignee: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
+    });
+    return created(res, task, 'Task created');
+  } catch (err) { next(err); }
+});
+
+router.put('/tasks/:id', async (req, res, next) => {
+  try {
+    const task = await prisma.task.update({ where: { id: req.params.id }, data: req.body });
+    return success(res, task, 'Task updated');
+  } catch (err) { next(err); }
+});
+
+router.delete('/tasks/:id', async (req, res, next) => {
+  try {
+    await prisma.task.delete({ where: { id: req.params.id } });
+    return success(res, {}, 'Task deleted');
+  } catch (err) { next(err); }
+});
+
+// Kanban board for project
+router.get('/:id/kanban', async (req, res, next) => {
+  try {
+    const columns = ['todo', 'in_progress', 'review', 'done'];
+    const tasks = await prisma.task.findMany({
+      where: { projectId: req.params.id, companyId: req.companyId },
+      include: { assignee: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
+      orderBy: { order: 'asc' },
+    });
+    const board = columns.reduce((acc, col) => {
+      acc[col] = tasks.filter(t => t.status === col);
+      return acc;
+    }, {});
+    return success(res, board);
+  } catch (err) { next(err); }
+});
+
+// Comments
+router.get('/tasks/:id/comments', async (req, res, next) => {
+  try {
+    const comments = await prisma.comment.findMany({
+      where: { taskId: req.params.id },
+      include: { user: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+    return success(res, comments);
+  } catch (err) { next(err); }
+});
+
+router.post('/tasks/:id/comments', async (req, res, next) => {
+  try {
+    const comment = await prisma.comment.create({
+      data: { taskId: req.params.id, userId: req.userId, content: req.body.content },
+      include: { user: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
+    });
+    return created(res, comment, 'Comment added');
+  } catch (err) { next(err); }
+});
+
+module.exports = router;
