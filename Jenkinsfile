@@ -19,9 +19,11 @@ pipeline {
         JWT_REFRESH_SECRET = "3487b92ba2bc3f2d3220835036695e7a067f76d932ff7dca2594e78738c562ee"
         ENCRYPTION_KEY     = "3d06caa34bc237ab79ef62ea9372623b"
 
-        NEXT_PUBLIC_API_URL    = "http://localhost:5000"
-        NEXT_PUBLIC_APP_URL    = "http://localhost:3000"
-        NEXT_PUBLIC_SOCKET_URL = "http://localhost:5000"
+        SERVER_HOST            = "93.127.194.128"
+        NEXT_PUBLIC_API_URL    = "http://93.127.194.128:5000"
+        NEXT_PUBLIC_APP_URL    = "http://93.127.194.128:3000"
+        NEXT_PUBLIC_SOCKET_URL = "http://93.127.194.128:5000"
+        CORS_ORIGINS           = "http://93.127.194.128:3000,http://localhost:3000"
     }
 
     stages {
@@ -72,6 +74,7 @@ pipeline {
                         -e NODE_ENV=production \
                         -e PORT=5000 \
                         -e APP_URL=$NEXT_PUBLIC_APP_URL \
+                        -e CORS_ORIGINS=$CORS_ORIGINS \
                         -e DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME" \
                         -e JWT_SECRET=$JWT_SECRET \
                         -e JWT_EXPIRES_IN=15m \
@@ -125,7 +128,7 @@ pipeline {
     post {
         success {
             echo "Deployment successful — build #${BUILD_NUMBER}"
-            echo "App running at http://localhost:3000"
+            echo "App running at http://93.127.194.128:3000"
         }
         failure {
             echo "Build #${BUILD_NUMBER} failed — rolling back to previous containers"
@@ -139,6 +142,8 @@ pipeline {
                     docker run -d \
                         --name "$CONTAINER_BACKEND" \
                         --restart unless-stopped \
+                        -e APP_URL="$NEXT_PUBLIC_APP_URL" \
+                        -e CORS_ORIGINS="$CORS_ORIGINS" \
                         -e DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME" \
                         -e JWT_SECRET="$JWT_SECRET" \
                         -e JWT_REFRESH_SECRET="$JWT_REFRESH_SECRET" \
