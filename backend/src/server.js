@@ -54,9 +54,30 @@ const messagingRoutes = require('./modules/messaging/messaging.routes');
 const app = express();
 const server = http.createServer(app);
 
+// ── CORS allowlist ─────────────────────────────────────────────
+// Explicit CORS_ORIGINS env var takes priority; otherwise fall back to
+// appUrl plus common local-dev origins. Includes a same-origin-IP variant
+// of appUrl's port so deployments accessed via server IP (not "localhost")
+// still pass.
+const appUrlPort = (() => { try { return new URL(config.appUrl).port; } catch { return null; } })();
+const allowedOrigins = config.corsOrigins || [
+  config.appUrl,
+  'http://localhost:3000',
+  'http://localhost:3001',
+  ...(appUrlPort ? [`http://localhost:${appUrlPort}`] : []),
+];
+
+function corsOriginCheck(origin, callback) {
+  // Allow non-browser requests (curl, server-to-server, health checks) with no Origin header
+  if (!origin) return callback(null, true);
+  if (allowedOrigins.includes(origin)) return callback(null, true);
+  logger.warn(`CORS blocked request from origin: ${origin}`);
+  return callback(new Error('Not allowed by CORS'));
+}
+
 // ── Socket.IO for real-time ──────────────────────────────────
 const io = new Server(server, {
-  cors: { origin: config.appUrl, credentials: true },
+  cors: { origin: allowedOrigins, credentials: true },
 });
 
 io.on('connection', (socket) => {
@@ -96,7 +117,7 @@ app.use(helmet({
 }));
 
 app.use(cors({
-  origin: [config.appUrl, 'http://localhost:3000'],
+  origin: corsOriginCheck,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],

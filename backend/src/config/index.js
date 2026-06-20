@@ -5,6 +5,9 @@ module.exports = {
   port: parseInt(process.env.PORT) || 5000,
   appUrl: process.env.APP_URL || 'http://localhost:3000',
   apiUrl: process.env.API_URL || 'http://localhost:5000',
+  corsOrigins: process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+    : null,
 
   jwt: {
     secret: process.env.JWT_SECRET,
