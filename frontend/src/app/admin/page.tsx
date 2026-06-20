@@ -34,6 +34,15 @@ export default function SuperAdminPage() {
     },
   });
 
+  const { data: users } = useQuery({
+    queryKey: ['admin-users'],
+    queryFn: async () => {
+      const { data } = await api.get('/admin/users');
+      return data;
+    },
+    enabled: tab === 'users',
+  });
+
   const toggleMutation = useMutation({
     mutationFn: (id: string) => api.post(`/admin/companies/${id}/toggle`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-companies'] }); toast.success('Company status updated'); },
@@ -154,6 +163,44 @@ export default function SuperAdminPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {tab === 'users' && (
+        <div className="glass-card rounded-2xl overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200 dark:border-gray-700">
+                {['User', 'Email', 'Company', 'Status', 'Joined'].map(h => (
+                  <th key={h} className="text-left text-xs font-medium text-gray-500 px-4 py-3 first:pl-6 last:pr-6">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              {users?.data?.length === 0 ? (
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-400 text-sm">No users found</td></tr>
+              ) : users?.data?.map((u: any) => (
+                <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <td className="px-4 py-4 pl-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">{u.firstName?.[0]}{u.lastName?.[0]}</div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{u.firstName} {u.lastName}</p>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-400">{u.email}</td>
+                  <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-400">{u.company?.name || '—'}</td>
+                  <td className="px-4 py-4">
+                    {u.isActive ? (
+                      <span className="flex items-center gap-1 text-xs text-green-600"><CheckCircle2 className="w-3.5 h-3.5" /> Active</span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-xs text-red-500"><XCircle className="w-3.5 h-3.5" /> Inactive</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-4 pr-6 text-xs text-gray-500">{formatRelativeTime(u.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

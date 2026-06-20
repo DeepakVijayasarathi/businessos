@@ -120,15 +120,15 @@ export default function IntelligencePage() {
           {/* Key Metrics Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Revenue (30d)', value: `$${(intel?.metrics?.revenue30 || 0).toLocaleString()}`, change: intel?.metrics?.revenueGrowth, icon: DollarSign, color: 'indigo' },
-              { label: 'New Leads', value: intel?.metrics?.newLeads || 0, change: intel?.metrics?.leadGrowth, icon: Target, color: 'green' },
-              { label: 'Pipeline Value', value: `$${(intel?.metrics?.pipelineValue || 0).toLocaleString()}`, icon: TrendingUp, color: 'blue' },
-              { label: 'Open Tickets', value: intel?.metrics?.openTickets || 0, sub: `${intel?.metrics?.urgentTickets || 0} urgent`, icon: Headphones, color: 'red' },
+              { label: 'Revenue (30d)', value: `$${(intel?.metrics?.revenue30 || 0).toLocaleString()}`, change: intel?.metrics?.revenueGrowth, icon: DollarSign, colorClass: 'text-indigo-500' },
+              { label: 'New Leads', value: intel?.metrics?.newLeads || 0, change: intel?.metrics?.leadGrowth, icon: Target, colorClass: 'text-green-500' },
+              { label: 'Pipeline Value', value: `$${(intel?.metrics?.pipelineValue || 0).toLocaleString()}`, icon: TrendingUp, colorClass: 'text-blue-500' },
+              { label: 'Open Tickets', value: intel?.metrics?.openTickets || 0, sub: `${intel?.metrics?.urgentTickets || 0} urgent`, icon: Headphones, colorClass: 'text-red-500' },
             ].map(m => (
               <div key={m.label} className="glass-card rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs text-gray-500">{m.label}</p>
-                  <m.icon className={`w-4 h-4 text-${m.color}-500`} />
+                  <m.icon className={`w-4 h-4 ${m.colorClass}`} />
                 </div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{m.value}</p>
                 {m.change !== undefined && (

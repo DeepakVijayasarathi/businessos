@@ -12,7 +12,7 @@ interface Message {
 }
 
 export default function AIPage() {
-  const [sessionId] = useState(() => typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+  const [sessionId, setSessionId] = useState(() => typeof crypto !== 'undefined' ? crypto.randomUUID() : Math.random().toString(36).slice(2));
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -55,6 +55,22 @@ export default function AIPage() {
       toast.error(err?.response?.data?.message || 'AI unavailable. Please configure your API key in Settings.');
     },
   });
+
+  const openConversation = async (conv: any) => {
+    try {
+      const { data } = await api.get(`/ai/conversations/${conv.id}`);
+      const loaded = data.data;
+      setActiveType(loaded.type || 'support');
+      setSessionId(loaded.sessionId);
+      setMessages((loaded.messages || []).map((m: any) => ({
+        role: m.role,
+        content: m.content,
+        timestamp: new Date(m.createdAt),
+      })));
+    } catch {
+      toast.error('Failed to load conversation');
+    }
+  };
 
   const handleSend = () => {
     const text = input.trim();
@@ -109,7 +125,11 @@ export default function AIPage() {
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Recent Conversations</h3>
           <div className="space-y-2 overflow-y-auto">
             {conversations?.slice(0, 10).map((conv: any) => (
-              <div key={conv.id} className="p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
+              <div
+                key={conv.id}
+                onClick={() => openConversation(conv)}
+                className={`p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${conv.sessionId === sessionId ? 'bg-indigo-50 dark:bg-indigo-950/30' : ''}`}
+              >
                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300 capitalize">{conv.type}</p>
                 <p className="text-xs text-gray-400">{formatRelativeTime(conv.updatedAt)}</p>
               </div>

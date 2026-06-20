@@ -117,7 +117,7 @@ export default function WorkflowPage() {
                   {wf.isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                 </button>
                 <button onClick={() => { setEditWorkflow(wf); setShowBuilder(true); }} className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"><Edit className="w-4 h-4" /></button>
-                <button onClick={() => deleteMutation.mutate(wf.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={() => { if (confirm('Delete this workflow?')) deleteMutation.mutate(wf.id); }} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
           </div>
@@ -161,6 +161,7 @@ function WorkflowBuilder({ workflow, onClose }: { workflow: any; onClose: () => 
     nodes: workflow?.nodes || [],
   });
   const [nodes, setNodes] = useState<any[]>(workflow?.nodes || []);
+  const [showActionMenu, setShowActionMenu] = useState(false);
 
   const mutation = useMutation({
     mutationFn: (data: any) => workflow ? api.put(`/workflows/${workflow.id}`, data) : api.post('/workflows', data),
@@ -198,20 +199,30 @@ function WorkflowBuilder({ workflow, onClose }: { workflow: any; onClose: () => 
           <div>
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Actions ({nodes.length})</h4>
-              <div className="relative group">
-                <button className="flex items-center gap-1 px-3 py-1.5 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowActionMenu(v => !v)}
+                  aria-expanded={showActionMenu}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg"
+                >
                   <Plus className="w-3 h-3" /> Add Action
                 </button>
-                <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-1 z-10 min-w-44 hidden group-hover:block">
-                  {Object.keys(ACTION_ICONS).map(type => {
-                    const Icon = ACTION_ICONS[type];
-                    return (
-                      <button key={type} onClick={() => addNode(type)} className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2">
-                        <Icon className="w-3.5 h-3.5" />{type.replace(/_/g, ' ')}
-                      </button>
-                    );
-                  })}
-                </div>
+                {showActionMenu && (
+                  <>
+                    <div className="fixed inset-0 z-[5]" onClick={() => setShowActionMenu(false)} />
+                    <div className="absolute right-0 top-8 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-1 z-10 min-w-44">
+                      {Object.keys(ACTION_ICONS).map(type => {
+                        const Icon = ACTION_ICONS[type];
+                        return (
+                          <button key={type} onClick={() => { addNode(type); setShowActionMenu(false); }} className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2">
+                            <Icon className="w-3.5 h-3.5" />{type.replace(/_/g, ' ')}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

@@ -100,7 +100,22 @@ export default function PayrollPage() {
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${slip.status === 'paid' ? 'bg-green-100 text-green-700' : slip.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>{slip.status}</span>
                 </td>
                 <td className="px-4 py-3">
-                  <button className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20" title="Download"><Download className="w-4 h-4" /></button>
+                  <button
+                    onClick={() => {
+                      api.get(`/hr/attendance/payslips/${slip.id}/pdf`, { responseType: 'blob' }).then(res => {
+                        const url = URL.createObjectURL(res.data);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `payslip-${MONTHS[month - 1]}-${year}.pdf`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }).catch(() => toast.error('Failed to download payslip'));
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                    title="Download"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
                 </td>
               </tr>
             ))}

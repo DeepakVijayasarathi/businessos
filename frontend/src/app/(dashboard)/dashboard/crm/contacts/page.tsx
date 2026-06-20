@@ -85,7 +85,7 @@ export default function ContactsPage() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2 justify-end">
                     <button onClick={() => { setEditContact(c); setShowModal(true); }} aria-label="Edit contact" className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"><Edit className="w-4 h-4" /></button>
-                    <button onClick={() => deleteMutation.mutate(c.id)} aria-label="Delete contact" className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => { if (confirm('Delete this contact?')) deleteMutation.mutate(c.id); }} aria-label="Delete contact" className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </td>
               </tr>

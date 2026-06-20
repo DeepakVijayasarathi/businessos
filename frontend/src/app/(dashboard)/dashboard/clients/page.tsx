@@ -131,7 +131,9 @@ export default function ClientsPage() {
                 {tab === 'invoices' && (
                   <div className="divide-y divide-gray-50 dark:divide-gray-800">
                     {!clientInvoices ? (
-                      <div className="p-8 text-center text-gray-400 text-sm">Loading...</div>
+                      <div className="p-4 space-y-2">
+                        {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-10 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />)}
+                      </div>
                     ) : clientInvoices.length === 0 ? (
                       <div className="p-12 text-center">
                         <FileText className="w-10 h-10 mx-auto mb-2 text-gray-300" />
@@ -155,7 +157,9 @@ export default function ClientsPage() {
                 {tab === 'tickets' && (
                   <div className="divide-y divide-gray-50 dark:divide-gray-800">
                     {!clientTickets ? (
-                      <div className="p-8 text-center text-gray-400 text-sm">Loading...</div>
+                      <div className="p-4 space-y-2">
+                        {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-10 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />)}
+                      </div>
                     ) : clientTickets.length === 0 ? (
                       <div className="p-12 text-center">
                         <TicketIcon className="w-10 h-10 mx-auto mb-2 text-gray-300" />

@@ -62,7 +62,7 @@ export default function CrmCompaniesPage() {
           <div key={company.id} className="glass-card rounded-2xl p-5 hover:shadow-md transition-all group relative">
             <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={() => { setEditCompany(company); setShowModal(true); }} className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"><Edit className="w-3.5 h-3.5" /></button>
-              <button onClick={() => deleteMutation.mutate(company.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-3.5 h-3.5" /></button>
+              <button onClick={() => { if (confirm('Delete this company?')) deleteMutation.mutate(company.id); }} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-blue-600 flex items-center justify-center flex-shrink-0">

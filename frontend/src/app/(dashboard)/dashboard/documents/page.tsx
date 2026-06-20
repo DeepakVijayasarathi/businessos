@@ -6,6 +6,8 @@ import { formatDate } from '@/lib/utils';
 import { Upload, FolderPlus, Folder, FileText, Download, Trash2, ChevronRight, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
 const FILE_ICONS: Record<string, string> = {
   pdf: '📄', doc: '📝', docx: '📝', xls: '📊', xlsx: '📊', ppt: '📊', pptx: '📊',
   jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', mp4: '🎬', mp3: '🎵', zip: '📦',
@@ -157,7 +159,7 @@ export default function DocumentsPage() {
                 <Folder className="w-8 h-8 text-yellow-400 mb-2" />
                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{folder.name}</p>
                 <p className="text-xs text-gray-400">{folder._count?.documents || 0} files</p>
-                <button onClick={e => { e.stopPropagation(); deleteFolderMutation.mutate(folder.id); }} className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={e => { e.stopPropagation(); if (confirm(`Delete folder "${folder.name}" and its contents?`)) deleteFolderMutation.mutate(folder.id); }} className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Trash2 className="w-3 h-3" />
                 </button>
               </div>
@@ -197,8 +199,8 @@ export default function DocumentsPage() {
                   <td className="px-4 py-3 text-xs text-gray-400">{formatDate(doc.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
-                      <a href={`/api/v1/documents/${doc.id}/download`} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"><Download className="w-4 h-4" /></a>
-                      <button onClick={() => deleteMutation.mutate(doc.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-4 h-4" /></button>
+                      <a href={`${API_URL}/api/v1/documents/${doc.id}/download`} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"><Download className="w-4 h-4" /></a>
+                      <button onClick={() => { if (confirm('Delete this file?')) deleteMutation.mutate(doc.id); }} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </td>
                 </tr>

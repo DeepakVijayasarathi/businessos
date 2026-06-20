@@ -108,15 +108,15 @@ export default function EmailPage() {
 
       {tab === 'send' && (
         <div className="max-w-xl">
-          <div className="glass-card rounded-2xl p-6 space-y-4">
+          <form onSubmit={e => { e.preventDefault(); sendDirectMutation.mutate(quickForm); }} className="glass-card rounded-2xl p-6 space-y-4">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Send Email</h2>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">To*</label><input required value={quickForm.to} onChange={e => setQuickForm({ ...quickForm, to: e.target.value })} placeholder="recipient@example.com" className={inputCls} /></div>
+            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">To*</label><input required type="email" value={quickForm.to} onChange={e => setQuickForm({ ...quickForm, to: e.target.value })} placeholder="recipient@example.com" className={inputCls} /></div>
             <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Subject*</label><input required value={quickForm.subject} onChange={e => setQuickForm({ ...quickForm, subject: e.target.value })} className={inputCls} /></div>
             <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Message*</label><textarea required rows={8} value={quickForm.body} onChange={e => setQuickForm({ ...quickForm, body: e.target.value })} className={inputCls + ' resize-none'} /></div>
-            <button onClick={() => { if (!quickForm.to || !quickForm.subject || !quickForm.body) { toast.error('Fill all required fields'); return; } sendDirectMutation.mutate(quickForm); }} disabled={sendDirectMutation.isPending} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+            <button type="submit" disabled={sendDirectMutation.isPending} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
               <Send className="w-4 h-4" /> {sendDirectMutation.isPending ? 'Sending...' : 'Send Email'}
             </button>
-          </div>
+          </form>
         </div>
       )}
 

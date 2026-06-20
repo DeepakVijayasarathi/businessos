@@ -122,7 +122,7 @@ export default function InvoicesPage() {
                           a.download = `${inv.invoiceNo}.pdf`;
                           a.click();
                           URL.revokeObjectURL(url);
-                        });
+                        }).catch(() => toast.error('Failed to download invoice'));
                       }}
                       className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
                       title="Download PDF"
@@ -168,7 +168,15 @@ function InvoiceModal({ onClose }: { onClose: () => void }) {
           <h3 className="font-semibold text-gray-900 dark:text-white">New Invoice</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
-        <div className="p-6 space-y-5">
+        <form
+          onSubmit={e => {
+            e.preventDefault();
+            const validItems = form.items.filter(it => it.description.trim() && it.rate > 0);
+            if (!validItems.length) { toast.error('Add at least one item with a description and rate'); return; }
+            mutation.mutate({ ...form, subtotal: total, total, items: validItems });
+          }}
+          className="p-6 space-y-5"
+        >
           <div className="grid grid-cols-2 gap-4">
             <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Client Name*</label><input required value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
             <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Client Email</label><input type="email" value={form.clientEmail} onChange={e => setForm({ ...form, clientEmail: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
@@ -179,14 +187,23 @@ function InvoiceModal({ onClose }: { onClose: () => void }) {
           <div>
             <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Items</p>
             {form.items.map((item, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2 mb-2">
+              <div key={i} className="grid grid-cols-12 gap-2 mb-2 items-center">
                 <input value={item.description} onChange={e => handleItemChange(i, 'description', e.target.value)} placeholder="Description" className="col-span-5 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" />
                 <input type="number" value={item.qty} onChange={e => handleItemChange(i, 'qty', Number(e.target.value))} placeholder="Qty" className="col-span-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" />
-                <input type="number" value={item.rate} onChange={e => handleItemChange(i, 'rate', Number(e.target.value))} placeholder="Rate" className="col-span-3 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" />
+                <input type="number" value={item.rate} onChange={e => handleItemChange(i, 'rate', Number(e.target.value))} placeholder="Rate" className="col-span-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" />
                 <div className="col-span-2 flex items-center px-2 text-sm font-medium text-gray-700 dark:text-gray-300">{formatCurrency(item.qty * item.rate)}</div>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, items: form.items.filter((_, idx) => idx !== i) })}
+                  disabled={form.items.length === 1}
+                  className="col-span-1 p-1.5 text-gray-300 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="Remove line item"
+                >
+                  ✕
+                </button>
               </div>
             ))}
-            <button onClick={() => setForm({ ...form, items: [...form.items, { description: '', qty: 1, rate: 0, amount: 0 }] })} className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">+ Add line item</button>
+            <button type="button" onClick={() => setForm({ ...form, items: [...form.items, { description: '', qty: 1, rate: 0, amount: 0 }] })} className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">+ Add line item</button>
           </div>
 
           <div className="text-right">
@@ -194,16 +211,16 @@ function InvoiceModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="flex gap-3">
-            <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>
             <button
-              onClick={() => mutation.mutate({ ...form, subtotal: total, total, items: form.items })}
+              type="submit"
               disabled={!form.clientName || mutation.isPending}
               className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
             >
               {mutation.isPending ? 'Creating...' : 'Create Invoice'}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

@@ -83,7 +83,7 @@ export default function KnowledgeBasePage() {
         {/* Articles */}
         <div className="lg:col-span-3">
           {selectedArticle ? (
-            <ArticleView article={selectedArticle} onBack={() => setSelectedArticle(null)} onFeedback={feedbackMutation.mutate} onEdit={() => { setEditArticle(selectedArticle); setShowModal(true); }} onDelete={() => deleteMutation.mutate(selectedArticle.id)} />
+            <ArticleView article={selectedArticle} onBack={() => setSelectedArticle(null)} onFeedback={feedbackMutation.mutate} onEdit={() => { setEditArticle(selectedArticle); setShowModal(true); }} onDelete={() => { if (confirm('Delete this article?')) deleteMutation.mutate(selectedArticle.id); }} />
           ) : (
             <div className="space-y-3">
               {isLoading ? (

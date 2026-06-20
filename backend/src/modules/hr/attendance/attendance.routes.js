@@ -172,6 +172,59 @@ router.get('/payslips', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get('/payslips/:id/pdf', async (req, res, next) => {
+  try {
+    const PDFDocument = require('pdfkit');
+    const payslip = await prisma.payslip.findFirst({
+      where: { id: req.params.id, employee: { companyId: req.companyId } },
+      include: { employee: { include: { user: { select: { firstName: true, lastName: true, email: true } } } } },
+    });
+    if (!payslip) return notFound(res, 'Payslip not found');
+
+    const company = await prisma.company.findUnique({ where: { id: req.companyId }, select: { name: true, email: true } });
+    const monthName = new Date(payslip.year, payslip.month - 1, 1).toLocaleString('default', { month: 'long' });
+
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="payslip-${monthName}-${payslip.year}.pdf"`);
+    doc.pipe(res);
+
+    doc.rect(0, 0, 595, 80).fill('#6366f1');
+    doc.fillColor('#ffffff').fontSize(22).font('Helvetica-Bold').text('PAYSLIP', 50, 28);
+    doc.fontSize(10).font('Helvetica').text(`${monthName} ${payslip.year}`, 50, 55);
+    doc.fillColor('#ffffff').fontSize(10).text(company?.name || '', 350, 30, { width: 200, align: 'right' });
+
+    const emp = payslip.employee.user;
+    doc.fillColor('#111827').fontSize(11).font('Helvetica-Bold').text('Employee:', 50, 110);
+    doc.font('Helvetica').fontSize(10).fillColor('#374151')
+      .text(`${emp.firstName} ${emp.lastName}`, 50, 126)
+      .text(emp.email || '', 50, 141);
+
+    const rows = [
+      ['Basic Salary', payslip.basicSalary],
+      ['Allowances', payslip.allowances],
+      ['Deductions', `-${payslip.deductions}`],
+      ['Tax', `-${payslip.tax}`],
+    ];
+    let dy = 190;
+    doc.fillColor('#111827').font('Helvetica-Bold').fontSize(11).text('Earnings & Deductions', 50, dy);
+    dy += 25;
+    rows.forEach(([label, value]) => {
+      doc.fillColor('#6b7280').font('Helvetica').fontSize(10).text(label, 50, dy);
+      doc.fillColor('#111827').font('Helvetica').fontSize(10).text(String(value), 450, dy, { width: 95, align: 'right' });
+      dy += 20;
+    });
+
+    dy += 10;
+    doc.moveTo(50, dy).lineTo(545, dy).strokeColor('#e5e7eb').stroke();
+    dy += 15;
+    doc.fillColor('#111827').font('Helvetica-Bold').fontSize(12).text('Net Salary', 50, dy);
+    doc.fillColor('#6366f1').font('Helvetica-Bold').fontSize(12).text(String(payslip.netSalary), 450, dy, { width: 95, align: 'right' });
+
+    doc.end();
+  } catch (err) { next(err); }
+});
+
 router.post('/payslips/generate', async (req, res, next) => {
   try {
     const { employeeIds, month, year } = req.body;

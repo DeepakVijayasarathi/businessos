@@ -282,9 +282,9 @@ export default function MessagesPage() {
                 <p className="text-xs text-green-500">{isConnected ? 'Online' : 'Connecting...'}</p>
               </div>
               <div className="flex items-center gap-1">
-                <button aria-label="Voice call" className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"><Phone className="w-4 h-4" /></button>
-                <button aria-label="Video call" className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"><Video className="w-4 h-4" /></button>
-                <button aria-label="More options" className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"><MoreVertical className="w-4 h-4" /></button>
+                <button disabled aria-label="Voice call" title="Coming soon" className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-300 dark:text-gray-600 cursor-not-allowed"><Phone className="w-4 h-4" /></button>
+                <button disabled aria-label="Video call" title="Coming soon" className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-300 dark:text-gray-600 cursor-not-allowed"><Video className="w-4 h-4" /></button>
+                <button disabled aria-label="More options" title="Coming soon" className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-300 dark:text-gray-600 cursor-not-allowed"><MoreVertical className="w-4 h-4" /></button>
               </div>
             </div>
 
@@ -334,7 +334,7 @@ export default function MessagesPage() {
             {/* Message Input */}
             <div className="px-4 py-3 bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800">
               <div className="flex items-center gap-2">
-                <button aria-label="Attach file" className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 flex-shrink-0">
+                <button disabled aria-label="Attach file" title="Coming soon" className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-300 dark:text-gray-600 cursor-not-allowed flex-shrink-0">
                   <Paperclip className="w-4 h-4" />
                 </button>
                 <div className="flex-1 flex items-center bg-gray-100 dark:bg-gray-800 rounded-2xl px-4 py-2 gap-2">
@@ -346,7 +346,7 @@ export default function MessagesPage() {
                     placeholder="Type a message..."
                     className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none"
                   />
-                  <button aria-label="Insert emoji" className="text-gray-400 hover:text-gray-600"><Smile className="w-4 h-4" /></button>
+                  <button disabled aria-label="Insert emoji" title="Coming soon" className="text-gray-300 dark:text-gray-600 cursor-not-allowed"><Smile className="w-4 h-4" /></button>
                 </div>
                 <button
                   onClick={handleSend}

@@ -54,7 +54,7 @@ export default function ProjectsPage() {
               className="glass-card rounded-2xl p-6 cursor-pointer hover:shadow-xl transition-all group"
             >
               <div className="flex items-start justify-between mb-4">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: project.color || '#6366f1' + '20' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: (project.color || '#6366f1') + '20' }}>
                   <FolderKanban className="w-5 h-5" style={{ color: project.color || '#6366f1' }} />
                 </div>
                 <span className={`flex items-center gap-1 text-xs font-medium capitalize ${statusColors[project.status] || 'text-gray-500'}`}>

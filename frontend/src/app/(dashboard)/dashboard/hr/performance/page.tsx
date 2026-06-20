@@ -66,7 +66,9 @@ export default function PerformancePage() {
       {/* Reviews table */}
       <div className="glass-card rounded-2xl overflow-hidden">
         {isLoading ? (
-          <div className="p-12 text-center text-gray-400">Loading...</div>
+          <div className="p-6 space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-10 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />)}
+          </div>
         ) : !reviews?.length ? (
           <div className="p-12 text-center">
             <TrendingUp className="w-10 h-10 text-gray-300 mx-auto mb-3" />
@@ -125,44 +127,46 @@ export default function PerformancePage() {
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h3 className="font-semibold text-gray-900 dark:text-white">New Performance Review</h3>
             </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Employee *</label>
-                <select value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option value="">Select employee</option>
-                  {employees?.map((emp: any) => (
-                    <option key={emp.id} value={emp.id}>{emp.user?.firstName} {emp.user?.lastName}</option>
-                  ))}
-                </select>
+            <form onSubmit={e => { e.preventDefault(); createMutation.mutate(form); }}>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Employee *</label>
+                  <select required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="">Select employee</option>
+                    {employees?.map((emp: any) => (
+                      <option key={emp.id} value={emp.id}>{emp.user?.firstName} {emp.user?.lastName}</option>
+                    ))}
+                  </select>
+                </div>
+                {[
+                  { k: 'period', l: 'Period (e.g. Q1 2026)', placeholder: 'Q1 2026' },
+                  { k: 'reviewDate', l: 'Review Date', type: 'date' },
+                  { k: 'overallRating', l: 'Overall Rating (1-5)', type: 'number', placeholder: '4.5' },
+                ].map(({ k, l, type = 'text', placeholder = '' }) => (
+                  <div key={k}>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
+                    <input type={type} step={k === 'overallRating' ? '0.1' : undefined} min={k === 'overallRating' ? '1' : undefined} max={k === 'overallRating' ? '5' : undefined} placeholder={placeholder} value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                  </div>
+                ))}
+                {[
+                  { k: 'goals', l: 'Goals' },
+                  { k: 'achievements', l: 'Achievements' },
+                  { k: 'improvements', l: 'Areas for Improvement' },
+                  { k: 'comments', l: 'Additional Comments' },
+                ].map(({ k, l }) => (
+                  <div key={k}>
+                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
+                    <textarea value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+                  </div>
+                ))}
               </div>
-              {[
-                { k: 'period', l: 'Period (e.g. Q1 2026)', placeholder: 'Q1 2026' },
-                { k: 'reviewDate', l: 'Review Date', type: 'date' },
-                { k: 'overallRating', l: 'Overall Rating (1-5)', type: 'number', placeholder: '4.5' },
-              ].map(({ k, l, type = 'text', placeholder = '' }) => (
-                <div key={k}>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
-                  <input type={type} step={k === 'overallRating' ? '0.1' : undefined} min={k === 'overallRating' ? '1' : undefined} max={k === 'overallRating' ? '5' : undefined} placeholder={placeholder} value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
-                </div>
-              ))}
-              {[
-                { k: 'goals', l: 'Goals' },
-                { k: 'achievements', l: 'Achievements' },
-                { k: 'improvements', l: 'Areas for Improvement' },
-                { k: 'comments', l: 'Additional Comments' },
-              ].map(({ k, l }) => (
-                <div key={k}>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
-                  <textarea value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
-                </div>
-              ))}
-            </div>
-            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-3 justify-end">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Cancel</button>
-              <button onClick={() => createMutation.mutate(form)} disabled={!form.employeeId || createMutation.isPending} className="px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
-                {createMutation.isPending ? 'Saving...' : 'Create Review'}
-              </button>
-            </div>
+              <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-3 justify-end">
+                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Cancel</button>
+                <button type="submit" disabled={!form.employeeId || createMutation.isPending} className="px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                  {createMutation.isPending ? 'Saving...' : 'Create Review'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDateTime } from '@/lib/utils';
-import { Plus, Phone, Mail, Users, MessageSquare, Calendar, CheckSquare, Clock } from 'lucide-react';
+import { Plus, Phone, Mail, Users, MessageSquare, Calendar, CheckSquare, Clock, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ACTIVITY_ICONS: Record<string, any> = {
@@ -92,6 +92,12 @@ export default function ActivitiesPage() {
                   {activity.deal && <span>Deal: {activity.deal.name}</span>}
                 </div>
               </div>
+              <button
+                onClick={() => { if (confirm('Delete this activity?')) deleteMutation.mutate(activity.id); }}
+                className="p-1.5 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           );
         })}

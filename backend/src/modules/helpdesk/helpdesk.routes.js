@@ -39,12 +39,15 @@ router.get('/', async (req, res, next) => {
 
 router.get('/stats', async (req, res, next) => {
   try {
-    const stats = await prisma.ticket.groupBy({
+    const byStatus = await prisma.ticket.groupBy({
       by: ['status'],
       where: { companyId: req.companyId },
       _count: true,
     });
-    return success(res, stats);
+    const urgentCount = await prisma.ticket.count({
+      where: { companyId: req.companyId, priority: 'urgent', status: { notIn: ['resolved', 'closed'] } },
+    });
+    return success(res, { byStatus, urgentCount });
   } catch (err) { next(err); }
 });
 

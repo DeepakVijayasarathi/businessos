@@ -13,6 +13,7 @@ export default function AppointmentsPage() {
   const [month, setMonth] = useState(new Date());
   const [status, setStatus] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [prefillDate, setPrefillDate] = useState<string | null>(null);
   const qc = useQueryClient();
 
   const { data: appointments, isLoading } = useQuery({
@@ -115,7 +116,7 @@ export default function AppointmentsPage() {
                   </div>
                 </div>
                 {a.status === 'scheduled' && (
-                  <button onClick={() => cancelMutation.mutate(a.id)} className="px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">Cancel</button>
+                  <button onClick={() => { if (confirm('Cancel this appointment?')) cancelMutation.mutate(a.id); }} className="px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">Cancel</button>
                 )}
               </div>
             ))}
@@ -142,7 +143,16 @@ export default function AppointmentsPage() {
               const apps = day ? getAppsForDay(day) : [];
               const isToday = day === new Date().getDate() && month.getMonth() === new Date().getMonth() && month.getFullYear() === new Date().getFullYear();
               return (
-                <div key={i} className={`min-h-20 rounded-xl p-2 text-xs ${day ? 'hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer' : ''}`}>
+                <div
+                  key={i}
+                  onClick={() => {
+                    if (!day) return;
+                    const d = new Date(month.getFullYear(), month.getMonth(), day, 9, 0);
+                    setPrefillDate(d.toISOString().slice(0, 16));
+                    setShowModal(true);
+                  }}
+                  className={`min-h-20 rounded-xl p-2 text-xs ${day ? 'hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer' : ''}`}
+                >
                   {day && (
                     <>
                       <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium mb-1 ${isToday ? 'bg-indigo-600 text-white' : 'text-gray-700 dark:text-gray-300'}`}>{day}</span>
@@ -159,16 +169,16 @@ export default function AppointmentsPage() {
         </div>
       )}
 
-      {showModal && <BookModal services={services || []} onClose={() => setShowModal(false)} />}
+      {showModal && <BookModal services={services || []} initialStartTime={prefillDate} onClose={() => { setShowModal(false); setPrefillDate(null); }} />}
     </div>
   );
 }
 
-function BookModal({ services, onClose }: { services: any[]; onClose: () => void }) {
+function BookModal({ services, initialStartTime, onClose }: { services: any[]; initialStartTime?: string | null; onClose: () => void }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
     serviceId: services[0]?.id || '',
-    startTime: '',
+    startTime: initialStartTime || '',
     firstName: '',
     lastName: '',
     email: '',

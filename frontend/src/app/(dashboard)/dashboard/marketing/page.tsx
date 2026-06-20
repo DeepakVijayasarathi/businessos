@@ -79,7 +79,7 @@ export default function MarketingPage() {
                 </div>
                 <div className="flex gap-1">
                   <a href={`/p/${page.slug}`} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"><ExternalLink className="w-3.5 h-3.5" /></a>
-                  <button onClick={() => deletePageMutation.mutate(page.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => { if (confirm('Delete this landing page?')) deletePageMutation.mutate(page.id); }} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{page.name}</h3>
@@ -110,7 +110,7 @@ export default function MarketingPage() {
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{form.name}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{form._count?.submissions || 0} submissions</p>
                   </div>
-                  <button onClick={e => { e.stopPropagation(); deleteFormMutation.mutate(form.id); }} className="p-1 text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button onClick={e => { e.stopPropagation(); if (confirm('Delete this form?')) deleteFormMutation.mutate(form.id); }} className="p-1 text-gray-300 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
             ))}
