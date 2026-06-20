@@ -50,8 +50,11 @@ export default function ProjectsPage() {
           return (
             <div
               key={project.id}
+              role="button"
+              tabIndex={0}
               onClick={() => setSelectedProject(project)}
-              className="glass-card rounded-2xl p-6 cursor-pointer hover:shadow-xl transition-all group"
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedProject(project); } }}
+              className="glass-card rounded-2xl p-6 cursor-pointer hover:shadow-xl transition-all group focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: (project.color || '#6366f1') + '20' }}>
@@ -113,7 +116,7 @@ function ProjectModal({ onClose }: { onClose: () => void }) {
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/projects', data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); toast.success('Project created!'); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); toast.success('Project created'); onClose(); },
     onError: () => toast.error('Failed to create project'),
   });
 
@@ -125,17 +128,17 @@ function ProjectModal({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className="text-gray-400">✕</button>
         </div>
         <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Project Name*</label><input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label><textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none" /></div>
+          <div><label htmlFor="project-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Project Name*</label><input id="project-name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+          <div><label htmlFor="project-description" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label><textarea id="project-description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none" /></div>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label><select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none">{['planning', 'active', 'on_hold'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select></div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label><select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none">{['low', 'medium', 'high'].map(p => <option key={p} value={p}>{p}</option>)}</select></div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label><input type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" /></div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label><input type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" /></div>
+            <div><label htmlFor="project-status" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label><select id="project-status" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none">{['planning', 'active', 'on_hold'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select></div>
+            <div><label htmlFor="project-priority" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label><select id="project-priority" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none">{['low', 'medium', 'high'].map(p => <option key={p} value={p}>{p}</option>)}</select></div>
+            <div><label htmlFor="project-startDate" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label><input id="project-startDate" type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" /></div>
+            <div><label htmlFor="project-endDate" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label><input id="project-endDate" type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" /></div>
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Color</label>
-            <input type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} className="w-10 h-10 rounded-lg cursor-pointer border border-gray-200" />
+            <label htmlFor="project-color" className="text-xs font-medium text-gray-700 dark:text-gray-300">Color</label>
+            <input id="project-color" type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} className="w-10 h-10 rounded-lg cursor-pointer border border-gray-200" />
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>

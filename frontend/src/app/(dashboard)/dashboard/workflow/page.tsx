@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { formatDateTime, statusColor } from '@/lib/utils';
 import { Plus, Play, Pause, Trash2, Zap, ArrowRight, Mail, Bell, CheckSquare, Clock, Edit } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 const TRIGGER_TYPES = [
   { value: 'lead_created', label: 'Lead Created' },
@@ -40,7 +41,7 @@ export default function WorkflowPage() {
 
   const triggerMutation = useMutation({
     mutationFn: ({ id, payload }: any) => api.post(`/workflows/${id}/trigger`, { payload }),
-    onSuccess: () => toast.success('Workflow triggered!'),
+    onSuccess: () => toast.success('Workflow triggered'),
     onError: () => toast.error('Trigger failed'),
   });
 
@@ -153,6 +154,7 @@ function NodeFlow({ nodes }: { nodes: any[] }) {
 
 function WorkflowBuilder({ workflow, onClose }: { workflow: any; onClose: () => void }) {
   const qc = useQueryClient();
+  const modalRef = useModalA11y(onClose);
   const [form, setForm] = useState({
     name: workflow?.name || '',
     description: workflow?.description || '',
@@ -165,7 +167,7 @@ function WorkflowBuilder({ workflow, onClose }: { workflow: any; onClose: () => 
 
   const mutation = useMutation({
     mutationFn: (data: any) => workflow ? api.put(`/workflows/${workflow.id}`, data) : api.post('/workflows', data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['workflows'] }); toast.success(workflow ? 'Workflow updated!' : 'Workflow created!'); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['workflows'] }); toast.success(workflow ? 'Workflow updated' : 'Workflow created'); onClose(); },
     onError: () => toast.error('Failed to save workflow'),
   });
 
@@ -179,18 +181,18 @@ function WorkflowBuilder({ workflow, onClose }: { workflow: any; onClose: () => 
   const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500";
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-semibold text-gray-900 dark:text-white">{workflow ? 'Edit' : 'New'} Workflow</h3>
           <button onClick={onClose} className="text-gray-400">✕</button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2"><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Workflow Name*</label><input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputCls} placeholder="e.g. New Lead Welcome Email" /></div>
-            <div className="col-span-2"><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label><input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inputCls} /></div>
-            <div className="col-span-2"><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Trigger</label>
-              <select value={form.trigger} onChange={e => setForm({ ...form, trigger: e.target.value })} className={inputCls}>
+            <div className="col-span-2"><label htmlFor="workflow-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Workflow Name*</label><input id="workflow-name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputCls} placeholder="e.g. New Lead Welcome Email" /></div>
+            <div className="col-span-2"><label htmlFor="workflow-description" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label><input id="workflow-description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inputCls} /></div>
+            <div className="col-span-2"><label htmlFor="workflow-trigger" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Trigger</label>
+              <select id="workflow-trigger" value={form.trigger} onChange={e => setForm({ ...form, trigger: e.target.value })} className={inputCls}>
                 {TRIGGER_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>

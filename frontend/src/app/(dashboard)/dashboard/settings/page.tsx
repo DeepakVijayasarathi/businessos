@@ -31,7 +31,7 @@ export default function SettingsPage() {
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => api.put('/settings/company', data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company-settings'] }); toast.success('Settings saved!'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['company-settings'] }); toast.success('Settings saved'); },
     onError: () => toast.error('Failed to save settings'),
   });
 
@@ -87,8 +87,9 @@ export default function SettingsPage() {
               { k: 'timezone', l: 'Timezone' }, { k: 'language', l: 'Language' },
             ].map(({ k, l }) => (
               <div key={k}>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
+                <label htmlFor={`company-${k}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
                 <input
+                  id={`company-${k}`}
                   value={companyForm[k] || ''}
                   onChange={e => setCompanyForm({ ...companyForm, [k]: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
@@ -98,9 +99,9 @@ export default function SettingsPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Primary Color</label>
+              <label htmlFor="company-primaryColor" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Primary Color</label>
               <div className="flex items-center gap-3">
-                <input type="color" value={companyForm.primaryColor || '#6366f1'} onChange={e => setCompanyForm({ ...companyForm, primaryColor: e.target.value })} className="w-10 h-10 rounded-lg cursor-pointer border border-gray-200" />
+                <input id="company-primaryColor" type="color" value={companyForm.primaryColor || '#6366f1'} onChange={e => setCompanyForm({ ...companyForm, primaryColor: e.target.value })} className="w-10 h-10 rounded-lg cursor-pointer border border-gray-200" />
                 <input value={companyForm.primaryColor || '#6366f1'} onChange={e => setCompanyForm({ ...companyForm, primaryColor: e.target.value })} className="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
             </div>
@@ -204,13 +205,13 @@ export default function SettingsPage() {
               { k: 'smtpFrom', l: 'From Address', ph: 'noreply@yourdomain.com' },
             ].map(({ k, l, ph }) => (
               <div key={k}>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
-                <input value={companyForm[k] || ''} onChange={e => setCompanyForm({ ...companyForm, [k]: e.target.value })} placeholder={ph} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label htmlFor={`smtp-${k}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
+                <input id={`smtp-${k}`} value={companyForm[k] || ''} onChange={e => setCompanyForm({ ...companyForm, [k]: e.target.value })} placeholder={ph} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
             ))}
             <div className="col-span-2">
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">SMTP Password</label>
-              <input type="password" value={companyForm.smtpPass || ''} onChange={e => setCompanyForm({ ...companyForm, smtpPass: e.target.value })} placeholder="App password..." className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+              <label htmlFor="smtp-smtpPass" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">SMTP Password</label>
+              <input id="smtp-smtpPass" type="password" value={companyForm.smtpPass || ''} onChange={e => setCompanyForm({ ...companyForm, smtpPass: e.target.value })} placeholder="App password..." className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
           <button onClick={() => saveMutation.mutate(companyForm)} disabled={saveMutation.isPending} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
@@ -226,12 +227,12 @@ export default function SettingsPage() {
             <p className="text-xs text-gray-500">Connect your Meta WhatsApp Business account to send campaigns and reply to messages.</p>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">WhatsApp Phone Number</label>
-                <input value={companyForm.whatsappPhone || ''} onChange={e => setCompanyForm({ ...companyForm, whatsappPhone: e.target.value })} placeholder="+1234567890" className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label htmlFor="settings-whatsapp-phone" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">WhatsApp Phone Number</label>
+                <input id="settings-whatsapp-phone" value={companyForm.whatsappPhone || ''} onChange={e => setCompanyForm({ ...companyForm, whatsappPhone: e.target.value })} placeholder="+1234567890" className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">WhatsApp API Key (Permanent Token)</label>
-                <input type="password" value={companyForm.whatsappApiKey || ''} onChange={e => setCompanyForm({ ...companyForm, whatsappApiKey: e.target.value })} placeholder="EAAxxxxxx..." className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label htmlFor="settings-whatsapp-apikey" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">WhatsApp API Key (Permanent Token)</label>
+                <input id="settings-whatsapp-apikey" type="password" value={companyForm.whatsappApiKey || ''} onChange={e => setCompanyForm({ ...companyForm, whatsappApiKey: e.target.value })} placeholder="EAAxxxxxx..." className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
                 <p className="text-xs text-gray-400 mt-1">Generate a Permanent Token from Meta Business Manager → System Users.</p>
               </div>
             </div>

@@ -100,6 +100,7 @@ export default function ReportsPage() {
           <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Monthly Breakdown</h2>
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-gray-100 dark:border-gray-800">
               <tr>
@@ -124,6 +125,7 @@ export default function ReportsPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

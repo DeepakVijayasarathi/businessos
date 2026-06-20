@@ -4,10 +4,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Plus, Star, User, Calendar, TrendingUp, ChevronDown } from 'lucide-react';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 export default function PerformancePage() {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
+  const modalRef = useModalA11y(() => setShowModal(false));
   const [form, setForm] = useState<any>({ employeeId: '', period: '', reviewDate: new Date().toISOString().slice(0, 10), overallRating: '', goals: '', achievements: '', improvements: '', comments: '' });
 
   const { data: reviews, isLoading } = useQuery({
@@ -76,6 +78,7 @@ export default function PerformancePage() {
             <p className="text-gray-400 text-sm mt-1">Create the first review to get started</p>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
@@ -117,21 +120,22 @@ export default function PerformancePage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-card rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 outline-none animate-in fade-in duration-200">
+          <div className="glass-card rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h3 className="font-semibold text-gray-900 dark:text-white">New Performance Review</h3>
             </div>
             <form onSubmit={e => { e.preventDefault(); createMutation.mutate(form); }}>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Employee *</label>
-                  <select required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                  <label htmlFor="review-employeeId" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Employee *</label>
+                  <select id="review-employeeId" required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="">Select employee</option>
                     {employees?.map((emp: any) => (
                       <option key={emp.id} value={emp.id}>{emp.user?.firstName} {emp.user?.lastName}</option>
@@ -144,8 +148,8 @@ export default function PerformancePage() {
                   { k: 'overallRating', l: 'Overall Rating (1-5)', type: 'number', placeholder: '4.5' },
                 ].map(({ k, l, type = 'text', placeholder = '' }) => (
                   <div key={k}>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
-                    <input type={type} step={k === 'overallRating' ? '0.1' : undefined} min={k === 'overallRating' ? '1' : undefined} max={k === 'overallRating' ? '5' : undefined} placeholder={placeholder} value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <label htmlFor={`review-${k}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
+                    <input id={`review-${k}`} type={type} step={k === 'overallRating' ? '0.1' : undefined} min={k === 'overallRating' ? '1' : undefined} max={k === 'overallRating' ? '5' : undefined} placeholder={placeholder} value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
                 ))}
                 {[
@@ -155,8 +159,8 @@ export default function PerformancePage() {
                   { k: 'comments', l: 'Additional Comments' },
                 ].map(({ k, l }) => (
                   <div key={k}>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
-                    <textarea value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+                    <label htmlFor={`review-${k}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
+                    <textarea id={`review-${k}`} value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
                   </div>
                 ))}
               </div>

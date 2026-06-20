@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { formatDateTime } from '@/lib/utils';
 import { Plus, Phone, Mail, Users, MessageSquare, Calendar, CheckSquare, Clock, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 const ACTIVITY_ICONS: Record<string, any> = {
   call: Phone,
@@ -109,32 +110,33 @@ export default function ActivitiesPage() {
 }
 
 function ActivityModal({ onClose }: { onClose: () => void }) {
+  const modalRef = useModalA11y(onClose);
   const qc = useQueryClient();
   const [form, setForm] = useState({ title: '', type: 'call', notes: '', dueDate: '', isCompleted: false });
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/crm/activities', data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['activities'] }); toast.success('Activity logged!'); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['activities'] }); toast.success('Activity logged'); onClose(); },
     onError: () => toast.error('Failed to log activity'),
   });
   const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500";
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-semibold text-gray-900 dark:text-white">Log Activity</h3>
           <button onClick={onClose} className="text-gray-400">✕</button>
         </div>
         <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Title*</label><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className={inputCls} /></div>
+          <div><label htmlFor="activity-title" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Title*</label><input id="activity-title" required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className={inputCls} /></div>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
-              <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className={inputCls}>
+            <div><label htmlFor="activity-type" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+              <select id="activity-type" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className={inputCls}>
                 {Object.keys(ACTIVITY_ICONS).map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label><input type="datetime-local" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className={inputCls} /></div>
+            <div><label htmlFor="activity-dueDate" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label><input id="activity-dueDate" type="datetime-local" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className={inputCls} /></div>
           </div>
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label><textarea rows={4} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className={inputCls + ' resize-none'} /></div>
+          <div><label htmlFor="activity-notes" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label><textarea id="activity-notes" rows={4} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className={inputCls + ' resize-none'} /></div>
           <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.isCompleted} onChange={e => setForm({ ...form, isCompleted: e.target.checked })} className="rounded" /><span className="text-sm text-gray-700 dark:text-gray-300">Mark as completed</span></label>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>

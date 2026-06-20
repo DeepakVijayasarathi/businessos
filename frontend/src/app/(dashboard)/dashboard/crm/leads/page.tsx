@@ -3,8 +3,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatRelativeTime, statusColor } from '@/lib/utils';
-import { Plus, Search, Filter, Mail, Phone, Building2, Star, Trash2, Edit2, UserPlus, Download, Upload, Zap } from 'lucide-react';
+import { Plus, Search, Filter, Mail, Phone, Building2, Star, Trash2, Edit2, UserPlus, Download, Upload, Zap, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 const STATUSES = ['new', 'contacted', 'qualified', 'lost', 'converted'];
 const SOURCES = ['website', 'whatsapp', 'email', 'referral', 'social', 'manual'];
@@ -43,7 +44,7 @@ export default function LeadsPage() {
     try {
       await api.post('/crm/leads/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       qc.invalidateQueries({ queryKey: ['leads'] });
-      toast.success('Leads imported successfully!');
+      toast.success('Leads imported successfully');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Import failed');
     }
@@ -68,7 +69,7 @@ export default function LeadsPage() {
 
   const convertMutation = useMutation({
     mutationFn: (id: string) => api.post(`/crm/leads/${id}/convert`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['leads'] }); toast.success('Lead converted to contact!'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['leads'] }); toast.success('Lead converted to contact'); },
   });
 
   const scoreMutation = useMutation({
@@ -127,14 +128,14 @@ export default function LeadsPage() {
           <Search className="w-4 h-4 text-gray-400" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search leads..."
             className="bg-transparent text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 outline-none flex-1"
           />
         </div>
         <select
           value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
+          onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
           className="px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200 outline-none"
         >
           <option value="">All Statuses</option>
@@ -146,17 +147,27 @@ export default function LeadsPage() {
           {STATUSES.map(s => (
             <button
               key={s}
-              onClick={() => setStatusFilter(s === statusFilter ? '' : s)}
+              onClick={() => { setStatusFilter(s === statusFilter ? '' : s); setPage(1); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${statusFilter === s ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
             >
               {s}
             </button>
           ))}
         </div>
+
+        {(search || statusFilter) && (
+          <button
+            onClick={() => { setSearch(''); setStatusFilter(''); setPage(1); }}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+          >
+            <X className="w-3.5 h-3.5" /> Clear filters
+          </button>
+        )}
       </div>
 
       {/* Table */}
       <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700">
@@ -273,6 +284,7 @@ export default function LeadsPage() {
             ))}
           </tbody>
         </table>
+        </div>
 
         {/* Pagination */}
         {data?.meta && data.meta.totalPages > 1 && (
@@ -296,6 +308,7 @@ export default function LeadsPage() {
 }
 
 function LeadModal({ lead, onClose }: { lead: any; onClose: () => void }) {
+  const modalRef = useModalA11y(onClose);
   const qc = useQueryClient();
   const [form, setForm] = useState({
     firstName: lead?.firstName || '',
@@ -322,8 +335,8 @@ function LeadModal({ lead, onClose }: { lead: any; onClose: () => void }) {
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); mutation.mutate(form); };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-lg shadow-2xl">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-semibold text-gray-900 dark:text-white">{lead ? 'Edit Lead' : 'Add New Lead'}</h3>
           <button onClick={onClose} aria-label="Close dialog" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
@@ -339,8 +352,9 @@ function LeadModal({ lead, onClose }: { lead: any; onClose: () => void }) {
               { k: 'jobTitle', l: 'Job Title' },
             ].map(({ k, l, t, r }) => (
               <div key={k}>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
+                <label htmlFor={`lead-${k}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
                 <input
+                  id={`lead-${k}`}
                   type={t || 'text'}
                   required={r}
                   value={form[k as keyof typeof form]}
@@ -352,21 +366,21 @@ function LeadModal({ lead, onClose }: { lead: any; onClose: () => void }) {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label>
-              <select value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none">
+              <label htmlFor="lead-source" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label>
+              <select id="lead-source" value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none">
                 {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-              <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none">
+              <label htmlFor="lead-status" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+              <select id="lead-status" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none">
                 {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
-            <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+            <label htmlFor="lead-notes" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+            <textarea id="lead-notes" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>

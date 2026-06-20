@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { formatDate, statusColor } from '@/lib/utils';
 import { Plus, Search, Mail, Phone, Building2, UserSquare, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 export default function EmployeesPage() {
   const [search, setSearch] = useState('');
@@ -110,6 +111,7 @@ export default function EmployeesPage() {
               <p>No departments yet</p>
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
@@ -144,6 +146,7 @@ export default function EmployeesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}
@@ -156,23 +159,24 @@ export default function EmployeesPage() {
 
 function DepartmentModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
+  const modalRef = useModalA11y(onClose);
   const [form, setForm] = useState({ name: '', description: '' });
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/hr/departments', data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['departments'] }); toast.success('Department created!'); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['departments'] }); toast.success('Department created'); onClose(); },
     onError: () => toast.error('Failed to create department'),
   });
   const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500";
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-semibold text-gray-900 dark:text-white">Add Department</h3>
           <button onClick={onClose} className="text-gray-400">✕</button>
         </div>
         <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Name*</label><input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputCls} /></div>
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label><textarea rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inputCls + ' resize-none'} /></div>
+          <div><label htmlFor="dept-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Name*</label><input id="dept-name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputCls} /></div>
+          <div><label htmlFor="dept-description" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label><textarea id="dept-description" rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inputCls + ' resize-none'} /></div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
             <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Creating...' : 'Create'}</button>
@@ -185,32 +189,33 @@ function DepartmentModal({ onClose }: { onClose: () => void }) {
 
 function EmployeeModal({ departments, onClose }: { departments: any[]; onClose: () => void }) {
   const qc = useQueryClient();
+  const modalRef = useModalA11y(onClose);
   const [form, setForm] = useState({ userId: '', employeeCode: `EMP${Date.now()}`, departmentId: '', jobTitle: '', jobType: 'full_time', status: 'active', startDate: new Date().toISOString().split('T')[0], salary: '' });
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/hr/employees', data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['employees'] }); toast.success('Employee added!'); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['employees'] }); toast.success('Employee added'); onClose(); },
     onError: () => toast.error('Failed to add employee'),
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-lg shadow-2xl">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-semibold text-gray-900 dark:text-white">Add Employee</h3>
           <button onClick={onClose} className="text-gray-400">✕</button>
         </div>
         <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Employee Code</label><input value={form.employeeCode} onChange={e => setForm({ ...form, employeeCode: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Job Title</label><input value={form.jobTitle} onChange={e => setForm({ ...form, jobTitle: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label><select value={form.departmentId} onChange={e => setForm({ ...form, departmentId: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none"><option value="">Select department</option>{departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Job Type</label><select value={form.jobType} onChange={e => setForm({ ...form, jobType: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none">{['full_time', 'part_time', 'contract', 'intern'].map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}</select></div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date*</label><input type="date" required value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Salary</label><input type="number" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} placeholder="0.00" className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+            <div><label htmlFor="emp-employeeCode" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Employee Code</label><input id="emp-employeeCode" value={form.employeeCode} onChange={e => setForm({ ...form, employeeCode: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+            <div><label htmlFor="emp-jobTitle" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Job Title</label><input id="emp-jobTitle" value={form.jobTitle} onChange={e => setForm({ ...form, jobTitle: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+            <div><label htmlFor="emp-departmentId" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label><select id="emp-departmentId" value={form.departmentId} onChange={e => setForm({ ...form, departmentId: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none"><option value="">Select department</option>{departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div>
+            <div><label htmlFor="emp-jobType" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Job Type</label><select id="emp-jobType" value={form.jobType} onChange={e => setForm({ ...form, jobType: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none">{['full_time', 'part_time', 'contract', 'intern'].map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}</select></div>
+            <div><label htmlFor="emp-startDate" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date*</label><input id="emp-startDate" type="date" required value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+            <div><label htmlFor="emp-salary" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Salary</label><input id="emp-salary" type="number" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} placeholder="0.00" className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
           </div>
           <p className="text-xs text-gray-500">Note: Employee must have an existing user account. Enter the user ID below.</p>
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">User ID*</label><input required value={form.userId} onChange={e => setForm({ ...form, userId: e.target.value })} placeholder="User UUID" className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+          <div><label htmlFor="emp-userId" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">User ID*</label><input id="emp-userId" required value={form.userId} onChange={e => setForm({ ...form, userId: e.target.value })} placeholder="User UUID" className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
             <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Adding...' : 'Add Employee'}</button>

@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { formatCurrency, formatDate, statusColor } from '@/lib/utils';
 import { Plus, Send, CheckCircle2, FileText, DollarSign, Clock, AlertCircle, FileDown } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState('');
@@ -27,12 +28,12 @@ export default function InvoicesPage() {
 
   const sendMutation = useMutation({
     mutationFn: (id: string) => api.post(`/finance/invoices/${id}/send`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); toast.success('Invoice sent!'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); toast.success('Invoice sent'); },
   });
 
   const markPaidMutation = useMutation({
     mutationFn: (id: string) => api.post(`/finance/invoices/${id}/mark-paid`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); toast.success('Invoice marked as paid!'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['invoices'] }); toast.success('Invoice marked as paid'); },
   });
 
   return (
@@ -73,6 +74,7 @@ export default function InvoicesPage() {
 
       {/* Table */}
       <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700">
@@ -135,6 +137,7 @@ export default function InvoicesPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {showModal && <InvoiceModal onClose={() => setShowModal(false)} />}
@@ -144,6 +147,7 @@ export default function InvoicesPage() {
 
 function InvoiceModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
+  const modalRef = useModalA11y(onClose);
   const [form, setForm] = useState({ clientName: '', clientEmail: '', dueDate: '', items: [{ description: '', qty: 1, rate: 0, amount: 0 }], notes: '' });
 
   const subtotal = form.items.reduce((s, i) => s + (i.qty * i.rate), 0);
@@ -162,8 +166,8 @@ function InvoiceModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-semibold text-gray-900 dark:text-white">New Invoice</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
@@ -178,9 +182,9 @@ function InvoiceModal({ onClose }: { onClose: () => void }) {
           className="p-6 space-y-5"
         >
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Client Name*</label><input required value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Client Email</label><input type="email" value={form.clientEmail} onChange={e => setForm({ ...form, clientEmail: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label><input type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+            <div><label htmlFor="invoice-clientName" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Client Name*</label><input id="invoice-clientName" required value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+            <div><label htmlFor="invoice-clientEmail" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Client Email</label><input id="invoice-clientEmail" type="email" value={form.clientEmail} onChange={e => setForm({ ...form, clientEmail: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
+            <div><label htmlFor="invoice-dueDate" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label><input id="invoice-dueDate" type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
           </div>
 
           {/* Line items */}

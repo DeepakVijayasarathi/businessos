@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { FileText, Plus, Download, DollarSign } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -63,6 +64,7 @@ export default function PayrollPage() {
           <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Payslips — {MONTHS[month - 1]} {year}</h2>
           <span className="text-xs text-gray-400">{payslips?.data?.length || 0} records</span>
         </div>
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="border-b border-gray-100 dark:border-gray-800">
             <tr>
@@ -121,6 +123,7 @@ export default function PayrollPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {showGenModal && <GenerateModal month={month} year={year} onClose={() => setShowGenModal(false)} />}
@@ -130,15 +133,16 @@ export default function PayrollPage() {
 
 function GenerateModal({ month, year, onClose }: { month: number; year: number; onClose: () => void }) {
   const qc = useQueryClient();
+  const modalRef = useModalA11y(onClose);
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/hr/attendance/payslips/generate', data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payslips'] }); toast.success('Payslips generated!'); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payslips'] }); toast.success('Payslips generated'); onClose(); },
     onError: () => toast.error('Failed to generate payslips'),
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-sm shadow-2xl p-6">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-sm shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
         <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Generate Payslips</h3>
         <p className="text-sm text-gray-500 mb-6">This will generate payslips for all active employees for {MONTHS[month - 1]} {year}.</p>
         <div className="flex gap-3">

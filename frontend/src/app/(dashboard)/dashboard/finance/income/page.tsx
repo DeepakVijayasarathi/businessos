@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { Plus, TrendingUp, DollarSign } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 const CATEGORIES = ['sales', 'services', 'consulting', 'rental', 'investment', 'other'];
 
@@ -45,6 +46,7 @@ export default function IncomePage() {
       </div>
 
       <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="border-b border-gray-100 dark:border-gray-800">
             <tr>
@@ -81,6 +83,7 @@ export default function IncomePage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {showModal && <IncomeModal onClose={() => setShowModal(false)} />}
@@ -90,32 +93,33 @@ export default function IncomePage() {
 
 function IncomeModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
+  const modalRef = useModalA11y(onClose);
   const [form, setForm] = useState({ description: '', amount: '', category: 'sales', date: new Date().toISOString().split('T')[0], source: '' });
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/finance/income', { ...data, amount: parseFloat(data.amount) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['income'] }); toast.success('Income recorded!'); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['income'] }); toast.success('Income recorded'); onClose(); },
     onError: () => toast.error('Failed to record income'),
   });
   const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-green-500";
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-semibold text-gray-900 dark:text-white">Record Income</h3>
           <button onClick={onClose} className="text-gray-400">✕</button>
         </div>
         <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description*</label><input required value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inputCls} /></div>
+          <div><label htmlFor="income-description" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description*</label><input id="income-description" required value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inputCls} /></div>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Amount*</label><input required type="number" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="0.00" className={inputCls} /></div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label><input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className={inputCls} /></div>
+            <div><label htmlFor="income-amount" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Amount*</label><input id="income-amount" required type="number" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="0.00" className={inputCls} /></div>
+            <div><label htmlFor="income-date" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label><input id="income-date" type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className={inputCls} /></div>
           </div>
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
-            <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className={inputCls}>
+          <div><label htmlFor="income-category" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+            <select id="income-category" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className={inputCls}>
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label><input value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} placeholder="Customer name, invoice #, etc." className={inputCls} /></div>
+          <div><label htmlFor="income-source" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label><input id="income-source" value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} placeholder="Customer name, invoice #, etc." className={inputCls} /></div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
             <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-green-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Recording...' : 'Record'}</button>

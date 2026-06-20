@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { formatDateTime } from '@/lib/utils';
 import { Plus, Send, MessageSquare, Users, Search, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 export default function WhatsAppPage() {
   const [tab, setTab] = useState<'messages' | 'campaigns' | 'templates'>('messages');
@@ -35,13 +36,13 @@ export default function WhatsAppPage() {
 
   const sendMutation = useMutation({
     mutationFn: ({ to, message }: any) => api.post('/whatsapp/send', { to, message }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['wa-messages', selectedPhone] }); setMessage(''); toast.success('Message sent!'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['wa-messages', selectedPhone] }); setMessage(''); toast.success('Message sent'); },
     onError: () => toast.error('Failed to send message'),
   });
 
   const sendCampaign = useMutation({
     mutationFn: (id: string) => api.post(`/whatsapp/campaigns/${id}/send`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['wa-campaigns'] }); toast.success('Campaign sent!'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['wa-campaigns'] }); toast.success('Campaign sent'); },
     onError: () => toast.error('Failed to send campaign'),
   });
 
@@ -169,28 +170,29 @@ export default function WhatsAppPage() {
 
 function TemplateModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
+  const modalRef = useModalA11y(onClose);
   const [form, setForm] = useState({ name: '', content: '', category: 'marketing', language: 'en' });
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/whatsapp/templates', data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['wa-templates'] }); toast.success('Template created!'); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['wa-templates'] }); toast.success('Template created'); onClose(); },
     onError: () => toast.error('Failed to create template'),
   });
   const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-green-500";
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-semibold text-gray-900 dark:text-white">New Template</h3>
           <button onClick={onClose} className="text-gray-400">✕</button>
         </div>
         <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Template Name*</label><input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputCls} /></div>
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
-            <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className={inputCls}>
+          <div><label htmlFor="whatsapp-template-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Template Name*</label><input id="whatsapp-template-name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputCls} /></div>
+          <div><label htmlFor="whatsapp-template-category" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+            <select id="whatsapp-template-category" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className={inputCls}>
               {['marketing', 'utility', 'authentication'].map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Content* (use {'{{1}}'} for variables)</label><textarea required rows={5} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} className={inputCls + ' resize-none font-mono text-xs'} /></div>
+          <div><label htmlFor="whatsapp-template-content" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Content* (use {'{{1}}'} for variables)</label><textarea id="whatsapp-template-content" required rows={5} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} className={inputCls + ' resize-none font-mono text-xs'} /></div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
             <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-green-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Creating...' : 'Create'}</button>
@@ -203,29 +205,30 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
 
 function CampaignModal({ templates, onClose }: { templates: any[]; onClose: () => void }) {
   const qc = useQueryClient();
+  const modalRef = useModalA11y(onClose);
   const [form, setForm] = useState({ name: '', templateId: templates[0]?.id || '', recipients: '' });
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/whatsapp/campaigns', { ...data, recipients: data.recipients.split('\n').filter(Boolean) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['wa-campaigns'] }); toast.success('Campaign created!'); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['wa-campaigns'] }); toast.success('Campaign created'); onClose(); },
     onError: () => toast.error('Failed to create campaign'),
   });
   const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-green-500";
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-semibold text-gray-900 dark:text-white">New Campaign</h3>
           <button onClick={onClose} className="text-gray-400">✕</button>
         </div>
         <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Campaign Name*</label><input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputCls} /></div>
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Template</label>
-            <select value={form.templateId} onChange={e => setForm({ ...form, templateId: e.target.value })} className={inputCls}>
+          <div><label htmlFor="whatsapp-campaign-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Campaign Name*</label><input id="whatsapp-campaign-name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputCls} /></div>
+          <div><label htmlFor="whatsapp-campaign-template" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Template</label>
+            <select id="whatsapp-campaign-template" value={form.templateId} onChange={e => setForm({ ...form, templateId: e.target.value })} className={inputCls}>
               <option value="">No template</option>
               {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
-          <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Recipients (one phone per line)</label><textarea rows={5} value={form.recipients} onChange={e => setForm({ ...form, recipients: e.target.value })} placeholder="+1234567890&#10;+0987654321" className={inputCls + ' resize-none font-mono text-xs'} /></div>
+          <div><label htmlFor="whatsapp-campaign-recipients" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Recipients (one phone per line)</label><textarea id="whatsapp-campaign-recipients" rows={5} value={form.recipients} onChange={e => setForm({ ...form, recipients: e.target.value })} placeholder="+1234567890&#10;+0987654321" className={inputCls + ' resize-none font-mono text-xs'} /></div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
             <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-green-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Creating...' : 'Create'}</button>

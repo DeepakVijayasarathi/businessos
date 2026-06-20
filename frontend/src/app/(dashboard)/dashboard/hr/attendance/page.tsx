@@ -31,13 +31,13 @@ export default function AttendancePage() {
 
   const checkInMutation = useMutation({
     mutationFn: () => api.post('/hr/attendance/check-in'),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['attendance'] }); qc.invalidateQueries({ queryKey: ['attendance-today'] }); toast.success('Checked in!'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['attendance'] }); qc.invalidateQueries({ queryKey: ['attendance-today'] }); toast.success('Checked in'); },
     onError: () => toast.error('Already checked in'),
   });
 
   const checkOutMutation = useMutation({
     mutationFn: () => api.post('/hr/attendance/check-out'),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['attendance'] }); qc.invalidateQueries({ queryKey: ['attendance-today'] }); toast.success('Checked out!'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['attendance'] }); qc.invalidateQueries({ queryKey: ['attendance-today'] }); toast.success('Checked out'); },
     onError: () => toast.error('No active check-in'),
   });
 
@@ -107,6 +107,7 @@ export default function AttendancePage() {
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Monthly Record</h2>
         </div>
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-100 dark:border-gray-800">
@@ -141,6 +142,7 @@ export default function AttendancePage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

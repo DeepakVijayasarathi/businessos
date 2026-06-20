@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { Upload, FolderPlus, Folder, FileText, Download, Trash2, ChevronRight, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -68,7 +69,7 @@ export default function DocumentsPage() {
       if (folderId) fd.append('folderId', folderId);
       return api.post('/documents/upload-multiple', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['documents'] }); toast.success('Files uploaded!'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['documents'] }); toast.success('Files uploaded'); },
     onError: () => toast.error('Upload failed'),
   });
 
@@ -155,7 +156,14 @@ export default function DocumentsPage() {
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Folders</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {folders.map((folder: any) => (
-              <div key={folder.id} className="glass-card rounded-xl p-4 cursor-pointer hover:shadow-md transition-all group relative" onDoubleClick={() => openFolder(folder.id, folder.name)}>
+              <div
+                key={folder.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openFolder(folder.id, folder.name)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFolder(folder.id, folder.name); } }}
+                className="glass-card rounded-xl p-4 cursor-pointer hover:shadow-md transition-all group relative focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              >
                 <Folder className="w-8 h-8 text-yellow-400 mb-2" />
                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{folder.name}</p>
                 <p className="text-xs text-gray-400">{folder._count?.documents || 0} files</p>
@@ -172,6 +180,7 @@ export default function DocumentsPage() {
       <div>
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Files</h2>
         <div className="glass-card rounded-2xl overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-gray-100 dark:border-gray-800">
               <tr>
@@ -207,6 +216,7 @@ export default function DocumentsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
@@ -216,16 +226,17 @@ export default function DocumentsPage() {
 }
 
 function FolderModal({ parentId, onClose }: { parentId: string | null; onClose: () => void }) {
+  const modalRef = useModalA11y(onClose);
   const qc = useQueryClient();
   const [name, setName] = useState('');
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/documents/folders', data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['folders'] }); toast.success('Folder created!'); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['folders'] }); toast.success('Folder created'); onClose(); },
     onError: () => toast.error('Failed to create folder'),
   });
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-sm shadow-2xl">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-semibold text-gray-900 dark:text-white">New Folder</h3>
           <button onClick={onClose} className="text-gray-400">✕</button>

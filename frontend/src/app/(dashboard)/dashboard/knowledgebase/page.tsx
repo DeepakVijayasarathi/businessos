@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { Plus, Search, BookOpen, Eye, ThumbsUp, ThumbsDown, ChevronRight, X, Edit, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 export default function KnowledgeBasePage() {
   const [categoryId, setCategoryId] = useState('');
@@ -94,7 +95,14 @@ export default function KnowledgeBasePage() {
                   <p>No articles found</p>
                 </div>
               ) : articles?.data?.map((article: any) => (
-                <div key={article.id} className="glass-card rounded-2xl p-5 cursor-pointer hover:shadow-md transition-all" onClick={() => setSelectedArticle(article)}>
+                <div
+                  key={article.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedArticle(article)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedArticle(article); } }}
+                  className="glass-card rounded-2xl p-5 cursor-pointer hover:shadow-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1 group-hover:text-indigo-600">{article.title}</h3>
@@ -155,6 +163,7 @@ function ArticleView({ article, onBack, onFeedback, onEdit, onDelete }: any) {
 
 function ArticleModal({ article, categories, onClose }: { article: any; categories: any[]; onClose: () => void }) {
   const qc = useQueryClient();
+  const modalRef = useModalA11y(onClose);
   const [form, setForm] = useState({
     title: article?.title || '',
     content: article?.content || '',
@@ -169,38 +178,38 @@ function ArticleModal({ article, categories, onClose }: { article: any; categori
       const payload = { ...data, tags: data.tags ? data.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [] };
       return article ? api.put(`/knowledgebase/articles/${article.id}`, payload) : api.post('/knowledgebase/articles', payload);
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['kb-articles'] }); toast.success(article ? 'Article updated!' : 'Article created!'); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['kb-articles'] }); toast.success(article ? 'Article updated' : 'Article created'); onClose(); },
     onError: () => toast.error('Failed to save article'),
   });
 
   const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500";
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-semibold text-gray-900 dark:text-white">{article ? 'Edit' : 'New'} Article</h3>
           <button onClick={onClose} className="text-gray-400">✕</button>
         </div>
         <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Title*</label><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className={inputCls} /></div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Excerpt</label><input value={form.excerpt} onChange={e => setForm({ ...form, excerpt: e.target.value })} className={inputCls} /></div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Content*</label><textarea required rows={10} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} className={inputCls + ' resize-none font-mono text-xs'} /></div>
+            <div><label htmlFor="article-title" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Title*</label><input id="article-title" required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className={inputCls} /></div>
+            <div><label htmlFor="article-excerpt" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Excerpt</label><input id="article-excerpt" value={form.excerpt} onChange={e => setForm({ ...form, excerpt: e.target.value })} className={inputCls} /></div>
+            <div><label htmlFor="article-content" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Content*</label><textarea id="article-content" required rows={10} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} className={inputCls + ' resize-none font-mono text-xs'} /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
-                <select value={form.categoryId} onChange={e => setForm({ ...form, categoryId: e.target.value })} className={inputCls}>
+              <div><label htmlFor="article-category" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+                <select id="article-category" value={form.categoryId} onChange={e => setForm({ ...form, categoryId: e.target.value })} className={inputCls}>
                   <option value="">No category</option>
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
-              <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className={inputCls}>
+              <div><label htmlFor="article-status" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                <select id="article-status" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className={inputCls}>
                   {['draft', 'published', 'archived'].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
             </div>
-            <div><label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Tags (comma separated)</label><input value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} className={inputCls} placeholder="setup, billing, account" /></div>
+            <div><label htmlFor="article-tags" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Tags (comma separated)</label><input id="article-tags" value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} className={inputCls} placeholder="setup, billing, account" /></div>
           </div>
           <div className="flex gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>

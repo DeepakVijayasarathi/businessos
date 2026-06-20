@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { formatRelativeTime, statusColor, priorityColor } from '@/lib/utils';
 import { Plus, Search, MessageSquare, Clock, CheckCircle2, AlertTriangle, Brain, X, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 export default function HelpdeskPage() {
   const [search, setSearch] = useState('');
@@ -102,6 +103,14 @@ export default function HelpdeskPage() {
           <option value="">All Priorities</option>
           {['low', 'medium', 'high', 'urgent'].map(p => <option key={p} value={p}>{p}</option>)}
         </select>
+        {(statusFilter || priorityFilter) && (
+          <button
+            onClick={() => { setStatusFilter(''); setPriorityFilter(''); }}
+            className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 flex-shrink-0"
+          >
+            <X className="w-3.5 h-3.5" /> Clear filters
+          </button>
+        )}
       </div>
 
       {/* Tickets */}
@@ -116,8 +125,11 @@ export default function HelpdeskPage() {
         ) : data?.data?.map((ticket: any) => (
           <div
             key={ticket.id}
+            role="button"
+            tabIndex={0}
             onClick={() => setSelectedTicket(ticket)}
-            className="glass-card rounded-xl p-5 cursor-pointer hover:shadow-lg transition-all"
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedTicket(ticket); } }}
+            className="glass-card rounded-xl p-5 cursor-pointer hover:shadow-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
             <div className="flex items-start gap-4">
               <div className={`mt-0.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${ticket.priority === 'urgent' ? 'bg-red-500' : ticket.priority === 'high' ? 'bg-orange-500' : ticket.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'}`} />
@@ -182,7 +194,7 @@ export default function HelpdeskPage() {
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-xs font-medium text-indigo-600">Suggested Reply</p>
                     <button
-                      onClick={() => { navigator.clipboard.writeText(triageResult.suggestedReply); toast.success('Copied!'); }}
+                      onClick={() => { navigator.clipboard.writeText(triageResult.suggestedReply); toast.success('Copied'); }}
                       className="text-xs text-indigo-600 hover:underline"
                     >
                       Copy
@@ -201,6 +213,7 @@ export default function HelpdeskPage() {
 
 function NewTicketModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
+  const modalRef = useModalA11y(onClose);
   const [form, setForm] = useState({ subject: '', description: '', priority: 'medium', source: 'web' });
 
   const mutation = useMutation({
@@ -210,31 +223,31 @@ function NewTicketModal({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-lg shadow-2xl">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-semibold text-gray-900 dark:text-white">New Support Ticket</h3>
           <button onClick={onClose} aria-label="Close dialog" className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
         <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Subject*</label>
-            <input required value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="Brief description of the issue" className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
+            <label htmlFor="ticket-subject" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Subject*</label>
+            <input id="ticket-subject" required value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="Brief description of the issue" className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-            <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={4} placeholder="Detailed description..." className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+            <label htmlFor="ticket-description" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+            <textarea id="ticket-description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={4} placeholder="Detailed description..." className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
-              <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none">
+              <label htmlFor="ticket-priority" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
+              <select id="ticket-priority" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none">
                 {['low', 'medium', 'high', 'urgent'].map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label>
-              <select value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none">
+              <label htmlFor="ticket-source" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label>
+              <select id="ticket-source" value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none">
                 {['web', 'email', 'whatsapp', 'phone'].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
@@ -253,6 +266,7 @@ function NewTicketModal({ onClose }: { onClose: () => void }) {
 
 function TicketDetailModal({ ticket, onClose }: { ticket: any; onClose: () => void }) {
   const qc = useQueryClient();
+  const modalRef = useModalA11y(onClose);
   const [comment, setComment] = useState('');
 
   const { data } = useQuery({
@@ -276,8 +290,8 @@ function TicketDetailModal({ ticket, onClose }: { ticket: any; onClose: () => vo
   const t = data || ticket;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
+    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
+      <div className="glass-card rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div>
             <div className="flex items-center gap-2 mb-1">

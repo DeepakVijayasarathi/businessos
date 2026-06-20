@@ -1,5 +1,5 @@
 'use client';
-import { Bell, Search, Sun, Moon, LogOut, User, Settings, X, CheckCheck, ExternalLink } from 'lucide-react';
+import { Bell, Search, Sun, Moon, LogOut, User, Settings, X, CheckCheck, ExternalLink, Menu } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuthStore } from '@/store/auth.store';
 import { useRouter } from 'next/navigation';
@@ -13,7 +13,11 @@ import toast from 'react-hot-toast';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false });
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuthStore();
   const router = useRouter();
@@ -96,20 +100,36 @@ export function Header() {
 
   return (
     <>
-      <header className="h-16 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex items-center justify-between px-6 flex-shrink-0 z-40 relative">
+      <header className="h-16 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex items-center justify-between px-4 md:px-6 flex-shrink-0 z-40 relative gap-2">
+        <button
+          onClick={onMenuClick}
+          aria-label="Open menu"
+          className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors md:hidden flex-shrink-0"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
         <div className="flex-1" />
 
-        {/* Search trigger */}
+        {/* Search trigger — full bar on desktop, icon-only on mobile */}
         <button
           onClick={() => setShowSearch(true)}
+          aria-label="Search"
           className="hidden md:flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-2 w-64 text-left hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
         >
           <Search className="w-4 h-4 text-gray-400" />
           <span className="text-sm text-gray-400 flex-1">Search... </span>
           <kbd className="text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-1.5 py-0.5 text-gray-400">⌘K</kbd>
         </button>
+        <button
+          onClick={() => setShowSearch(true)}
+          aria-label="Search"
+          className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors flex-shrink-0"
+        >
+          <Search className="w-4 h-4" />
+        </button>
 
-        <div className="flex items-center gap-2 ml-4">
+        <div className="flex items-center gap-2 ml-2 md:ml-4">
           {/* Theme */}
           <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors">
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -131,7 +151,7 @@ export function Header() {
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 top-11 w-96 glass-card rounded-2xl shadow-2xl z-50 overflow-hidden">
+              <div className="fixed left-4 right-4 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-11 sm:w-96 glass-card rounded-2xl shadow-2xl z-50 overflow-hidden">
                 <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                   <h3 className="font-semibold text-sm text-gray-900 dark:text-white">Notifications {unreadCount > 0 && <span className="ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{unreadCount}</span>}</h3>
                   <div className="flex items-center gap-2">
