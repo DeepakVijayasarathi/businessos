@@ -3,6 +3,7 @@ const prisma = require('../../../config/prisma');
 const { authenticate, sameCompany } = require('../../../middleware/auth');
 const { success, created, paginated, notFound } = require('../../../utils/response');
 const { paginate, paginateMeta } = require('../../../utils/helpers');
+const { auditLog } = require('../../../middleware/audit');
 
 router.use(authenticate, sameCompany);
 
@@ -74,7 +75,7 @@ router.get('/kanban/:pipelineId', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/deals', async (req, res, next) => {
+router.post('/deals', auditLog('crm.deals', 'deal'), async (req, res, next) => {
   try {
     const deal = await prisma.deal.create({
       data: { ...req.body, companyId: req.companyId },
@@ -84,7 +85,7 @@ router.post('/deals', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.put('/deals/:id', async (req, res, next) => {
+router.put('/deals/:id', auditLog('crm.deals', 'deal'), async (req, res, next) => {
   try {
     const deal = await prisma.deal.update({
       where: { id: req.params.id },
@@ -95,7 +96,7 @@ router.put('/deals/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.put('/deals/:id/move', async (req, res, next) => {
+router.put('/deals/:id/move', auditLog('crm.deals', 'deal'), async (req, res, next) => {
   try {
     const { stageId } = req.body;
     const deal = await prisma.deal.update({
@@ -107,7 +108,7 @@ router.put('/deals/:id/move', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.delete('/deals/:id', async (req, res, next) => {
+router.delete('/deals/:id', auditLog('crm.deals', 'deal'), async (req, res, next) => {
   try {
     await prisma.deal.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Deal deleted');
@@ -131,21 +132,21 @@ router.get('/companies', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/companies', async (req, res, next) => {
+router.post('/companies', auditLog('crm.companies', 'crmCompany'), async (req, res, next) => {
   try {
     const company = await prisma.crmCompany.create({ data: { ...req.body, companyId: req.companyId } });
     return created(res, company, 'Company created');
   } catch (err) { next(err); }
 });
 
-router.put('/companies/:id', async (req, res, next) => {
+router.put('/companies/:id', auditLog('crm.companies', 'crmCompany'), async (req, res, next) => {
   try {
     const company = await prisma.crmCompany.update({ where: { id: req.params.id }, data: req.body });
     return success(res, company, 'Company updated');
   } catch (err) { next(err); }
 });
 
-router.delete('/companies/:id', async (req, res, next) => {
+router.delete('/companies/:id', auditLog('crm.companies', 'crmCompany'), async (req, res, next) => {
   try {
     await prisma.crmCompany.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Company deleted');

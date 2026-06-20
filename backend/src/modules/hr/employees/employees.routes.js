@@ -3,6 +3,7 @@ const prisma = require('../../../config/prisma');
 const { authenticate, sameCompany } = require('../../../middleware/auth');
 const { success, created, paginated, notFound } = require('../../../utils/response');
 const { paginate, paginateMeta } = require('../../../utils/helpers');
+const { auditLog } = require('../../../middleware/audit');
 
 router.use(authenticate, sameCompany);
 
@@ -53,7 +54,7 @@ router.get('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', auditLog('hr.employees', 'employee'), async (req, res, next) => {
   try {
     const employee = await prisma.employee.create({
       data: { ...req.body, companyId: req.companyId },
@@ -63,7 +64,7 @@ router.post('/', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', auditLog('hr.employees', 'employee'), async (req, res, next) => {
   try {
     const employee = await prisma.employee.update({ where: { id: req.params.id }, data: req.body });
     return success(res, employee, 'Employee updated');

@@ -4,6 +4,7 @@ import api from '@/lib/api';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Briefcase, Headphones, FileText, Phone, Mail, Calendar, MessageSquare, User, Building2, Star } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/utils';
+import ActivityTimeline from '@/components/ActivityTimeline';
 
 const iconMap: Record<string, any> = {
   Briefcase, Headphones, FileText, Phone, Mail, Calendar, MessageSquare, User,
@@ -128,6 +129,9 @@ export default function ContactTimelinePage() {
               </div>
             )}
           </div>
+
+          {/* Record edit history (audit trail) */}
+          {contact && <ActivityTimeline module="crm.contacts" resourceId={contact.id} />}
         </>
       )}
     </div>

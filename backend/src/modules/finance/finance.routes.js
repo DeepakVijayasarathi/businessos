@@ -4,6 +4,7 @@ const { authenticate, sameCompany } = require('../../middleware/auth');
 const { success, created, paginated, notFound, error } = require('../../utils/response');
 const { paginate, paginateMeta, generateNumber } = require('../../utils/helpers');
 const emailService = require('../../services/email.service');
+const { auditLog } = require('../../middleware/audit');
 
 router.use(authenticate, sameCompany);
 
@@ -50,7 +51,7 @@ router.get('/invoices/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/invoices', async (req, res, next) => {
+router.post('/invoices', auditLog('finance.invoices', 'invoice'), async (req, res, next) => {
   try {
     const count = await prisma.invoice.count({ where: { companyId: req.companyId } });
     const invoiceNo = generateNumber('INV', count + 1);
@@ -61,14 +62,14 @@ router.post('/invoices', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.put('/invoices/:id', async (req, res, next) => {
+router.put('/invoices/:id', auditLog('finance.invoices', 'invoice'), async (req, res, next) => {
   try {
     const invoice = await prisma.invoice.update({ where: { id: req.params.id }, data: req.body });
     return success(res, invoice, 'Invoice updated');
   } catch (err) { next(err); }
 });
 
-router.post('/invoices/:id/send', async (req, res, next) => {
+router.post('/invoices/:id/send', auditLog('finance.invoices', 'invoice'), async (req, res, next) => {
   try {
     const invoice = await prisma.invoice.update({
       where: { id: req.params.id },
@@ -85,7 +86,7 @@ router.post('/invoices/:id/send', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/invoices/:id/mark-paid', async (req, res, next) => {
+router.post('/invoices/:id/mark-paid', auditLog('finance.invoices', 'invoice'), async (req, res, next) => {
   try {
     const invoice = await prisma.invoice.update({
       where: { id: req.params.id },

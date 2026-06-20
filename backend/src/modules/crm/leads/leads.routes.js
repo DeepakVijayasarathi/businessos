@@ -5,6 +5,7 @@ const { success, created, paginated, notFound, error } = require('../../../utils
 const { paginate, paginateMeta } = require('../../../utils/helpers');
 const notificationService = require('../../../services/notification.service');
 const { callAI } = require('../../../services/ai.service');
+const { auditLog } = require('../../../middleware/audit');
 
 router.use(authenticate, sameCompany);
 
@@ -64,7 +65,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST /crm/leads
-router.post('/', async (req, res, next) => {
+router.post('/', auditLog('crm.leads', 'lead'), async (req, res, next) => {
   try {
     const lead = await prisma.lead.create({
       data: { ...req.body, companyId: req.companyId },
@@ -83,7 +84,7 @@ router.post('/', async (req, res, next) => {
 });
 
 // PUT /crm/leads/:id
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', auditLog('crm.leads', 'lead'), async (req, res, next) => {
   try {
     const lead = await prisma.lead.update({
       where: { id: req.params.id },
@@ -94,7 +95,7 @@ router.put('/:id', async (req, res, next) => {
 });
 
 // DELETE /crm/leads/:id
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', auditLog('crm.leads', 'lead'), async (req, res, next) => {
   try {
     await prisma.lead.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Lead deleted');
@@ -102,7 +103,7 @@ router.delete('/:id', async (req, res, next) => {
 });
 
 // POST /crm/leads/:id/convert
-router.post('/:id/convert', async (req, res, next) => {
+router.post('/:id/convert', auditLog('crm.leads', 'lead'), async (req, res, next) => {
   try {
     const lead = await prisma.lead.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!lead) return notFound(res, 'Lead not found');

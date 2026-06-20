@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -335,11 +335,45 @@ export default function SettingsPage() {
   );
 }
 
+const AUDIT_MODULES = [
+  'crm.leads', 'crm.contacts', 'crm.companies', 'crm.deals',
+  'projects', 'projects.tasks', 'hr.employees', 'finance.invoices', 'helpdesk.tickets',
+];
+
+const SYSTEM_FIELDS = new Set(['id', 'createdAt', 'updatedAt', 'companyId']);
+
+function diffFields(before: any, after: any) {
+  if (!before || !after) return [];
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  const changes: { field: string; from: any; to: any }[] = [];
+  keys.forEach((key) => {
+    if (SYSTEM_FIELDS.has(key)) return;
+    if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) {
+      changes.push({ field: key, from: before[key], to: after[key] });
+    }
+  });
+  return changes;
+}
+
+function formatValue(v: any) {
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
 function AuditLogTable() {
   const [page, setPage] = useState(1);
+  const [moduleFilter, setModuleFilter] = useState('');
+  const [expanded, setExpanded] = useState<string | null>(null);
+
   const { data, isLoading } = useQuery({
-    queryKey: ['audit-log', page],
-    queryFn: async () => { const { data } = await api.get(`/settings/audit?page=${page}&limit=20`); return data; },
+    queryKey: ['audit-log', page, moduleFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams({ page: String(page), limit: '20' });
+      if (moduleFilter) params.set('module', moduleFilter);
+      const { data } = await api.get(`/settings/audit?${params}`);
+      return data;
+    },
   });
 
   const logs = data?.data || [];
@@ -355,8 +389,21 @@ function AuditLogTable() {
 
   return (
     <div>
+      <div className="px-6 py-3 border-b border-gray-100 dark:border-gray-800">
+        <select
+          value={moduleFilter}
+          onChange={e => { setModuleFilter(e.target.value); setPage(1); }}
+          className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-700 dark:text-gray-200 outline-none"
+        >
+          <option value="">All modules</option>
+          {AUDIT_MODULES.map(m => <option key={m} value={m}>{m}</option>)}
+        </select>
+      </div>
+
       {isLoading ? (
-        <div className="p-8 text-center text-gray-400 text-sm">Loading...</div>
+        <div className="p-6 space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-10 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />)}
+        </div>
       ) : logs.length === 0 ? (
         <div className="p-12 text-center text-gray-400 text-sm">No audit logs yet</div>
       ) : (
@@ -373,23 +420,51 @@ function AuditLogTable() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {logs.map((log: any) => (
-                <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                  <td className="px-6 py-3">
-                    <p className="font-medium text-gray-900 dark:text-white text-xs">{log.user ? `${log.user.firstName} ${log.user.lastName}` : 'System'}</p>
-                    <p className="text-gray-400 text-xs">{log.user?.email}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${actionColor[log.action] || 'text-gray-600 bg-gray-100'}`}>
-                      {actionLabel[log.action] || log.action}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400 capitalize">{log.module}</td>
-                  <td className="px-4 py-3 text-xs font-mono text-gray-500">{log.resourceId ? log.resourceId.slice(0, 8) + '...' : '—'}</td>
-                  <td className="px-4 py-3 text-xs text-gray-400">{log.ipAddress || '—'}</td>
-                  <td className="px-6 py-3 text-right text-xs text-gray-400">{new Date(log.createdAt).toLocaleString()}</td>
-                </tr>
-              ))}
+              {logs.map((log: any) => {
+                const changes = diffFields(log.before, log.after);
+                const isOpen = expanded === log.id;
+                return (
+                  <Fragment key={log.id}>
+                    <tr
+                      onClick={() => changes.length > 0 && setExpanded(isOpen ? null : log.id)}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-800/30 ${changes.length > 0 ? 'cursor-pointer' : ''}`}
+                    >
+                      <td className="px-6 py-3">
+                        <p className="font-medium text-gray-900 dark:text-white text-xs">{log.user ? `${log.user.firstName} ${log.user.lastName}` : 'System'}</p>
+                        <p className="text-gray-400 text-xs">{log.user?.email}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${actionColor[log.action] || 'text-gray-600 bg-gray-100'}`}>
+                          {actionLabel[log.action] || log.action}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400">{log.module}</td>
+                      <td className="px-4 py-3 text-xs font-mono text-gray-500">
+                        {log.resourceId ? log.resourceId.slice(0, 8) + '...' : '—'}
+                        {changes.length > 0 && <span className="ml-2 text-indigo-600 dark:text-indigo-400">({changes.length} field{changes.length > 1 ? 's' : ''})</span>}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-400">{log.ipAddress || '—'}</td>
+                      <td className="px-6 py-3 text-right text-xs text-gray-400">{new Date(log.createdAt).toLocaleString()}</td>
+                    </tr>
+                    {isOpen && changes.length > 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-3 bg-gray-50 dark:bg-gray-800/50">
+                          <div className="space-y-1.5">
+                            {changes.map(c => (
+                              <div key={c.field} className="text-xs">
+                                <span className="font-medium text-gray-600 dark:text-gray-400 capitalize">{c.field.replace(/([A-Z])/g, ' $1')}: </span>
+                                <span className="text-red-500 line-through">{formatValue(c.from)}</span>
+                                {' → '}
+                                <span className="text-green-600">{formatValue(c.to)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
           {meta.totalPages > 1 && (

@@ -5,6 +5,7 @@ const { success, created, paginated, notFound } = require('../../utils/response'
 const { paginate, paginateMeta, generateNumber } = require('../../utils/helpers');
 const emailService = require('../../services/email.service');
 const { callAI } = require('../../services/ai.service');
+const { auditLog } = require('../../middleware/audit');
 
 router.use(authenticate, sameCompany);
 
@@ -68,7 +69,7 @@ router.get('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', auditLog('helpdesk.tickets', 'ticket'), async (req, res, next) => {
   try {
     const count = await prisma.ticket.count({ where: { companyId: req.companyId } });
     const ticketNo = generateNumber('TKT', count + 1);
@@ -79,7 +80,7 @@ router.post('/', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', auditLog('helpdesk.tickets', 'ticket'), async (req, res, next) => {
   try {
     const data = { ...req.body };
     if (data.status === 'resolved' && !data.resolvedAt) data.resolvedAt = new Date();

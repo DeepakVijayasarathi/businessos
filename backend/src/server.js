@@ -50,6 +50,7 @@ const superadminRoutes = require('./modules/superadmin/superadmin.routes');
 const marketingRoutes = require('./modules/marketing/marketing.routes');
 const searchRoutes = require('./modules/search/search.routes');
 const messagingRoutes = require('./modules/messaging/messaging.routes');
+const activityRoutes = require('./modules/activity/activity.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -178,6 +179,7 @@ app.use(`${v1}/admin`, superadminRoutes);
 app.use(`${v1}/marketing`, marketingRoutes);
 app.use(`${v1}/search`, searchRoutes);
 app.use(`${v1}/messaging`, messagingRoutes);
+app.use(`${v1}/activity`, activityRoutes);
 
 // WhatsApp webhook verification (GET)
 app.get(`${v1}/whatsapp/webhook`, (req, res) => {
