@@ -86,6 +86,8 @@ router.post('/', auditLog('crm.leads', 'lead'), async (req, res, next) => {
 // PUT /crm/leads/:id
 router.put('/:id', auditLog('crm.leads', 'lead'), async (req, res, next) => {
   try {
+    const existing = await prisma.lead.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Lead not found');
     const lead = await prisma.lead.update({
       where: { id: req.params.id },
       data: req.body,
@@ -97,6 +99,8 @@ router.put('/:id', auditLog('crm.leads', 'lead'), async (req, res, next) => {
 // DELETE /crm/leads/:id
 router.delete('/:id', auditLog('crm.leads', 'lead'), async (req, res, next) => {
   try {
+    const existing = await prisma.lead.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Lead not found');
     await prisma.lead.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Lead deleted');
   } catch (err) { next(err); }
@@ -169,7 +173,8 @@ router.post('/import', upload.single('file'), async (req, res, next) => {
     });
 
     const created = [];
-    for (const row of rows) {
+    const skipped = [];
+    for (const [i, row] of rows.entries()) {
       if (!row.email && !row.firstName) continue;
       try {
         const lead = await prisma.lead.create({
@@ -187,10 +192,12 @@ router.post('/import', upload.single('file'), async (req, res, next) => {
           },
         });
         created.push(lead.id);
-      } catch { /* skip duplicate emails */ }
+      } catch (err) {
+        skipped.push({ row: i + 2, email: row.email || null, reason: err.code === 'P2002' ? 'duplicate' : (err.message || 'unknown error') });
+      }
     }
 
-    return success(res, { imported: created.length, total: rows.length }, `Imported ${created.length} leads`);
+    return success(res, { imported: created.length, total: rows.length, skipped }, `Imported ${created.length} leads`);
   } catch (err) { next(err); }
 });
 

@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany, requirePermission } = require('../../middleware/auth');
-const { success, created } = require('../../utils/response');
+const { success, created, notFound } = require('../../utils/response');
 const { encrypt } = require('../../utils/helpers');
 const { v4: uuidv4 } = require('uuid');
 
@@ -69,6 +69,8 @@ router.post('/roles', async (req, res, next) => {
 
 router.put('/roles/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.role.findFirst({ where: { id: req.params.id, companyId: req.companyId, isSystem: false } });
+    if (!existing) return notFound(res, 'Role not found');
     const role = await prisma.role.update({ where: { id: req.params.id }, data: req.body });
     return success(res, role, 'Role updated');
   } catch (err) { next(err); }
@@ -76,6 +78,8 @@ router.put('/roles/:id', async (req, res, next) => {
 
 router.delete('/roles/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.role.findFirst({ where: { id: req.params.id, companyId: req.companyId, isSystem: false } });
+    if (!existing) return notFound(res, 'Role not found');
     await prisma.role.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Role deleted');
   } catch (err) { next(err); }
@@ -106,6 +110,8 @@ router.post('/api-keys', async (req, res, next) => {
 
 router.delete('/api-keys/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.apiKey.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'API key not found');
     await prisma.apiKey.delete({ where: { id: req.params.id } });
     return success(res, {}, 'API key deleted');
   } catch (err) { next(err); }

@@ -133,19 +133,26 @@ model Subscription {
 }
 
 model Payment {
-  id             String   @id @default(uuid())
-  subscriptionId String
-  amount         Decimal  @db.Decimal(10, 2)
-  currency       String   @default("USD")
-  status         String   @default("pending") // pending, completed, failed, refunded
+  id             String    @id @default(uuid())
+  subscriptionId String?
+  invoiceId      String?
+  amount         Decimal   @db.Decimal(10, 2)
+  currency       String    @default("USD")
+  status         String    @default("pending") // pending, completed, failed, refunded
+  method         String?
+  reference      String?
+  notes          String?
   paymentMethod  String?
   transactionId  String?
   gateway        String?
   invoiceUrl     String?
-  createdAt      DateTime @default(now())
+  paidAt         DateTime?
+  createdAt      DateTime  @default(now())
 
-  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  invoice        Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
+  @@index([invoiceId])
   @@map("payments")
 }
 
@@ -734,6 +741,7 @@ model Invoice {
   updatedAt      DateTime  @updatedAt
 
   companyRel     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  payments       Payment[]
 
   @@unique([companyId, invoiceNo])
   @@index([companyId])

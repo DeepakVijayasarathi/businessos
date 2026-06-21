@@ -26,6 +26,8 @@ router.post('/services', authenticate, sameCompany, async (req, res, next) => {
 
 router.put('/services/:id', authenticate, sameCompany, async (req, res, next) => {
   try {
+    const existing = await prisma.appointmentService.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Service not found');
     const service = await prisma.appointmentService.update({ where: { id: req.params.id }, data: req.body });
     return success(res, service, 'Service updated');
   } catch (err) { next(err); }
@@ -155,6 +157,8 @@ router.post('/', authenticate, sameCompany, async (req, res, next) => {
 
 router.put('/:id', authenticate, sameCompany, async (req, res, next) => {
   try {
+    const existing = await prisma.appointment.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Appointment not found');
     const appointment = await prisma.appointment.update({ where: { id: req.params.id }, data: req.body });
     return success(res, appointment, 'Appointment updated');
   } catch (err) { next(err); }
@@ -162,6 +166,8 @@ router.put('/:id', authenticate, sameCompany, async (req, res, next) => {
 
 router.post('/:id/cancel', authenticate, sameCompany, async (req, res, next) => {
   try {
+    const existing = await prisma.appointment.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Appointment not found');
     const appointment = await prisma.appointment.update({
       where: { id: req.params.id },
       data: { status: 'cancelled', cancelReason: req.body.reason },

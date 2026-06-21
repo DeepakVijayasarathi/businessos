@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../../config/prisma');
 const { authenticate } = require('../../middleware/auth');
-const { success } = require('../../utils/response');
+const { success, notFound } = require('../../utils/response');
 
 router.use(authenticate);
 
@@ -24,6 +24,8 @@ router.get('/', async (req, res, next) => {
 
 router.post('/:id/read', async (req, res, next) => {
   try {
+    const existing = await prisma.notification.findFirst({ where: { id: req.params.id, userId: req.userId } });
+    if (!existing) return notFound(res, 'Notification not found');
     await prisma.notification.update({ where: { id: req.params.id }, data: { isRead: true } });
     return success(res, {}, 'Marked as read');
   } catch (err) { next(err); }
@@ -38,6 +40,8 @@ router.post('/read-all', async (req, res, next) => {
 
 router.delete('/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.notification.findFirst({ where: { id: req.params.id, userId: req.userId } });
+    if (!existing) return notFound(res, 'Notification not found');
     await prisma.notification.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Notification deleted');
   } catch (err) { next(err); }

@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../../../config/prisma');
 const { authenticate, sameCompany } = require('../../../middleware/auth');
-const { success, created, paginated, notFound } = require('../../../utils/response');
+const { success, created, paginated, notFound, error } = require('../../../utils/response');
 
 router.use(authenticate, sameCompany);
 
@@ -124,8 +124,14 @@ router.get('/leaves', async (req, res, next) => {
 router.post('/leaves', async (req, res, next) => {
   try {
     const { employeeId, leaveTypeId, startDate, endDate, reason } = req.body;
+    const employee = await prisma.employee.findFirst({ where: { id: employeeId, companyId: req.companyId } });
+    if (!employee) return notFound(res, 'Employee not found');
+
     const start = new Date(startDate);
     const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return error(res, 'Invalid start or end date', 400);
+    if (end < start) return error(res, 'End date cannot be before start date', 400);
+
     const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
     const leave = await prisma.leaveRequest.create({
       data: { employeeId, leaveTypeId, startDate: start, endDate: end, totalDays, reason },
@@ -136,6 +142,8 @@ router.post('/leaves', async (req, res, next) => {
 
 router.put('/leaves/:id/approve', async (req, res, next) => {
   try {
+    const existing = await prisma.leaveRequest.findFirst({ where: { id: req.params.id, employee: { companyId: req.companyId } } });
+    if (!existing) return notFound(res, 'Leave request not found');
     const leave = await prisma.leaveRequest.update({
       where: { id: req.params.id },
       data: { status: 'approved', approvedById: req.userId, approvedAt: new Date() },
@@ -146,6 +154,8 @@ router.put('/leaves/:id/approve', async (req, res, next) => {
 
 router.put('/leaves/:id/reject', async (req, res, next) => {
   try {
+    const existing = await prisma.leaveRequest.findFirst({ where: { id: req.params.id, employee: { companyId: req.companyId } } });
+    if (!existing) return notFound(res, 'Leave request not found');
     const leave = await prisma.leaveRequest.update({
       where: { id: req.params.id },
       data: { status: 'rejected', rejectedAt: new Date(), comments: req.body.reason },
@@ -269,6 +279,8 @@ router.post('/departments', async (req, res, next) => {
 
 router.put('/departments/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.department.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Department not found');
     const dept = await prisma.department.update({ where: { id: req.params.id }, data: req.body });
     return success(res, dept, 'Department updated');
   } catch (err) { next(err); }
@@ -276,6 +288,8 @@ router.put('/departments/:id', async (req, res, next) => {
 
 router.delete('/departments/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.department.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Department not found');
     await prisma.department.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Department deleted');
   } catch (err) { next(err); }

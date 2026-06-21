@@ -41,6 +41,8 @@ router.post('/', async (req, res, next) => {
 
 router.put('/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.workflow.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Workflow not found');
     const workflow = await prisma.workflow.update({ where: { id: req.params.id }, data: req.body });
     return success(res, workflow, 'Workflow updated');
   } catch (err) { next(err); }
@@ -48,6 +50,8 @@ router.put('/:id', async (req, res, next) => {
 
 router.delete('/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.workflow.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Workflow not found');
     await prisma.workflow.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Workflow deleted');
   } catch (err) { next(err); }

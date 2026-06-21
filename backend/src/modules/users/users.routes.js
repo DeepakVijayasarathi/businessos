@@ -69,6 +69,8 @@ router.post('/', requirePermission('users.*'), async (req, res, next) => {
 // PUT /users/:id
 router.put('/:id', requirePermission('users.*'), async (req, res, next) => {
   try {
+    const existing = await prisma.user.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'User not found');
     const { roleIds, ...data } = req.body;
     if (data.password) data.password = await bcrypt.hash(data.password, 12);
     const user = await prisma.user.update({
@@ -93,6 +95,8 @@ router.put('/:id', requirePermission('users.*'), async (req, res, next) => {
 router.delete('/:id', requirePermission('users.*'), async (req, res, next) => {
   try {
     if (req.params.id === req.userId) return error(res, 'Cannot delete own account', 400);
+    const existing = await prisma.user.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'User not found');
     await prisma.user.update({ where: { id: req.params.id }, data: { isActive: false } });
     return success(res, {}, 'User deactivated');
   } catch (err) { next(err); }

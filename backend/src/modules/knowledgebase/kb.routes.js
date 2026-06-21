@@ -88,6 +88,8 @@ router.post('/articles', authenticate, sameCompany, async (req, res, next) => {
 
 router.put('/articles/:id', authenticate, sameCompany, async (req, res, next) => {
   try {
+    const existing = await prisma.knowledgeArticle.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Article not found');
     const article = await prisma.knowledgeArticle.update({
       where: { id: req.params.id },
       data: {
@@ -102,6 +104,8 @@ router.put('/articles/:id', authenticate, sameCompany, async (req, res, next) =>
 
 router.delete('/articles/:id', authenticate, sameCompany, async (req, res, next) => {
   try {
+    const existing = await prisma.knowledgeArticle.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Article not found');
     await prisma.knowledgeArticle.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Article deleted');
   } catch (err) { next(err); }

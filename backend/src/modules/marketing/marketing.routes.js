@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany, optionalAuth } = require('../../middleware/auth');
-const { success, created } = require('../../utils/response');
+const { success, created, notFound } = require('../../utils/response');
 const { slugify } = require('../../utils/helpers');
 
 // Landing Pages
@@ -37,6 +37,8 @@ router.post('/pages', authenticate, sameCompany, async (req, res, next) => {
 
 router.put('/pages/:id', authenticate, sameCompany, async (req, res, next) => {
   try {
+    const existing = await prisma.landingPage.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Page not found');
     const page = await prisma.landingPage.update({ where: { id: req.params.id }, data: req.body });
     return success(res, page, 'Page updated');
   } catch (err) { next(err); }
@@ -44,6 +46,8 @@ router.put('/pages/:id', authenticate, sameCompany, async (req, res, next) => {
 
 router.delete('/pages/:id', authenticate, sameCompany, async (req, res, next) => {
   try {
+    const existing = await prisma.landingPage.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Page not found');
     await prisma.landingPage.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Page deleted');
   } catch (err) { next(err); }

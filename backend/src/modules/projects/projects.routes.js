@@ -52,6 +52,8 @@ router.post('/', auditLog('projects', 'project'), async (req, res, next) => {
 
 router.put('/:id', auditLog('projects', 'project'), async (req, res, next) => {
   try {
+    const existing = await prisma.project.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Project not found');
     const project = await prisma.project.update({ where: { id: req.params.id }, data: req.body });
     return success(res, project, 'Project updated');
   } catch (err) { next(err); }
@@ -59,6 +61,8 @@ router.put('/:id', auditLog('projects', 'project'), async (req, res, next) => {
 
 router.delete('/:id', auditLog('projects', 'project'), async (req, res, next) => {
   try {
+    const existing = await prisma.project.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Project not found');
     await prisma.project.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Project deleted');
   } catch (err) { next(err); }
@@ -103,6 +107,8 @@ router.post('/tasks', auditLog('projects.tasks', 'task'), async (req, res, next)
 
 router.put('/tasks/:id', auditLog('projects.tasks', 'task'), async (req, res, next) => {
   try {
+    const existing = await prisma.task.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Task not found');
     const task = await prisma.task.update({ where: { id: req.params.id }, data: req.body });
     return success(res, task, 'Task updated');
   } catch (err) { next(err); }
@@ -110,6 +116,8 @@ router.put('/tasks/:id', auditLog('projects.tasks', 'task'), async (req, res, ne
 
 router.delete('/tasks/:id', auditLog('projects.tasks', 'task'), async (req, res, next) => {
   try {
+    const existing = await prisma.task.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Task not found');
     await prisma.task.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Task deleted');
   } catch (err) { next(err); }
@@ -135,6 +143,8 @@ router.get('/:id/kanban', async (req, res, next) => {
 // Comments
 router.get('/tasks/:id/comments', async (req, res, next) => {
   try {
+    const task = await prisma.task.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!task) return notFound(res, 'Task not found');
     const comments = await prisma.comment.findMany({
       where: { taskId: req.params.id },
       include: { user: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
@@ -146,6 +156,8 @@ router.get('/tasks/:id/comments', async (req, res, next) => {
 
 router.post('/tasks/:id/comments', async (req, res, next) => {
   try {
+    const task = await prisma.task.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!task) return notFound(res, 'Task not found');
     const comment = await prisma.comment.create({
       data: { taskId: req.params.id, userId: req.userId, content: req.body.content },
       include: { user: { select: { id: true, firstName: true, lastName: true, avatar: true } } },

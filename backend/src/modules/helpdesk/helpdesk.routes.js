@@ -82,6 +82,8 @@ router.post('/', auditLog('helpdesk.tickets', 'ticket'), async (req, res, next) 
 
 router.put('/:id', auditLog('helpdesk.tickets', 'ticket'), async (req, res, next) => {
   try {
+    const existing = await prisma.ticket.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Ticket not found');
     const data = { ...req.body };
     if (data.status === 'resolved' && !data.resolvedAt) data.resolvedAt = new Date();
     if (data.status === 'closed' && !data.closedAt) data.closedAt = new Date();
@@ -92,6 +94,8 @@ router.put('/:id', auditLog('helpdesk.tickets', 'ticket'), async (req, res, next
 
 router.post('/:id/comments', async (req, res, next) => {
   try {
+    const ticket = await prisma.ticket.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!ticket) return notFound(res, 'Ticket not found');
     const comment = await prisma.comment.create({
       data: {
         ticketId: req.params.id,

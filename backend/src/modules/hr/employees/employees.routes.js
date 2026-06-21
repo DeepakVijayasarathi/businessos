@@ -66,6 +66,8 @@ router.post('/', auditLog('hr.employees', 'employee'), async (req, res, next) =>
 
 router.put('/:id', auditLog('hr.employees', 'employee'), async (req, res, next) => {
   try {
+    const existing = await prisma.employee.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Employee not found');
     const employee = await prisma.employee.update({ where: { id: req.params.id }, data: req.body });
     return success(res, employee, 'Employee updated');
   } catch (err) { next(err); }
@@ -131,6 +133,8 @@ router.post('/performance-reviews', async (req, res, next) => {
 
 router.put('/performance-reviews/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.performanceReview.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Review not found');
     const review = await prisma.performanceReview.update({ where: { id: req.params.id }, data: req.body });
     return success(res, review, 'Review updated');
   } catch (err) { next(err); }
@@ -138,6 +142,8 @@ router.put('/performance-reviews/:id', async (req, res, next) => {
 
 router.delete('/performance-reviews/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.performanceReview.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Review not found');
     await prisma.performanceReview.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Review deleted');
   } catch (err) { next(err); }

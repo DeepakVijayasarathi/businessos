@@ -64,6 +64,8 @@ router.post('/invoices', auditLog('finance.invoices', 'invoice'), async (req, re
 
 router.put('/invoices/:id', auditLog('finance.invoices', 'invoice'), async (req, res, next) => {
   try {
+    const existing = await prisma.invoice.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Invoice not found');
     const invoice = await prisma.invoice.update({ where: { id: req.params.id }, data: req.body });
     return success(res, invoice, 'Invoice updated');
   } catch (err) { next(err); }
@@ -71,6 +73,8 @@ router.put('/invoices/:id', auditLog('finance.invoices', 'invoice'), async (req,
 
 router.post('/invoices/:id/send', auditLog('finance.invoices', 'invoice'), async (req, res, next) => {
   try {
+    const existing = await prisma.invoice.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Invoice not found');
     const invoice = await prisma.invoice.update({
       where: { id: req.params.id },
       data: { status: 'sent' },
@@ -88,6 +92,8 @@ router.post('/invoices/:id/send', auditLog('finance.invoices', 'invoice'), async
 
 router.post('/invoices/:id/mark-paid', auditLog('finance.invoices', 'invoice'), async (req, res, next) => {
   try {
+    const existing = await prisma.invoice.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Invoice not found');
     const invoice = await prisma.invoice.update({
       where: { id: req.params.id },
       data: { status: 'paid', paidAt: new Date() },
@@ -127,6 +133,8 @@ router.post('/expenses', async (req, res, next) => {
 
 router.put('/expenses/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.expense.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Expense not found');
     const expense = await prisma.expense.update({ where: { id: req.params.id }, data: req.body });
     return success(res, expense, 'Expense updated');
   } catch (err) { next(err); }
@@ -284,6 +292,8 @@ router.get('/invoices/recurring', async (req, res, next) => {
 // POST /finance/invoices/:id/recurring — set invoice as recurring
 router.post('/invoices/:id/recurring', async (req, res, next) => {
   try {
+    const existing = await prisma.invoice.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Invoice not found');
     const { frequency, nextDueDate } = req.body; // frequency: 'weekly' | 'monthly' | 'quarterly' | 'yearly'
     const invoice = await prisma.invoice.update({
       where: { id: req.params.id },
@@ -296,6 +306,8 @@ router.post('/invoices/:id/recurring', async (req, res, next) => {
 // DELETE /finance/invoices/:id/recurring — stop recurring
 router.delete('/invoices/:id/recurring', async (req, res, next) => {
   try {
+    const existing = await prisma.invoice.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Invoice not found');
     const invoice = await prisma.invoice.update({
       where: { id: req.params.id },
       data: { isRecurring: false, recurringRule: null, nextDueDate: null },

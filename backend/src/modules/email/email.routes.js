@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany } = require('../../middleware/auth');
-const { success, created } = require('../../utils/response');
+const { success, created, notFound } = require('../../utils/response');
 const emailService = require('../../services/email.service');
 
 router.use(authenticate, sameCompany);
@@ -22,6 +22,8 @@ router.post('/templates', async (req, res, next) => {
 
 router.put('/templates/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.emailTemplate.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Template not found');
     const template = await prisma.emailTemplate.update({ where: { id: req.params.id }, data: req.body });
     return success(res, template, 'Template updated');
   } catch (err) { next(err); }
@@ -29,6 +31,8 @@ router.put('/templates/:id', async (req, res, next) => {
 
 router.delete('/templates/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.emailTemplate.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Template not found');
     await prisma.emailTemplate.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Template deleted');
   } catch (err) { next(err); }
@@ -54,11 +58,11 @@ router.post('/campaigns', async (req, res, next) => {
 
 router.post('/campaigns/:id/send', async (req, res, next) => {
   try {
-    const campaign = await prisma.emailCampaign.findUnique({
-      where: { id: req.params.id },
+    const campaign = await prisma.emailCampaign.findFirst({
+      where: { id: req.params.id, companyId: req.companyId },
       include: { template: true },
     });
-    if (!campaign) return success(res, {}, 'Campaign not found', 404);
+    if (!campaign) return notFound(res, 'Campaign not found');
 
     const audience = Array.isArray(campaign.audience) ? campaign.audience : [];
     const result = await emailService.sendCampaign({

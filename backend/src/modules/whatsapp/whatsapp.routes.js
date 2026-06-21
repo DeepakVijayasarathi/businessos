@@ -28,6 +28,8 @@ router.post('/templates', async (req, res, next) => {
 
 router.put('/templates/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.whatsappTemplate.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return error(res, 'Template not found', 404);
     // Accept `body` or `content` from client, store as `content` in DB
     const { body, content, ...rest } = req.body;
     const updateData = { ...rest };

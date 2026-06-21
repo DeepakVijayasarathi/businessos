@@ -3,7 +3,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany } = require('../../middleware/auth');
-const { success, created, error } = require('../../utils/response');
+const { success, created, error, notFound } = require('../../utils/response');
 const { decrypt } = require('../../utils/helpers');
 const config = require('../../config');
 
@@ -348,6 +348,8 @@ router.post('/agents', async (req, res, next) => {
 
 router.put('/agents/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.aiAgent.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'AI agent not found');
     const agent = await prisma.aiAgent.update({ where: { id: req.params.id }, data: req.body });
     return success(res, agent, 'AI agent updated');
   } catch (err) { next(err); }
@@ -355,6 +357,8 @@ router.put('/agents/:id', async (req, res, next) => {
 
 router.delete('/agents/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.aiAgent.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'AI agent not found');
     await prisma.aiAgent.delete({ where: { id: req.params.id } });
     return success(res, {}, 'AI agent deleted');
   } catch (err) { next(err); }

@@ -87,6 +87,8 @@ router.post('/deals', auditLog('crm.deals', 'deal'), async (req, res, next) => {
 
 router.put('/deals/:id', auditLog('crm.deals', 'deal'), async (req, res, next) => {
   try {
+    const existing = await prisma.deal.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Deal not found');
     const deal = await prisma.deal.update({
       where: { id: req.params.id },
       data: req.body,
@@ -98,6 +100,8 @@ router.put('/deals/:id', auditLog('crm.deals', 'deal'), async (req, res, next) =
 
 router.put('/deals/:id/move', auditLog('crm.deals', 'deal'), async (req, res, next) => {
   try {
+    const existing = await prisma.deal.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Deal not found');
     const { stageId } = req.body;
     const deal = await prisma.deal.update({
       where: { id: req.params.id },
@@ -110,6 +114,8 @@ router.put('/deals/:id/move', auditLog('crm.deals', 'deal'), async (req, res, ne
 
 router.delete('/deals/:id', auditLog('crm.deals', 'deal'), async (req, res, next) => {
   try {
+    const existing = await prisma.deal.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Deal not found');
     await prisma.deal.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Deal deleted');
   } catch (err) { next(err); }
@@ -141,6 +147,8 @@ router.post('/companies', auditLog('crm.companies', 'crmCompany'), async (req, r
 
 router.put('/companies/:id', auditLog('crm.companies', 'crmCompany'), async (req, res, next) => {
   try {
+    const existing = await prisma.crmCompany.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Company not found');
     const company = await prisma.crmCompany.update({ where: { id: req.params.id }, data: req.body });
     return success(res, company, 'Company updated');
   } catch (err) { next(err); }
@@ -148,6 +156,8 @@ router.put('/companies/:id', auditLog('crm.companies', 'crmCompany'), async (req
 
 router.delete('/companies/:id', auditLog('crm.companies', 'crmCompany'), async (req, res, next) => {
   try {
+    const existing = await prisma.crmCompany.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Company not found');
     await prisma.crmCompany.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Company deleted');
   } catch (err) { next(err); }

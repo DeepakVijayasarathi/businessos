@@ -57,6 +57,8 @@ router.post('/', auditLog('crm.contacts', 'contact'), async (req, res, next) => 
 
 router.put('/:id', auditLog('crm.contacts', 'contact'), async (req, res, next) => {
   try {
+    const existing = await prisma.contact.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Contact not found');
     const contact = await prisma.contact.update({ where: { id: req.params.id }, data: req.body });
     return success(res, contact, 'Contact updated');
   } catch (err) { next(err); }
@@ -64,6 +66,8 @@ router.put('/:id', auditLog('crm.contacts', 'contact'), async (req, res, next) =
 
 router.delete('/:id', auditLog('crm.contacts', 'contact'), async (req, res, next) => {
   try {
+    const existing = await prisma.contact.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Contact not found');
     await prisma.contact.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Contact deleted');
   } catch (err) { next(err); }

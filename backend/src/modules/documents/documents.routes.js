@@ -60,6 +60,8 @@ router.post('/folders', async (req, res, next) => {
 
 router.delete('/folders/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.documentFolder.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Folder not found');
     await prisma.documentFolder.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Folder deleted');
   } catch (err) { next(err); }
@@ -150,6 +152,8 @@ router.get('/:id', async (req, res, next) => {
 
 router.put('/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.document.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Document not found');
     const doc = await prisma.document.update({ where: { id: req.params.id }, data: req.body });
     return success(res, doc, 'Document updated');
   } catch (err) { next(err); }

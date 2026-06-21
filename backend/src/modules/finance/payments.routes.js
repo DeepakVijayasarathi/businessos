@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany } = require('../../middleware/auth');
-const { success, created } = require('../../utils/response');
+const { success, created, notFound, error } = require('../../utils/response');
 const { paginate, paginateMeta } = require('../../utils/helpers');
 
 router.use(authenticate, sameCompany);
@@ -28,29 +28,44 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const payment = await prisma.payment.create({
-      data: {
-        invoiceId: req.body.invoiceId,
-        amount: parseFloat(req.body.amount),
-        method: req.body.method || 'manual',
-        reference: req.body.reference || null,
-        notes: req.body.notes || null,
-        paidAt: req.body.paidAt ? new Date(req.body.paidAt) : new Date(),
-        status: 'completed',
-      },
+    const invoice = await prisma.invoice.findFirst({ where: { id: req.body.invoiceId, companyId: req.companyId } });
+    if (!invoice) return notFound(res, 'Invoice not found');
+
+    const amount = parseFloat(req.body.amount);
+    if (!amount || amount <= 0) return error(res, 'A positive payment amount is required', 400);
+
+    // Atomic: create the payment and re-check/update invoice status in one transaction,
+    // so concurrent payments against the same invoice can't both read a stale total.
+    const payment = await prisma.$transaction(async (tx) => {
+      const newPayment = await tx.payment.create({
+        data: {
+          invoiceId: req.body.invoiceId,
+          amount,
+          method: req.body.method || 'manual',
+          reference: req.body.reference || null,
+          notes: req.body.notes || null,
+          paidAt: req.body.paidAt ? new Date(req.body.paidAt) : new Date(),
+          status: 'completed',
+        },
+      });
+      const totalPaid = await tx.payment.aggregate({
+        where: { invoiceId: req.body.invoiceId, status: 'completed' },
+        _sum: { amount: true },
+      });
+      if (Number(totalPaid._sum.amount || 0) >= Number(invoice.total)) {
+        await tx.invoice.update({ where: { id: req.body.invoiceId }, data: { status: 'paid', paidAt: new Date() } });
+      }
+      return newPayment;
     });
-    // Mark invoice as paid if fully covered
-    const invoice = await prisma.invoice.findUnique({ where: { id: req.body.invoiceId } });
-    const totalPaid = await prisma.payment.aggregate({ where: { invoiceId: req.body.invoiceId, status: 'completed' }, _sum: { amount: true } });
-    if (invoice && totalPaid._sum.amount >= invoice.total) {
-      await prisma.invoice.update({ where: { id: req.body.invoiceId }, data: { status: 'paid', paidAt: new Date() } });
-    }
+
     return created(res, payment, 'Payment recorded');
   } catch (err) { next(err); }
 });
 
 router.delete('/:id', async (req, res, next) => {
   try {
+    const existing = await prisma.payment.findFirst({ where: { id: req.params.id, invoice: { companyId: req.companyId } } });
+    if (!existing) return notFound(res, 'Payment not found');
     await prisma.payment.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Payment deleted');
   } catch (err) { next(err); }
