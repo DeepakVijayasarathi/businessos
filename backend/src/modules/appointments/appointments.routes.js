@@ -3,6 +3,7 @@ const prisma = require('../../config/prisma');
 const { authenticate, sameCompany, optionalAuth } = require('../../middleware/auth');
 const { success, created, notFound } = require('../../utils/response');
 const emailService = require('../../services/email.service');
+const { buildAppointmentIcs } = require('../../utils/ics');
 
 // Services (public)
 router.get('/services', optionalAuth, async (req, res, next) => {
@@ -104,17 +105,20 @@ router.post('/book', optionalAuth, async (req, res, next) => {
 
     let contact;
     if (resolvedEmail && resolvedCompanyId) {
-      contact = await prisma.contact.upsert({
-        where: { companyId_email: { companyId: resolvedCompanyId, email: resolvedEmail } },
-        update: { phone: phone || undefined },
-        create: {
-          companyId: resolvedCompanyId,
-          firstName: firstName || resolvedName?.split(' ')[0] || 'Guest',
-          lastName: lastName || resolvedName?.split(' ').slice(1).join(' ') || '',
-          email: resolvedEmail,
-          phone,
-        },
-      }).catch(() => null);
+      contact = await prisma.contact.findFirst({ where: { companyId: resolvedCompanyId, email: resolvedEmail } });
+      if (contact) {
+        if (phone) contact = await prisma.contact.update({ where: { id: contact.id }, data: { phone } });
+      } else {
+        contact = await prisma.contact.create({
+          data: {
+            companyId: resolvedCompanyId,
+            firstName: firstName || resolvedName?.split(' ')[0] || 'Guest',
+            lastName: lastName || resolvedName?.split(' ').slice(1).join(' ') || '',
+            email: resolvedEmail,
+            phone,
+          },
+        });
+      }
     }
 
     const appointment = await prisma.appointment.create({
@@ -161,6 +165,17 @@ router.put('/:id', authenticate, sameCompany, async (req, res, next) => {
     if (!existing) return notFound(res, 'Appointment not found');
     const appointment = await prisma.appointment.update({ where: { id: req.params.id }, data: req.body });
     return success(res, appointment, 'Appointment updated');
+  } catch (err) { next(err); }
+});
+
+// Download a .ics file for an appointment (Add to calendar)
+router.get('/:id/ics', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const appointment = await prisma.appointment.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!appointment) return notFound(res, 'Appointment not found');
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="appointment-${appointment.id}.ics"`);
+    res.send(buildAppointmentIcs(appointment));
   } catch (err) { next(err); }
 });
 

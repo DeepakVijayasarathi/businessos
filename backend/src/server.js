@@ -228,6 +228,9 @@ async function bootstrap() {
     server.listen(config.port, () => {
       logger.info(`BusinessOS API running on port ${config.port} [${config.env}]`);
     });
+
+    const { startAppointmentReminderJob } = require('./jobs/appointmentReminders');
+    startAppointmentReminderJob();
   } catch (err) {
     logger.error('Failed to start server:', err);
     process.exit(1);

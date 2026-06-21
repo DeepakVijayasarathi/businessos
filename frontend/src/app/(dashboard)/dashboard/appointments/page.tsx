@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate, formatDateTime, statusColor } from '@/lib/utils';
-import { Plus, Calendar, Clock, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Calendar, Clock, User, ChevronLeft, ChevronRight, CalendarPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
@@ -45,6 +45,17 @@ export default function AppointmentsPage() {
     mutationFn: (id: string) => api.post(`/appointments/${id}/cancel`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['appointments'] }); toast.success('Appointment cancelled'); },
   });
+
+  const handleAddToCalendar = (id: string) => {
+    api.get(`/appointments/${id}/ics`, { responseType: 'blob' }).then(res => {
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'appointment.ics';
+      a.click();
+      URL.revokeObjectURL(url);
+    }).catch(() => toast.error('Failed to download calendar file'));
+  };
 
   const prevMonth = () => setMonth(d => new Date(d.getFullYear(), d.getMonth() - 1));
   const nextMonth = () => setMonth(d => new Date(d.getFullYear(), d.getMonth() + 1));
@@ -117,9 +128,14 @@ export default function AppointmentsPage() {
                     <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDateTime(a.startAt)}</span>
                   </div>
                 </div>
-                {a.status === 'scheduled' && (
-                  <button onClick={() => { if (confirm('Cancel this appointment?')) cancelMutation.mutate(a.id); }} className="px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">Cancel</button>
-                )}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={() => handleAddToCalendar(a.id)} title="Add to calendar" className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg">
+                    <CalendarPlus className="w-4 h-4" />
+                  </button>
+                  {a.status === 'scheduled' && (
+                    <button onClick={() => { if (confirm('Cancel this appointment?')) cancelMutation.mutate(a.id); }} className="px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">Cancel</button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

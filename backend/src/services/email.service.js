@@ -32,7 +32,7 @@ class EmailService {
     });
   }
 
-  async send({ to, subject, html, text, companyId, from } = {}) {
+  async send({ to, subject, html, text, companyId, from, attachments } = {}) {
     try {
       const transporter = await this.getTransporter(companyId);
       await transporter.sendMail({
@@ -41,6 +41,7 @@ class EmailService {
         subject,
         html,
         text,
+        ...(attachments && { attachments }),
       });
       logger.info(`Email sent to ${to}: ${subject}`);
     } catch (err) {
@@ -103,6 +104,7 @@ class EmailService {
   }
 
   async sendAppointmentConfirmation({ to, appointment, companyId }) {
+    const { buildAppointmentIcs } = require('../utils/ics');
     await this.send({
       to,
       subject: `Appointment Confirmed: ${appointment.title}`,
@@ -113,6 +115,24 @@ class EmailService {
         ${appointment.meetingUrl ? `<p>Join: <a href="${appointment.meetingUrl}">${appointment.meetingUrl}</a></p>` : ''}
       `,
       companyId,
+      attachments: [{ filename: 'appointment.ics', content: buildAppointmentIcs(appointment), contentType: 'text/calendar' }],
+    });
+  }
+
+  async sendAppointmentReminder({ to, appointment, companyId }) {
+    const { buildAppointmentIcs } = require('../utils/ics');
+    await this.send({
+      to,
+      subject: `Reminder: ${appointment.title}`,
+      html: `
+        <h1>Upcoming Appointment Reminder</h1>
+        <p><strong>${appointment.title}</strong></p>
+        <p>Date: ${new Date(appointment.startAt).toLocaleString()}</p>
+        ${appointment.location ? `<p>Location: ${appointment.location}</p>` : ''}
+        ${appointment.meetingUrl ? `<p>Join: <a href="${appointment.meetingUrl}">${appointment.meetingUrl}</a></p>` : ''}
+      `,
+      companyId,
+      attachments: [{ filename: 'appointment.ics', content: buildAppointmentIcs(appointment), contentType: 'text/calendar' }],
     });
   }
 
