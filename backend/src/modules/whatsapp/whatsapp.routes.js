@@ -1,9 +1,8 @@
 const router = require('express').Router();
-const axios = require('axios');
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany } = require('../../middleware/auth');
 const { success, created, error } = require('../../utils/response');
-const config = require('../../config');
+const whatsappService = require('../../services/whatsapp.service');
 
 router.use(authenticate, sameCompany);
 
@@ -72,7 +71,7 @@ router.post('/campaigns/:id/send', async (req, res, next) => {
 
     const company = await prisma.company.findUnique({
       where: { id: req.companyId },
-      select: { whatsappApiKey: true, whatsappPhone: true },
+      select: { whatsappApiKey: true, whatsappPhone: true, whatsappProvider: true },
     });
 
     if (!company?.whatsappApiKey) return error(res, 'WhatsApp not configured', 400);
@@ -82,16 +81,14 @@ router.post('/campaigns/:id/send', async (req, res, next) => {
 
     for (const phone of audience) {
       try {
-        await axios.post(
-          `${config.whatsapp.apiUrl}/${company.whatsappPhone}/messages`,
-          {
-            messaging_product: 'whatsapp',
-            to: phone,
-            type: 'template',
-            template: { name: campaign.template.name, language: { code: campaign.template.language } },
-          },
-          { headers: { Authorization: `Bearer ${company.whatsappApiKey}` } }
-        );
+        await whatsappService.sendTemplate({
+          provider: company.whatsappProvider || 'meta',
+          apiKey: company.whatsappApiKey,
+          phone: company.whatsappPhone,
+          to: phone,
+          templateName: campaign.template.name,
+          templateLanguage: campaign.template.language,
+        });
         sent++;
       } catch { failed++; }
     }
@@ -129,23 +126,18 @@ router.post('/send', async (req, res, next) => {
     const { to, message, type = 'text' } = req.body;
     const company = await prisma.company.findUnique({
       where: { id: req.companyId },
-      select: { whatsappApiKey: true, whatsappPhone: true },
+      select: { whatsappApiKey: true, whatsappPhone: true, whatsappProvider: true },
     });
 
     if (!company?.whatsappApiKey) return error(res, 'WhatsApp not configured', 400);
 
-    const payload = {
-      messaging_product: 'whatsapp',
+    const { messageId } = await whatsappService.sendText({
+      provider: company.whatsappProvider || 'meta',
+      apiKey: company.whatsappApiKey,
+      phone: company.whatsappPhone,
       to,
-      type: 'text',
-      text: { body: message },
-    };
-
-    const response = await axios.post(
-      `${config.whatsapp.apiUrl}/${company.whatsappPhone}/messages`,
-      payload,
-      { headers: { Authorization: `Bearer ${company.whatsappApiKey}` } }
-    );
+      message,
+    });
 
     // Find or create a WhatsApp conversation record for this phone thread
     let conversation = await prisma.conversation.findFirst({
@@ -177,7 +169,7 @@ router.post('/send', async (req, res, next) => {
         content: message,
         direction: 'outbound',
         status: 'sent',
-        messageId: response.data?.messages?.[0]?.id,
+        messageId,
         conversationId: conversation.id,
       },
     });

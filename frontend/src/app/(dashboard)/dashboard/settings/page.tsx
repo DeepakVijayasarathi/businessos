@@ -222,25 +222,74 @@ export default function SettingsPage() {
 
       {tab === 'whatsapp' && companyForm && (
         <div className="space-y-6">
+          {/* Provider selector */}
           <div className="glass-card rounded-2xl p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2"><MessageSquare className="w-4 h-4 text-green-500" /> WhatsApp Cloud API</h2>
-            <p className="text-xs text-gray-500">Connect your Meta WhatsApp Business account to send campaigns and reply to messages.</p>
+            <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2"><MessageSquare className="w-4 h-4 text-green-500" /> WhatsApp Provider</h2>
+            <p className="text-xs text-gray-500">Choose which WhatsApp Business API provider sends your messages and campaigns.</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: 'meta', label: 'Meta Cloud API', desc: 'Official WhatsApp Business Platform', color: 'from-blue-400 to-indigo-500' },
+                { value: 'msg91', label: 'MSG91', desc: 'Third-party WhatsApp Business Solution', color: 'from-green-400 to-teal-500' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setCompanyForm({ ...companyForm, whatsappProvider: opt.value })}
+                  className={`p-4 rounded-xl border-2 text-left transition-all ${
+                    (companyForm.whatsappProvider || 'meta') === opt.value
+                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${opt.color} mb-2 flex items-center justify-center`}>
+                    <MessageSquare className="w-4 h-4 text-white" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{opt.label}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="glass-card rounded-2xl p-6 space-y-4">
+            <h2 className="font-semibold text-gray-900 dark:text-white">
+              {(companyForm.whatsappProvider || 'meta') === 'msg91' ? 'MSG91 Credentials' : 'Meta WhatsApp Cloud API'}
+            </h2>
+            <p className="text-xs text-gray-500">
+              {(companyForm.whatsappProvider || 'meta') === 'msg91'
+                ? 'Connect your MSG91 WhatsApp account to send campaigns and messages.'
+                : 'Connect your Meta WhatsApp Business account to send campaigns and reply to messages.'}
+            </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="settings-whatsapp-phone" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">WhatsApp Phone Number</label>
-                <input id="settings-whatsapp-phone" value={companyForm.whatsappPhone || ''} onChange={e => setCompanyForm({ ...companyForm, whatsappPhone: e.target.value })} placeholder="+1234567890" className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                <label htmlFor="settings-whatsapp-phone" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {(companyForm.whatsappProvider || 'meta') === 'msg91' ? 'Integrated Number' : 'Phone Number ID'}
+                </label>
+                <input id="settings-whatsapp-phone" value={companyForm.whatsappPhone || ''} onChange={e => setCompanyForm({ ...companyForm, whatsappPhone: e.target.value })} placeholder={(companyForm.whatsappProvider || 'meta') === 'msg91' ? '919999999999' : '+1234567890'} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div className="col-span-2">
-                <label htmlFor="settings-whatsapp-apikey" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">WhatsApp API Key (Permanent Token)</label>
-                <input id="settings-whatsapp-apikey" type="password" value={companyForm.whatsappApiKey || ''} onChange={e => setCompanyForm({ ...companyForm, whatsappApiKey: e.target.value })} placeholder="EAAxxxxxx..." className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
-                <p className="text-xs text-gray-400 mt-1">Generate a Permanent Token from Meta Business Manager → System Users.</p>
+                <label htmlFor="settings-whatsapp-apikey" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  {(companyForm.whatsappProvider || 'meta') === 'msg91' ? 'MSG91 Authkey' : 'API Key (Permanent Token)'}
+                </label>
+                <input id="settings-whatsapp-apikey" type="password" value={companyForm.whatsappApiKey || ''} onChange={e => setCompanyForm({ ...companyForm, whatsappApiKey: e.target.value })} placeholder={(companyForm.whatsappProvider || 'meta') === 'msg91' ? 'authkey...' : 'EAAxxxxxx...'} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                <p className="text-xs text-gray-400 mt-1">
+                  {(companyForm.whatsappProvider || 'meta') === 'msg91'
+                    ? 'Find your authkey in the MSG91 dashboard → Settings → API Keys.'
+                    : 'Generate a Permanent Token from Meta Business Manager → System Users.'}
+                </p>
               </div>
             </div>
-            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-xs text-blue-700 dark:text-blue-300 space-y-1">
-              <p className="font-medium">Webhook setup</p>
-              <p>Callback URL: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">{process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/v1/whatsapp/webhook</code></p>
-              <p>Verify Token: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">businessos-verify-2026</code></p>
-            </div>
+            {(companyForm.whatsappProvider || 'meta') === 'meta' && (
+              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                <p className="font-medium">Webhook setup</p>
+                <p>Callback URL: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">{process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/v1/whatsapp/webhook</code></p>
+                <p>Verify Token: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">businessos-verify-2026</code></p>
+              </div>
+            )}
+            {(companyForm.whatsappProvider || 'meta') === 'msg91' && (
+              <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-xs text-yellow-700 dark:text-yellow-300">
+                <p>Sending campaigns and messages works with MSG91. Inbound message webhooks (replies showing up automatically) are currently only wired up for Meta — MSG91 webhook support can be added if you need it.</p>
+              </div>
+            )}
             <button onClick={() => saveMutation.mutate(companyForm)} disabled={saveMutation.isPending} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
               {saveMutation.isPending ? 'Saving...' : 'Save WhatsApp Settings'}
             </button>

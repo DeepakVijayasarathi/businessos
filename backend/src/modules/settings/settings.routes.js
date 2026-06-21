@@ -19,7 +19,7 @@ router.get('/company', async (req, res, next) => {
         timezone: true, currency: true, language: true, industry: true, size: true,
         taxId: true, gstNumber: true, storageType: true,
         smtpHost: true, smtpPort: true, smtpUser: true, smtpFrom: true,
-        whatsappPhone: true, aiProvider: true,
+        whatsappPhone: true, whatsappProvider: true, aiProvider: true,
       },
     });
     return success(res, company);

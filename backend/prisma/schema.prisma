@@ -60,8 +60,9 @@ model Company {
   smtpUser       String?
   smtpPass       String?   // encrypted
   smtpFrom       String?
-  whatsappApiKey String?   // encrypted
-  whatsappPhone  String?
+  whatsappApiKey String?   // encrypted — Meta permanent token, or MSG91 authkey
+  whatsappPhone  String?   // Meta phone number ID, or MSG91 integrated number
+  whatsappProvider String? @default("meta") // 'meta' | 'msg91'
   openaiKey      String?   // encrypted
   anthropicKey   String?   // encrypted
   aiProvider     String?   // 'claude' | 'openai' — overrides global AI_PROVIDER when set
