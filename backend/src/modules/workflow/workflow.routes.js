@@ -86,6 +86,8 @@ router.post('/:id/trigger', async (req, res, next) => {
 // Executions
 router.get('/:id/executions', async (req, res, next) => {
   try {
+    const workflow = await prisma.workflow.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!workflow) return notFound(res, 'Workflow not found');
     const executions = await prisma.workflowExecution.findMany({
       where: { workflowId: req.params.id },
       orderBy: { startedAt: 'desc' },
@@ -168,7 +170,10 @@ async function executeNode(node, triggerData, companyId) {
       break;
     case 'update_lead':
       if (triggerData.leadId) {
-        await prisma.lead.update({ where: { id: triggerData.leadId }, data: node.config.updates });
+        await prisma.lead.updateMany({
+          where: { id: triggerData.leadId, companyId },
+          data: node.config.updates,
+        });
       }
       break;
     case 'wait':

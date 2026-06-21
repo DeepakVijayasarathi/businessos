@@ -41,7 +41,7 @@ router.delete('/templates/:id', async (req, res, next) => {
 router.get('/campaigns', async (req, res, next) => {
   try {
     const campaigns = await prisma.emailCampaign.findMany({
-      where: { template: { companyId: req.companyId } },
+      where: { companyId: req.companyId },
       include: { template: true },
       orderBy: { createdAt: 'desc' },
     });
@@ -51,7 +51,10 @@ router.get('/campaigns', async (req, res, next) => {
 
 router.post('/campaigns', async (req, res, next) => {
   try {
-    const campaign = await prisma.emailCampaign.create({ data: req.body });
+    const { templateId } = req.body;
+    const template = await prisma.emailTemplate.findFirst({ where: { id: templateId, companyId: req.companyId } });
+    if (!template) return notFound(res, 'Template not found');
+    const campaign = await prisma.emailCampaign.create({ data: { ...req.body, companyId: req.companyId } });
     return created(res, campaign, 'Campaign created');
   } catch (err) { next(err); }
 });

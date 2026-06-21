@@ -59,8 +59,13 @@ router.get('/articles', async (req, res, next) => {
 
 router.get('/articles/:slug', async (req, res, next) => {
   try {
+    const cid = req.companyId || req.query.companyId;
     const article = await prisma.knowledgeArticle.findFirst({
-      where: { slug: req.params.slug },
+      where: {
+        slug: req.params.slug,
+        ...(cid && { companyId: cid }),
+        ...(!req.companyId && { status: 'published' }),
+      },
       include: { category: true },
     });
     if (!article) return notFound(res, 'Article not found');

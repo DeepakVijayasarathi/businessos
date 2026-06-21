@@ -33,6 +33,9 @@ router.get('/', async (req, res, next) => {
 router.post('/check-in', async (req, res, next) => {
   try {
     const { employeeId } = req.body;
+    const employee = await prisma.employee.findFirst({ where: { id: employeeId, companyId: req.companyId } });
+    if (!employee) return notFound(res, 'Employee not found');
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -52,6 +55,9 @@ router.post('/check-in', async (req, res, next) => {
 router.post('/check-out', async (req, res, next) => {
   try {
     const { employeeId } = req.body;
+    const employee = await prisma.employee.findFirst({ where: { id: employeeId, companyId: req.companyId } });
+    if (!employee) return notFound(res, 'Employee not found');
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -75,8 +81,19 @@ router.post('/check-out', async (req, res, next) => {
 router.post('/bulk', async (req, res, next) => {
   try {
     const { records } = req.body; // [{ employeeId, date, status }]
+    const employeeIds = [...new Set((records || []).map(r => r.employeeId))];
+    const validEmployees = await prisma.employee.findMany({
+      where: { id: { in: employeeIds }, companyId: req.companyId },
+      select: { id: true },
+    });
+    const validIds = new Set(validEmployees.map(e => e.id));
+    const validRecords = (records || []).filter(r => validIds.has(r.employeeId));
+    if (validRecords.length !== (records || []).length) {
+      return error(res, 'One or more employees not found in your company', 400);
+    }
+
     const created = await prisma.$transaction(
-      records.map(r => prisma.attendance.upsert({
+      validRecords.map(r => prisma.attendance.upsert({
         where: { employeeId_date: { employeeId: r.employeeId, date: new Date(r.date) } },
         update: { status: r.status },
         create: { ...r, date: new Date(r.date) },
