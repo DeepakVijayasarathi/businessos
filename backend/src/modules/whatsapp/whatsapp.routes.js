@@ -3,6 +3,122 @@ const prisma = require('../../config/prisma');
 const { authenticate, sameCompany } = require('../../middleware/auth');
 const { success, created, error } = require('../../utils/response');
 const whatsappService = require('../../services/whatsapp.service');
+const logger = require('../../config/logger');
+
+/**
+ * Records an inbound WhatsApp message and upserts its conversation thread.
+ * Shared by every provider's webhook handler so the message-storage logic
+ * (and therefore what shows up in the Messages UI) is identical regardless
+ * of which BSP delivered it.
+ */
+async function recordInboundMessage({ companyId, fromPhone, toPhone, type, content, messageId }) {
+  let conversationId = null;
+  if (companyId) {
+    let conversation = await prisma.conversation.findFirst({
+      where: { companyId, type: 'whatsapp', phone: fromPhone },
+    });
+    const lastMessage = content?.slice(0, 100) || `[${type}]`;
+    if (!conversation) {
+      conversation = await prisma.conversation.create({
+        data: { companyId, type: 'whatsapp', phone: fromPhone, lastMessage, lastMessageAt: new Date() },
+      });
+    } else {
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { lastMessage, lastMessageAt: new Date() },
+      });
+    }
+    conversationId = conversation.id;
+  }
+
+  await prisma.whatsappMessage.create({
+    data: {
+      companyId,
+      from: fromPhone,
+      to: toPhone,
+      type,
+      content: content || '',
+      direction: 'inbound',
+      status: 'delivered',
+      messageId,
+      conversationId,
+    },
+  }).catch((err) => logger.warn(`Failed to record inbound WhatsApp message: ${err.message}`));
+}
+
+// ── Webhooks (public — must be registered BEFORE the authenticate guard
+// below, since the provider's servers call these with no user auth token) ──
+
+// Meta WhatsApp Cloud API — incoming messages
+router.post('/webhook', async (req, res, next) => {
+  try {
+    const body = req.body;
+    if (body?.object === 'whatsapp_business_account') {
+      for (const entry of body.entry || []) {
+        for (const change of entry.changes || []) {
+          const phoneNumberId = change.value?.metadata?.phone_number_id;
+          const messages = change.value?.messages || [];
+
+          let companyId = null;
+          if (phoneNumberId) {
+            const company = await prisma.company.findFirst({
+              where: { whatsappPhone: phoneNumberId },
+              select: { id: true },
+            });
+            companyId = company?.id || null;
+          }
+
+          for (const msg of messages) {
+            await recordInboundMessage({
+              companyId,
+              fromPhone: msg.from,
+              toPhone: phoneNumberId,
+              type: msg.type,
+              content: msg.text?.body,
+              messageId: msg.id,
+            });
+          }
+        }
+      }
+    }
+    res.status(200).json({ status: 'ok' });
+  } catch (err) { next(err); }
+});
+
+// MSG91 — incoming messages. Implemented from MSG91's published webhook
+// documentation, not verified against a live account; the exact payload
+// shape may differ. On a shape we don't recognize, logs the raw body so
+// it can be inspected and this parser adjusted.
+router.post('/webhook/msg91', async (req, res, next) => {
+  try {
+    const body = req.body;
+    // MSG91 webhook payloads have been observed both flat and nested under
+    // `data` — handle both rather than assuming one.
+    const payload = body?.data || body;
+    const fromPhone = payload?.from || payload?.sender;
+    const toPhone = payload?.to || payload?.integrated_number;
+    const messageId = payload?.id || payload?.message_id;
+    const type = payload?.type || 'text';
+    const content = payload?.text?.body || payload?.message || payload?.body;
+
+    if (!fromPhone) {
+      logger.warn(`Unrecognized MSG91 webhook payload shape: ${JSON.stringify(body).slice(0, 500)}`);
+      return res.status(200).json({ status: 'ignored' });
+    }
+
+    let companyId = null;
+    if (toPhone) {
+      const company = await prisma.company.findFirst({
+        where: { whatsappPhone: toPhone, whatsappProvider: 'msg91' },
+        select: { id: true },
+      });
+      companyId = company?.id || null;
+    }
+
+    await recordInboundMessage({ companyId, fromPhone, toPhone, type, content, messageId });
+    res.status(200).json({ status: 'ok' });
+  } catch (err) { next(err); }
+});
 
 router.use(authenticate, sameCompany);
 
@@ -175,80 +291,6 @@ router.post('/send', async (req, res, next) => {
     });
 
     return success(res, saved, 'Message sent');
-  } catch (err) { next(err); }
-});
-
-// Webhook (public — no auth middleware applied here since router.use(authenticate) is at top,
-// but webhook must be public. We handle this by placing webhook BEFORE the router.use guard.
-// The webhook route is registered directly in server.js as a separate public handler below.)
-router.post('/webhook', async (req, res, next) => {
-  try {
-    const body = req.body;
-    if (body?.object === 'whatsapp_business_account') {
-      for (const entry of body.entry || []) {
-        for (const change of entry.changes || []) {
-          const phoneNumberId = change.value?.metadata?.phone_number_id;
-          const messages = change.value?.messages || [];
-
-          // Look up the company by their WhatsApp phone number ID
-          let companyId = null;
-          if (phoneNumberId) {
-            const company = await prisma.company.findFirst({
-              where: { whatsappPhone: phoneNumberId },
-              select: { id: true },
-            });
-            companyId = company?.id || null;
-          }
-
-          for (const msg of messages) {
-            const fromPhone = msg.from;
-
-            // Find or create a conversation for this inbound thread
-            let conversationId = null;
-            if (companyId) {
-              let conversation = await prisma.conversation.findFirst({
-                where: { companyId, type: 'whatsapp', phone: fromPhone },
-              });
-              if (!conversation) {
-                conversation = await prisma.conversation.create({
-                  data: {
-                    companyId,
-                    type: 'whatsapp',
-                    phone: fromPhone,
-                    lastMessage: msg.text?.body?.slice(0, 100) || `[${msg.type}]`,
-                    lastMessageAt: new Date(),
-                  },
-                });
-              } else {
-                await prisma.conversation.update({
-                  where: { id: conversation.id },
-                  data: {
-                    lastMessage: msg.text?.body?.slice(0, 100) || `[${msg.type}]`,
-                    lastMessageAt: new Date(),
-                  },
-                });
-              }
-              conversationId = conversation.id;
-            }
-
-            await prisma.whatsappMessage.create({
-              data: {
-                companyId,
-                from: fromPhone,
-                to: phoneNumberId,
-                type: msg.type,
-                content: msg.text?.body || '',
-                direction: 'inbound',
-                status: 'delivered',
-                messageId: msg.id,
-                conversationId,
-              },
-            }).catch(() => {});
-          }
-        }
-      }
-    }
-    res.status(200).json({ status: 'ok' });
   } catch (err) { next(err); }
 });
 

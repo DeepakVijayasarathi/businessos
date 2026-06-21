@@ -286,8 +286,10 @@ export default function SettingsPage() {
               </div>
             )}
             {(companyForm.whatsappProvider || 'meta') === 'msg91' && (
-              <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-xs text-yellow-700 dark:text-yellow-300">
-                <p>Sending campaigns and messages works with MSG91. Inbound message webhooks (replies showing up automatically) are currently only wired up for Meta — MSG91 webhook support can be added if you need it.</p>
+              <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
+                <p className="font-medium">Webhook setup</p>
+                <p>Callback URL: <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">{process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/v1/whatsapp/webhook/msg91</code></p>
+                <p className="mt-2">Add this URL in your MSG91 dashboard under WhatsApp → Webhook settings so replies show up automatically. This integration is built from MSG91's published docs and hasn't been verified against a live account yet — if messages don't appear after sending a test reply, check the backend logs for an "Unrecognized MSG91 webhook payload shape" entry and let your developer know the logged format.</p>
               </div>
             )}
             <button onClick={() => saveMutation.mutate(companyForm)} disabled={saveMutation.isPending} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
