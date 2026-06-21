@@ -1,8 +1,10 @@
 const router = require('express').Router();
 const prisma = require('../../config/prisma');
-const { authenticate, sameCompany } = require('../../middleware/auth');
+const { authenticate, sameCompany, requirePermission } = require('../../middleware/auth');
 const { success, created, notFound, error } = require('../../utils/response');
 const { paginate, paginateMeta } = require('../../utils/helpers');
+const { auditLog } = require('../../middleware/audit');
+const logger = require('../../config/logger');
 
 router.use(authenticate, sameCompany);
 
@@ -58,15 +60,17 @@ router.post('/', async (req, res, next) => {
       return newPayment;
     });
 
+    logger.info(`Payment recorded: ${payment.id} amount=${amount} invoiceId=${req.body.invoiceId} companyId=${req.companyId} userId=${req.userId}`);
     return created(res, payment, 'Payment recorded');
   } catch (err) { next(err); }
 });
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', requirePermission('finance.*'), auditLog('finance.payments', 'payment'), async (req, res, next) => {
   try {
     const existing = await prisma.payment.findFirst({ where: { id: req.params.id, invoice: { companyId: req.companyId } } });
     if (!existing) return notFound(res, 'Payment not found');
     await prisma.payment.delete({ where: { id: req.params.id } });
+    logger.warn(`Payment deleted: ${existing.id} amount=${existing.amount} invoiceId=${existing.invoiceId} companyId=${req.companyId} userId=${req.userId}`);
     return success(res, {}, 'Payment deleted');
   } catch (err) { next(err); }
 });

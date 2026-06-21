@@ -5,8 +5,10 @@ const fs = require('fs');
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany } = require('../../middleware/auth');
 const { success, created, paginated, notFound } = require('../../utils/response');
-const { paginate, paginateMeta } = require('../../utils/helpers');
+const { paginate, paginateMeta, pick } = require('../../utils/helpers');
 const { v4: uuidv4 } = require('uuid');
+
+const DOCUMENT_WRITABLE_FIELDS = ['name', 'folderId', 'projectId', 'isPublic', 'tags'];
 
 const uploadDir = process.env.UPLOAD_PATH || './uploads';
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -44,6 +46,7 @@ router.get('/folders', async (req, res, next) => {
         parentId: parentId || null,
       },
       include: { _count: { select: { documents: true, children: true } } },
+      take: 200,
     });
     return success(res, folders);
   } catch (err) { next(err); }
@@ -154,7 +157,7 @@ router.put('/:id', async (req, res, next) => {
   try {
     const existing = await prisma.document.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Document not found');
-    const doc = await prisma.document.update({ where: { id: req.params.id }, data: req.body });
+    const doc = await prisma.document.update({ where: { id: req.params.id }, data: pick(req.body, DOCUMENT_WRITABLE_FIELDS) });
     return success(res, doc, 'Document updated');
   } catch (err) { next(err); }
 });

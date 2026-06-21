@@ -1,13 +1,15 @@
 const router = require('express').Router();
 const prisma = require('../../config/prisma');
-const { authenticate, sameCompany } = require('../../middleware/auth');
-const { success, created, paginated, notFound } = require('../../utils/response');
-const { paginate, paginateMeta, generateNumber } = require('../../utils/helpers');
+const { authenticate, sameCompany, requirePermission } = require('../../middleware/auth');
+const { success, created, paginated, notFound, error } = require('../../utils/response');
+const { paginate, paginateMeta, generateNumber, pick } = require('../../utils/helpers');
 const emailService = require('../../services/email.service');
 const { callAI } = require('../../services/ai.service');
 const { auditLog } = require('../../middleware/audit');
 
 router.use(authenticate, sameCompany);
+
+const TICKET_WRITABLE_FIELDS = ['subject', 'description', 'status', 'priority', 'categoryId', 'assigneeId', 'contactId', 'source', 'slaDeadline', 'rating', 'feedback', 'tags'];
 
 router.get('/', async (req, res, next) => {
   try {
@@ -71,20 +73,21 @@ router.get('/:id', async (req, res, next) => {
 
 router.post('/', auditLog('helpdesk.tickets', 'ticket'), async (req, res, next) => {
   try {
+    if (!req.body.subject) return error(res, 'Subject is required', 400);
     const count = await prisma.ticket.count({ where: { companyId: req.companyId } });
     const ticketNo = generateNumber('TKT', count + 1);
     const ticket = await prisma.ticket.create({
-      data: { ...req.body, companyId: req.companyId, ticketNo, reporterId: req.userId },
+      data: { ...pick(req.body, TICKET_WRITABLE_FIELDS), companyId: req.companyId, ticketNo, reporterId: req.userId },
     });
     return created(res, ticket, 'Ticket created');
   } catch (err) { next(err); }
 });
 
-router.put('/:id', auditLog('helpdesk.tickets', 'ticket'), async (req, res, next) => {
+router.put('/:id', requirePermission('helpdesk.*'), auditLog('helpdesk.tickets', 'ticket'), async (req, res, next) => {
   try {
     const existing = await prisma.ticket.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Ticket not found');
-    const data = { ...req.body };
+    const data = pick(req.body, TICKET_WRITABLE_FIELDS);
     if (data.status === 'resolved' && !data.resolvedAt) data.resolvedAt = new Date();
     if (data.status === 'closed' && !data.closedAt) data.closedAt = new Date();
     const ticket = await prisma.ticket.update({ where: { id: req.params.id }, data });

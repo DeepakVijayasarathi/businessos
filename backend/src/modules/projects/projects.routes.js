@@ -1,11 +1,14 @@
 const router = require('express').Router();
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany } = require('../../middleware/auth');
-const { success, created, paginated, notFound } = require('../../utils/response');
-const { paginate, paginateMeta } = require('../../utils/helpers');
+const { success, created, paginated, notFound, error } = require('../../utils/response');
+const { paginate, paginateMeta, pick } = require('../../utils/helpers');
 const { auditLog } = require('../../middleware/audit');
 
 router.use(authenticate, sameCompany);
+
+const PROJECT_WRITABLE_FIELDS = ['name', 'description', 'status', 'priority', 'startDate', 'endDate', 'budget', 'spent', 'progress', 'clientId', 'managerId', 'color', 'tags'];
+const TASK_WRITABLE_FIELDS = ['projectId', 'milestoneId', 'leadId', 'contactId', 'dealId', 'title', 'description', 'status', 'priority', 'assigneeId', 'dueDate', 'startDate', 'completedAt', 'estimatedHours', 'actualHours', 'tags', 'parentTaskId'];
 
 // Projects
 router.get('/', async (req, res, next) => {
@@ -43,8 +46,9 @@ router.get('/:id', async (req, res, next) => {
 
 router.post('/', auditLog('projects', 'project'), async (req, res, next) => {
   try {
+    if (!req.body.name) return error(res, 'Project name is required', 400);
     const project = await prisma.project.create({
-      data: { ...req.body, companyId: req.companyId },
+      data: { ...pick(req.body, PROJECT_WRITABLE_FIELDS), companyId: req.companyId },
     });
     return created(res, project, 'Project created');
   } catch (err) { next(err); }
@@ -54,7 +58,7 @@ router.put('/:id', auditLog('projects', 'project'), async (req, res, next) => {
   try {
     const existing = await prisma.project.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Project not found');
-    const project = await prisma.project.update({ where: { id: req.params.id }, data: req.body });
+    const project = await prisma.project.update({ where: { id: req.params.id }, data: pick(req.body, PROJECT_WRITABLE_FIELDS) });
     return success(res, project, 'Project updated');
   } catch (err) { next(err); }
 });
@@ -97,8 +101,9 @@ router.get('/tasks/all', async (req, res, next) => {
 
 router.post('/tasks', auditLog('projects.tasks', 'task'), async (req, res, next) => {
   try {
+    if (!req.body.title) return error(res, 'Task title is required', 400);
     const task = await prisma.task.create({
-      data: { ...req.body, companyId: req.companyId, creatorId: req.userId },
+      data: { ...pick(req.body, TASK_WRITABLE_FIELDS), companyId: req.companyId, creatorId: req.userId },
       include: { assignee: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
     });
     return created(res, task, 'Task created');
@@ -109,7 +114,7 @@ router.put('/tasks/:id', auditLog('projects.tasks', 'task'), async (req, res, ne
   try {
     const existing = await prisma.task.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Task not found');
-    const task = await prisma.task.update({ where: { id: req.params.id }, data: req.body });
+    const task = await prisma.task.update({ where: { id: req.params.id }, data: pick(req.body, TASK_WRITABLE_FIELDS) });
     return success(res, task, 'Task updated');
   } catch (err) { next(err); }
 });

@@ -1,12 +1,19 @@
 const router = require('express').Router();
 const prisma = require('../../../config/prisma');
 const { authenticate, sameCompany } = require('../../../middleware/auth');
-const { success, created, paginated, notFound } = require('../../../utils/response');
-const { paginate, paginateMeta } = require('../../../utils/helpers');
+const { success, created, paginated, notFound, error } = require('../../../utils/response');
+const { paginate, paginateMeta, pick } = require('../../../utils/helpers');
 const { auditLog } = require('../../../middleware/audit');
 const { sendCsv } = require('../../../utils/csv');
 
 router.use(authenticate, sameCompany);
+
+const EMPLOYEE_WRITABLE_FIELDS = [
+  'userId', 'employeeCode', 'departmentId', 'managerId', 'jobTitle', 'jobType', 'status',
+  'startDate', 'endDate', 'salary', 'salaryType', 'currency', 'bankName', 'bankAccount',
+  'bankRoutingNo', 'nationalId', 'taxId', 'emergencyContact', 'address', 'city', 'country',
+  'skills', 'customFields',
+];
 
 // Employees
 router.get('/', async (req, res, next) => {
@@ -93,8 +100,11 @@ router.get('/:id', async (req, res, next) => {
 
 router.post('/', auditLog('hr.employees', 'employee'), async (req, res, next) => {
   try {
+    if (!req.body.userId) return error(res, 'userId is required', 400);
+    if (!req.body.employeeCode) return error(res, 'employeeCode is required', 400);
+    if (!req.body.startDate) return error(res, 'startDate is required', 400);
     const employee = await prisma.employee.create({
-      data: { ...req.body, companyId: req.companyId },
+      data: { ...pick(req.body, EMPLOYEE_WRITABLE_FIELDS), companyId: req.companyId },
       include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } },
     });
     return created(res, employee, 'Employee created');
@@ -105,7 +115,7 @@ router.put('/:id', auditLog('hr.employees', 'employee'), async (req, res, next) 
   try {
     const existing = await prisma.employee.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Employee not found');
-    const employee = await prisma.employee.update({ where: { id: req.params.id }, data: req.body });
+    const employee = await prisma.employee.update({ where: { id: req.params.id }, data: pick(req.body, EMPLOYEE_WRITABLE_FIELDS) });
     return success(res, employee, 'Employee updated');
   } catch (err) { next(err); }
 });
