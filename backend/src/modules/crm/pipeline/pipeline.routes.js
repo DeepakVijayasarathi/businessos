@@ -1,11 +1,14 @@
 const router = require('express').Router();
 const prisma = require('../../../config/prisma');
 const { authenticate, sameCompany } = require('../../../middleware/auth');
-const { success, created, paginated, notFound } = require('../../../utils/response');
-const { paginate, paginateMeta } = require('../../../utils/helpers');
+const { success, created, paginated, notFound, error } = require('../../../utils/response');
+const { paginate, paginateMeta, pick } = require('../../../utils/helpers');
 const { auditLog } = require('../../../middleware/audit');
 
 router.use(authenticate, sameCompany);
+
+const DEAL_WRITABLE_FIELDS = ['title', 'pipelineId', 'stageId', 'crmCompanyId', 'value', 'currency', 'probability', 'expectedCloseAt', 'closedAt', 'status', 'lostReason', 'assignedToId', 'notes', 'customFields', 'tags'];
+const CRM_COMPANY_WRITABLE_FIELDS = ['name', 'website', 'email', 'phone', 'industry', 'size', 'revenue', 'address', 'city', 'country', 'status', 'assignedToId', 'notes', 'customFields', 'tags'];
 
 // Pipelines
 router.get('/pipelines', async (req, res, next) => {
@@ -83,8 +86,10 @@ router.get('/kanban/:pipelineId', async (req, res, next) => {
 
 router.post('/deals', auditLog('crm.deals', 'deal'), async (req, res, next) => {
   try {
+    if (!req.body.title) return error(res, 'Deal title is required', 400);
+    if (!req.body.pipelineId || !req.body.stageId) return error(res, 'pipelineId and stageId are required', 400);
     const deal = await prisma.deal.create({
-      data: { ...req.body, companyId: req.companyId },
+      data: { ...pick(req.body, DEAL_WRITABLE_FIELDS), companyId: req.companyId },
       include: { stage: true },
     });
     return created(res, deal, 'Deal created');
@@ -97,7 +102,7 @@ router.put('/deals/:id', auditLog('crm.deals', 'deal'), async (req, res, next) =
     if (!existing) return notFound(res, 'Deal not found');
     const deal = await prisma.deal.update({
       where: { id: req.params.id },
-      data: req.body,
+      data: pick(req.body, DEAL_WRITABLE_FIELDS),
       include: { stage: true },
     });
     return success(res, deal, 'Deal updated');
@@ -146,7 +151,8 @@ router.get('/companies', async (req, res, next) => {
 
 router.post('/companies', auditLog('crm.companies', 'crmCompany'), async (req, res, next) => {
   try {
-    const company = await prisma.crmCompany.create({ data: { ...req.body, companyId: req.companyId } });
+    if (!req.body.name) return error(res, 'Company name is required', 400);
+    const company = await prisma.crmCompany.create({ data: { ...pick(req.body, CRM_COMPANY_WRITABLE_FIELDS), companyId: req.companyId } });
     return created(res, company, 'Company created');
   } catch (err) { next(err); }
 });
@@ -155,7 +161,7 @@ router.put('/companies/:id', auditLog('crm.companies', 'crmCompany'), async (req
   try {
     const existing = await prisma.crmCompany.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Company not found');
-    const company = await prisma.crmCompany.update({ where: { id: req.params.id }, data: req.body });
+    const company = await prisma.crmCompany.update({ where: { id: req.params.id }, data: pick(req.body, CRM_COMPANY_WRITABLE_FIELDS) });
     return success(res, company, 'Company updated');
   } catch (err) { next(err); }
 });
@@ -166,28 +172,6 @@ router.delete('/companies/:id', auditLog('crm.companies', 'crmCompany'), async (
     if (!existing) return notFound(res, 'Company not found');
     await prisma.crmCompany.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Company deleted');
-  } catch (err) { next(err); }
-});
-
-// Activities
-router.get('/activities', async (req, res, next) => {
-  try {
-    const { page = 1, limit = 20, type, leadId, contactId, dealId } = req.query;
-    const { take, skip } = paginate(page, limit);
-    const activities = await prisma.activity.findMany({
-      where: { companyId: req.companyId, ...(type && { type }), ...(leadId && { leadId }), ...(contactId && { contactId }), ...(dealId && { dealId }) },
-      take, skip, orderBy: { createdAt: 'desc' },
-    });
-    return success(res, activities);
-  } catch (err) { next(err); }
-});
-
-router.post('/activities', async (req, res, next) => {
-  try {
-    const activity = await prisma.activity.create({
-      data: { ...req.body, companyId: req.companyId, userId: req.userId },
-    });
-    return created(res, activity, 'Activity logged');
   } catch (err) { next(err); }
 });
 

@@ -58,16 +58,15 @@ router.get('/dashboard', async (req, res, next) => {
 router.get('/revenue', async (req, res, next) => {
   try {
     const { year = new Date().getFullYear() } = req.query;
-    const months = [];
-    for (let m = 0; m < 12; m++) {
+    const results = await Promise.all(Array.from({ length: 12 }, (_, m) => {
       const start = new Date(year, m, 1);
       const end = new Date(year, m + 1, 0);
-      const result = await prisma.invoice.aggregate({
+      return prisma.invoice.aggregate({
         where: { companyId: req.companyId, status: 'paid', paidAt: { gte: start, lte: end } },
         _sum: { total: true },
       });
-      months.push({ month: m + 1, revenue: Number(result._sum.total || 0) });
-    }
+    }));
+    const months = results.map((result, m) => ({ month: m + 1, revenue: Number(result._sum.total || 0) }));
     return success(res, months);
   } catch (err) { next(err); }
 });
@@ -187,19 +186,28 @@ router.get('/support', async (req, res, next) => {
 router.get('/forecast', async (req, res, next) => {
   try {
     const cid = req.companyId;
-    const months = [];
     const now = new Date();
 
-    // Historical: last 6 months
-    for (let i = 5; i >= 0; i--) {
+    // Historical: last 6 months — run the 6 aggregates in parallel, then
+    // build `months` back in chronological order (the regression below
+    // depends on index order matching time order).
+    const historicalRanges = Array.from({ length: 6 }, (_, idx) => {
+      const i = 5 - idx;
       const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
-      const rev = await prisma.invoice.aggregate({
+      return { start, end };
+    });
+    const historicalResults = await Promise.all(historicalRanges.map(({ start, end }) =>
+      prisma.invoice.aggregate({
         where: { companyId: cid, status: 'paid', paidAt: { gte: start, lte: end } },
         _sum: { total: true },
-      });
-      months.push({ month: start.toISOString().slice(0, 7), revenue: Number(rev._sum.total || 0), type: 'actual' });
-    }
+      })
+    ));
+    const months = historicalRanges.map(({ start }, idx) => ({
+      month: start.toISOString().slice(0, 7),
+      revenue: Number(historicalResults[idx]._sum.total || 0),
+      type: 'actual',
+    }));
 
     // Forecast: next 3 months using linear regression
     const values = months.map(m => m.revenue);

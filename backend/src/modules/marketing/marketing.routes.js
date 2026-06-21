@@ -7,8 +7,12 @@ const { v4: uuidv4 } = require('uuid');
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany, optionalAuth } = require('../../middleware/auth');
 const { success, created, notFound, error } = require('../../utils/response');
-const { slugify, paginate, paginateMeta } = require('../../utils/helpers');
+const { slugify, paginate, paginateMeta, pick } = require('../../utils/helpers');
+
+const PAGE_WRITABLE_FIELDS = ['name', 'content', 'seoTitle', 'seoDesc', 'isPublished'];
+const FORM_WRITABLE_FIELDS = ['landingPageId', 'name', 'fields', 'successMessage', 'redirectUrl', 'isActive'];
 const { generateImage } = require('../../services/ai.service');
+const logger = require('../../config/logger');
 
 const uploadDir = process.env.UPLOAD_PATH || './uploads';
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -51,9 +55,10 @@ router.get('/pages/:slug', optionalAuth, async (req, res, next) => {
 
 router.post('/pages', authenticate, sameCompany, async (req, res, next) => {
   try {
+    if (!req.body.name) return error(res, 'Page name is required', 400);
     const slug = slugify(req.body.name);
     const page = await prisma.landingPage.create({
-      data: { ...req.body, companyId: req.companyId, slug: `${slug}-${Date.now()}` },
+      data: { ...pick(req.body, PAGE_WRITABLE_FIELDS), companyId: req.companyId, slug: `${slug}-${Date.now()}` },
     });
     return created(res, page, 'Page created');
   } catch (err) { next(err); }
@@ -63,7 +68,7 @@ router.put('/pages/:id', authenticate, sameCompany, async (req, res, next) => {
   try {
     const existing = await prisma.landingPage.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Page not found');
-    const page = await prisma.landingPage.update({ where: { id: req.params.id }, data: req.body });
+    const page = await prisma.landingPage.update({ where: { id: req.params.id }, data: pick(req.body, PAGE_WRITABLE_FIELDS) });
     return success(res, page, 'Page updated');
   } catch (err) { next(err); }
 });
@@ -90,7 +95,8 @@ router.get('/forms', authenticate, sameCompany, async (req, res, next) => {
 
 router.post('/forms', authenticate, sameCompany, async (req, res, next) => {
   try {
-    const form = await prisma.marketingForm.create({ data: { ...req.body, companyId: req.companyId } });
+    if (!req.body.name) return error(res, 'Form name is required', 400);
+    const form = await prisma.marketingForm.create({ data: { ...pick(req.body, FORM_WRITABLE_FIELDS), companyId: req.companyId } });
     return created(res, form, 'Form created');
   } catch (err) { next(err); }
 });
@@ -127,7 +133,7 @@ router.post('/forms/:id/submit', optionalAuth, async (req, res, next) => {
           source: 'website',
           status: 'new',
         },
-      }).catch(() => null);
+      }).catch((err) => { logger.warn(`Failed to auto-create lead from form submission: ${err.message}`); return null; });
 
       if (lead) {
         await prisma.formSubmission.update({ where: { id: submission.id }, data: { leadId: lead.id } });
@@ -219,7 +225,7 @@ router.post('/posters', authenticate, sameCompany, async (req, res, next) => {
         type: 'poster_created',
         title: `Created poster "${title}"`,
       },
-    }).catch(() => {});
+    }).catch((err) => logger.warn(`Failed to log poster_created marketing activity: ${err.message}`));
 
     return created(res, poster, 'Poster saved');
   } catch (err) { next(err); }

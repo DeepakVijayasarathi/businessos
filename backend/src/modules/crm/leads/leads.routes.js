@@ -2,12 +2,15 @@ const router = require('express').Router();
 const prisma = require('../../../config/prisma');
 const { authenticate, sameCompany } = require('../../../middleware/auth');
 const { success, created, paginated, notFound, error } = require('../../../utils/response');
-const { paginate, paginateMeta } = require('../../../utils/helpers');
+const { paginate, paginateMeta, pick } = require('../../../utils/helpers');
 const notificationService = require('../../../services/notification.service');
 const { callAI } = require('../../../services/ai.service');
 const { auditLog } = require('../../../middleware/audit');
+const logger = require('../../../config/logger');
 
 router.use(authenticate, sameCompany);
+
+const LEAD_WRITABLE_FIELDS = ['firstName', 'lastName', 'email', 'phone', 'company', 'jobTitle', 'source', 'status', 'score', 'assignedToId', 'notes', 'customFields', 'tags'];
 
 // GET /crm/leads
 router.get('/', async (req, res, next) => {
@@ -67,8 +70,9 @@ router.get('/:id', async (req, res, next) => {
 // POST /crm/leads
 router.post('/', auditLog('crm.leads', 'lead'), async (req, res, next) => {
   try {
+    if (!req.body.firstName) return error(res, 'First name is required', 400);
     const lead = await prisma.lead.create({
-      data: { ...req.body, companyId: req.companyId },
+      data: { ...pick(req.body, LEAD_WRITABLE_FIELDS), companyId: req.companyId },
     });
     notificationService.createForRole({
       companyId: req.companyId,
@@ -78,7 +82,7 @@ router.post('/', auditLog('crm.leads', 'lead'), async (req, res, next) => {
       message: `${lead.firstName} ${lead.lastName} added as a new lead`,
       link: '/dashboard/crm/leads',
       data: { leadId: lead.id },
-    }).catch(() => {});
+    }).catch((err) => logger.warn(`Failed to notify admins of new lead ${lead.id}: ${err.message}`));
     return created(res, lead, 'Lead created');
   } catch (err) { next(err); }
 });
@@ -90,7 +94,7 @@ router.put('/:id', auditLog('crm.leads', 'lead'), async (req, res, next) => {
     if (!existing) return notFound(res, 'Lead not found');
     const lead = await prisma.lead.update({
       where: { id: req.params.id },
-      data: req.body,
+      data: pick(req.body, LEAD_WRITABLE_FIELDS),
     });
     return success(res, lead, 'Lead updated');
   } catch (err) { next(err); }

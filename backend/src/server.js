@@ -24,6 +24,22 @@ if (missingEnv.length) {
   process.exit(1);
 }
 
+// Reject the example placeholder values and anything under 32 chars — a
+// misconfigured .env left at the .env.example defaults would otherwise boot
+// fine with a known, guessable secret.
+const PLACEHOLDER_SECRETS = new Set([
+  'your-super-secret-jwt-key-min-32-chars',
+  'your-refresh-token-secret-min-32-chars',
+  '32-char-encryption-key-here-----',
+]);
+const weakSecrets = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'ENCRYPTION_KEY'].filter(
+  (k) => process.env[k].length < 32 || PLACEHOLDER_SECRETS.has(process.env[k])
+);
+if (weakSecrets.length) {
+  console.error(`FATAL: ${weakSecrets.join(', ')} must be set to a unique value of at least 32 characters (not the .env.example placeholder).`);
+  process.exit(1);
+}
+
 // Route modules
 const authRoutes = require('./modules/auth/auth.routes');
 const userRoutes = require('./modules/users/users.routes');

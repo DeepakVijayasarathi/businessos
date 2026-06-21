@@ -4,6 +4,7 @@ const prisma = require('../../config/prisma');
 const { jwt: jwtConfig } = require('../../config');
 const { generateToken } = require('../../utils/helpers');
 const { AppError } = require('../../middleware/errorHandler');
+const logger = require('../../config/logger');
 
 class AuthService {
   async register({ firstName, lastName, email, password, companyName }) {
@@ -113,7 +114,19 @@ class AuthService {
       include: { roles: { include: { role: true } } },
     });
 
-    if (!user || user.refreshToken !== token) {
+    if (!user) throw new AppError('Refresh token revoked', 401);
+
+    if (user.refreshToken !== token) {
+      // The token was valid (signature + expiry) but doesn't match what's on
+      // file — it was already rotated, meaning this is either a stale tab or
+      // a stolen-and-replayed token. Can't tell which, so the safe response
+      // is to kill the current valid session too and force a fresh login,
+      // rather than silently 401ing and leaving a possibly-compromised
+      // session active.
+      if (user.refreshToken) {
+        await prisma.user.update({ where: { id: user.id }, data: { refreshToken: null } });
+        logger.warn(`Refresh token reuse detected for user ${user.id} — session revoked, forcing re-login`);
+      }
       throw new AppError('Refresh token revoked', 401);
     }
 

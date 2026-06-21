@@ -4,6 +4,7 @@ const { authenticate, sameCompany, optionalAuth } = require('../../middleware/au
 const { success, created, notFound } = require('../../utils/response');
 const emailService = require('../../services/email.service');
 const { buildAppointmentIcs } = require('../../utils/ics');
+const logger = require('../../config/logger');
 
 // Services (public)
 router.get('/services', optionalAuth, async (req, res, next) => {
@@ -142,7 +143,7 @@ router.post('/book', optionalAuth, async (req, res, next) => {
         to: resolvedEmail,
         appointment,
         companyId: resolvedCompanyId,
-      }).catch(() => {});
+      }).catch((err) => logger.warn(`Failed to email appointment confirmation to ${resolvedEmail}: ${err.message}`));
     }
 
     return created(res, appointment, 'Appointment booked');
