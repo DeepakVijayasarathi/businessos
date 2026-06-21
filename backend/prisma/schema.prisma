@@ -101,6 +101,8 @@ model Company {
   notifications     Notification[]
   roles             Role[]
   conversations     Conversation[]
+  posters           Poster[]
+  marketingActivities MarketingActivity[]
 
   @@map("companies")
 }
@@ -218,6 +220,7 @@ model User {
   bookedAppointments Appointment[] @relation("AppointmentBooker")
   conversations     ConversationParticipant[]
   sentMessages      Message[]
+  marketingActivities MarketingActivity[]
 
   @@index([companyId])
   @@map("users")
@@ -1255,6 +1258,40 @@ model FormSubmission {
   form      MarketingForm @relation(fields: [formId], references: [id], onDelete: Cascade)
 
   @@map("form_submissions")
+}
+
+model Poster {
+  id             String   @id @default(uuid())
+  companyId      String
+  title          String
+  subtitle       String?
+  templateKey    String   // matches a frontend-defined template id
+  primaryColor   String   @default("#6366f1")
+  secondaryColor String   @default("#8b5cf6")
+  imageUrl       String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  companyRel     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("posters")
+}
+
+model MarketingActivity {
+  id        String   @id @default(uuid())
+  companyId String
+  userId    String?
+  type      String   // poster_created, campaign_launched, social_post, email_sent, ad_created, event, other
+  title     String
+  notes     String?
+  createdAt DateTime @default(now())
+
+  companyRel Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@map("marketing_activities")
 }
 
 // ============================================================

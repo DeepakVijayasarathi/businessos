@@ -1,8 +1,30 @@
 const router = require('express').Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany, optionalAuth } = require('../../middleware/auth');
-const { success, created, notFound } = require('../../utils/response');
-const { slugify } = require('../../utils/helpers');
+const { success, created, notFound, error } = require('../../utils/response');
+const { slugify, paginate, paginateMeta } = require('../../utils/helpers');
+
+const uploadDir = process.env.UPLOAD_PATH || './uploads';
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const posterUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`),
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+    if (!allowed.includes(path.extname(file.originalname).toLowerCase())) {
+      return cb(new Error('Only image files are allowed'));
+    }
+    cb(null, true);
+  },
+});
 
 // Landing Pages
 router.get('/pages', authenticate, sameCompany, async (req, res, next) => {
@@ -121,6 +143,102 @@ router.get('/forms/:id/submissions', authenticate, sameCompany, async (req, res,
       orderBy: { createdAt: 'desc' },
     });
     return success(res, submissions);
+  } catch (err) { next(err); }
+});
+
+// Posters
+router.get('/posters', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const { take, skip } = paginate(page, limit);
+    const where = { companyId: req.companyId };
+    const [posters, total] = await Promise.all([
+      prisma.poster.findMany({ where, take, skip, orderBy: { createdAt: 'desc' } }),
+      prisma.poster.count({ where }),
+    ]);
+    return res.json({ success: true, data: posters, meta: paginateMeta(total, page, limit) });
+  } catch (err) { next(err); }
+});
+
+router.post('/posters/upload-image', authenticate, sameCompany, (req, res, next) => {
+  posterUpload.single('image')(req, res, (err) => {
+    if (err) return error(res, err.message || 'Image upload failed', 400);
+    if (!req.file) return error(res, 'No image uploaded', 400);
+    return success(res, { url: `/uploads/${req.file.filename}` }, 'Image uploaded');
+  });
+});
+
+router.post('/posters', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { title, subtitle, templateKey, primaryColor, secondaryColor, imageUrl } = req.body;
+    if (!title || !templateKey) return error(res, 'Title and template are required', 400);
+
+    const poster = await prisma.poster.create({
+      data: {
+        companyId: req.companyId,
+        createdById: req.userId,
+        title,
+        subtitle: subtitle || null,
+        templateKey,
+        primaryColor: primaryColor || '#6366f1',
+        secondaryColor: secondaryColor || '#8b5cf6',
+        imageUrl: imageUrl || null,
+      },
+    });
+
+    await prisma.marketingActivity.create({
+      data: {
+        companyId: req.companyId,
+        userId: req.userId,
+        type: 'poster_created',
+        title: `Created poster "${title}"`,
+      },
+    }).catch(() => {});
+
+    return created(res, poster, 'Poster saved');
+  } catch (err) { next(err); }
+});
+
+router.delete('/posters/:id', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const existing = await prisma.poster.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Poster not found');
+    await prisma.poster.delete({ where: { id: req.params.id } });
+    return success(res, {}, 'Poster deleted');
+  } catch (err) { next(err); }
+});
+
+// Marketing Activities
+router.get('/activities', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { type } = req.query;
+    const activities = await prisma.marketingActivity.findMany({
+      where: { companyId: req.companyId, ...(type && { type }) },
+      include: { user: { select: { firstName: true, lastName: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    return success(res, activities);
+  } catch (err) { next(err); }
+});
+
+router.post('/activities', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { type, title, notes } = req.body;
+    if (!type || !title) return error(res, 'Type and title are required', 400);
+    const activity = await prisma.marketingActivity.create({
+      data: { companyId: req.companyId, userId: req.userId, type, title, notes: notes || null },
+    });
+    return created(res, activity, 'Activity logged');
+  } catch (err) { next(err); }
+});
+
+router.delete('/activities/:id', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const existing = await prisma.marketingActivity.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Activity not found');
+    await prisma.marketingActivity.delete({ where: { id: req.params.id } });
+    return success(res, {}, 'Activity deleted');
   } catch (err) { next(err); }
 });
 

@@ -2,16 +2,27 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { formatDate, formatDateTime } from '@/lib/utils';
-import { Plus, Globe, FormInput, Eye, MousePointer, Trash2, ExternalLink } from 'lucide-react';
+import { formatDate, formatDateTime, formatRelativeTime } from '@/lib/utils';
+import { Plus, Globe, FormInput, Eye, MousePointer, Trash2, ExternalLink, Image as ImageIcon, Activity as ActivityIcon, Megaphone, Share2, Mail, Calendar, MoreHorizontal } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
+import { POSTER_TEMPLATES, PosterPreview, type PosterData } from '@/components/marketing/PosterTemplates';
+
+const ACTIVITY_TYPES: Record<string, { label: string; icon: any; color: string }> = {
+  poster_created: { label: 'Poster Created', icon: ImageIcon, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' },
+  campaign_launched: { label: 'Campaign Launched', icon: Megaphone, color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' },
+  social_post: { label: 'Social Post', icon: Share2, color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' },
+  email_sent: { label: 'Email Sent', icon: Mail, color: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' },
+  event: { label: 'Event', icon: Calendar, color: 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400' },
+  other: { label: 'Other', icon: MoreHorizontal, color: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
+};
 
 export default function MarketingPage() {
-  const [tab, setTab] = useState<'pages' | 'forms'>('pages');
+  const [tab, setTab] = useState<'pages' | 'forms' | 'posters' | 'activity'>('pages');
   const [showPageModal, setShowPageModal] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
   const [selectedForm, setSelectedForm] = useState<any>(null);
   const qc = useQueryClient();
 
@@ -33,6 +44,18 @@ export default function MarketingPage() {
     queryFn: async () => { const { data } = await api.get(`/marketing/forms/${selectedForm.id}/submissions`); return data.data; },
   });
 
+  const { data: posters, isLoading: postersLoading } = useQuery({
+    queryKey: ['posters'],
+    enabled: tab === 'posters',
+    queryFn: async () => { const { data } = await api.get('/marketing/posters'); return data; },
+  });
+
+  const { data: activities, isLoading: activitiesLoading } = useQuery({
+    queryKey: ['marketing-activities'],
+    enabled: tab === 'activity',
+    queryFn: async () => { const { data } = await api.get('/marketing/activities'); return data.data; },
+  });
+
   const deletePageMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/marketing/pages/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['landing-pages'] }); toast.success('Page deleted'); },
@@ -43,23 +66,39 @@ export default function MarketingPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketing-forms'] }); toast.success('Form deleted'); },
   });
 
+  const deletePosterMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/marketing/posters/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['posters'] }); toast.success('Poster deleted'); },
+  });
+
+  const deleteActivityMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/marketing/activities/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketing-activities'] }); toast.success('Activity deleted'); },
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Marketing</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Landing pages & lead capture forms</p>
+          <p className="text-sm text-gray-500 mt-0.5">Landing pages, forms, posters & activity</p>
         </div>
-        <button
-          onClick={() => tab === 'pages' ? setShowPageModal(true) : setShowFormModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700"
-        >
-          <Plus className="w-4 h-4" /> {tab === 'pages' ? 'New Page' : 'New Form'}
-        </button>
+        {tab !== 'posters' && (
+          <button
+            onClick={() => {
+              if (tab === 'pages') setShowPageModal(true);
+              else if (tab === 'forms') setShowFormModal(true);
+              else setShowActivityModal(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700"
+          >
+            <Plus className="w-4 h-4" /> {tab === 'pages' ? 'New Page' : tab === 'forms' ? 'New Form' : 'Log Activity'}
+          </button>
+        )}
       </div>
 
       <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 w-fit">
-        {(['pages', 'forms'] as const).map(t => (
+        {(['pages', 'forms', 'posters', 'activity'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all ${tab === t ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500'}`}>{t}</button>
         ))}
       </div>
@@ -167,8 +206,56 @@ export default function MarketingPage() {
         </div>
       )}
 
+      {tab === 'posters' && (
+        <PosterGallery posters={posters?.data || []} isLoading={postersLoading} onDelete={(id: string) => { if (confirm('Delete this poster?')) deletePosterMutation.mutate(id); }} />
+      )}
+
+      {tab === 'activity' && (
+        <div className="glass-card rounded-2xl overflow-hidden">
+          {activitiesLoading ? (
+            <div className="p-6 space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-12 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />)}
+            </div>
+          ) : !activities?.length ? (
+            <div className="p-12 text-center text-gray-400">
+              <ActivityIcon className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p>No marketing activity logged yet</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50 dark:divide-gray-800">
+              {activities.map((a: any) => {
+                const meta = ACTIVITY_TYPES[a.type] || ACTIVITY_TYPES.other;
+                const Icon = meta.icon;
+                return (
+                  <div key={a.id} className="p-4 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${meta.color}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{a.title}</p>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">{meta.label}</span>
+                      </div>
+                      {a.notes && <p className="text-xs text-gray-500 mt-0.5">{a.notes}</p>}
+                      <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                        {a.user && <span>{a.user.firstName} {a.user.lastName}</span>}
+                        <span>{formatRelativeTime(a.createdAt)}</span>
+                      </div>
+                    </div>
+                    <button onClick={() => { if (confirm('Delete this activity?')) deleteActivityMutation.mutate(a.id); }} className="p-1.5 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {showPageModal && <PageModal onClose={() => setShowPageModal(false)} />}
       {showFormModal && <FormModal onClose={() => setShowFormModal(false)} />}
+      {showActivityModal && <ActivityModal onClose={() => setShowActivityModal(false)} />}
     </div>
   );
 }
@@ -235,6 +322,181 @@ function FormModal({ onClose }: { onClose: () => void }) {
           <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Creating...' : 'Create Form'}</button>
         </ModalFooter>
       </form>
+    </Modal>
+  );
+}
+
+function ActivityModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ type: 'campaign_launched', title: '', notes: '' });
+  const mutation = useMutation({
+    mutationFn: (data: any) => api.post('/marketing/activities', data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketing-activities'] }); toast.success('Activity logged'); onClose(); },
+    onError: () => toast.error('Failed to log activity'),
+  });
+  return (
+    <Modal onClose={onClose} title="Log Marketing Activity" subtitle="Record a campaign, post, or other marketing action" icon={ActivityIcon} iconColor="indigo">
+      <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }}>
+        <div className="p-6 space-y-4">
+          <SelectField id="activity-type" label="Type" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+            {Object.entries(ACTIVITY_TYPES).map(([key, meta]) => <option key={key} value={key}>{meta.label}</option>)}
+          </SelectField>
+          <TextField id="activity-title" label="Title" required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Launched summer sale campaign" />
+          <TextAreaField id="activity-notes" label="Notes" rows={3} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+        </div>
+        <ModalFooter>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
+          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Logging...' : 'Log Activity'}</button>
+        </ModalFooter>
+      </form>
+    </Modal>
+  );
+}
+
+function PosterGallery({ posters, isLoading, onDelete }: { posters: any[]; isLoading: boolean; onDelete: (id: string) => void }) {
+  const [showDesigner, setShowDesigner] = useState(false);
+
+  return (
+    <div>
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <button
+          onClick={() => setShowDesigner(true)}
+          className="h-48 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 flex flex-col items-center justify-center text-gray-400 hover:text-indigo-500 transition-colors"
+        >
+          <Plus className="w-8 h-8 mb-2" />
+          <span className="text-sm font-medium">Create Poster</span>
+        </button>
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-48 glass-card rounded-2xl animate-pulse" />)
+        ) : (
+          posters.map((poster: any) => (
+            <div key={poster.id} className="glass-card rounded-2xl p-4 group relative">
+              <button onClick={() => onDelete(poster.id)} className="absolute top-2 right-2 z-10 p-1.5 bg-white/90 dark:bg-gray-900/90 rounded-lg text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+              <div className="h-32 rounded-xl overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+                <div style={{ transform: 'scale(0.4)', transformOrigin: 'center' }}>
+                  <PosterPreview template={poster.templateKey} data={{ title: poster.title, subtitle: poster.subtitle || '', primaryColor: poster.primaryColor, secondaryColor: poster.secondaryColor, imageUrl: poster.imageUrl }} />
+                </div>
+              </div>
+              <p className="text-sm font-medium text-gray-900 dark:text-white mt-2 truncate">{poster.title}</p>
+              <p className="text-xs text-gray-400">{formatDate(poster.createdAt)}</p>
+            </div>
+          ))
+        )}
+      </div>
+      {!isLoading && posters.length === 0 && (
+        <p className="text-center text-sm text-gray-400 mt-4">No posters yet — create your first one above</p>
+      )}
+      {showDesigner && <PosterDesigner onClose={() => setShowDesigner(false)} />}
+    </div>
+  );
+}
+
+function PosterDesigner({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [step, setStep] = useState<'gallery' | 'customize'>('gallery');
+  const [templateKey, setTemplateKey] = useState(POSTER_TEMPLATES[0].key);
+  const [data, setData] = useState<PosterData>({ title: '', subtitle: '', primaryColor: '#6366f1', secondaryColor: '#8b5cf6', imageUrl: null });
+  const [uploading, setUploading] = useState(false);
+
+  const uploadImage = async (file: File) => {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const { data: res } = await api.post('/marketing/posters/upload-image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      setData(d => ({ ...d, imageUrl: `${base}${res.data.url}` }));
+    } catch {
+      toast.error('Image upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.post('/marketing/posters', { title: data.title, subtitle: data.subtitle, templateKey, primaryColor: data.primaryColor, secondaryColor: data.secondaryColor, imageUrl: data.imageUrl }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['posters'] }); toast.success('Poster saved'); onClose(); },
+    onError: () => toast.error('Failed to save poster'),
+  });
+
+  const handleDownload = async () => {
+    const node = document.getElementById('poster-canvas');
+    if (!node) return;
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(node, { scale: 2, useCORS: true, backgroundColor: null });
+      const link = document.createElement('a');
+      link.download = `${(data.title || 'poster').replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch {
+      toast.error('Failed to generate image. Try saving instead.');
+    }
+  };
+
+  if (step === 'gallery') {
+    return (
+      <Modal onClose={onClose} title="Choose a Template" subtitle="Pick a layout to start designing your poster" icon={ImageIcon} iconColor="purple" size="2xl">
+        <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-4">
+          {POSTER_TEMPLATES.map(t => (
+            <button
+              key={t.key}
+              onClick={() => { setTemplateKey(t.key); setStep('customize'); }}
+              className="rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 p-3 text-left transition-colors"
+            >
+              <div className="h-24 rounded-lg overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-gray-900 mb-2">
+                <div style={{ transform: 'scale(0.27)', transformOrigin: 'center' }}>
+                  <PosterPreview template={t.key} data={{ title: 'Sample Title', subtitle: 'A short subtitle goes here', primaryColor: '#6366f1', secondaryColor: '#8b5cf6', imageUrl: null }} />
+                </div>
+              </div>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{t.name}</p>
+              <p className="text-xs text-gray-400">{t.description}</p>
+            </button>
+          ))}
+        </div>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal onClose={onClose} title="Customize Poster" subtitle="Adjust text, colors, and image, then save or download" icon={ImageIcon} iconColor="purple" size="2xl">
+      <div className="p-6 grid md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <TextField id="poster-title" label="Title" required value={data.title} onChange={e => setData({ ...data, title: e.target.value })} placeholder="Big Summer Sale" />
+          <TextField id="poster-subtitle" label="Subtitle" value={data.subtitle} onChange={e => setData({ ...data, subtitle: e.target.value })} placeholder="Up to 50% off this weekend" />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="poster-primary" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Primary Color</label>
+              <input id="poster-primary" type="color" value={data.primaryColor} onChange={e => setData({ ...data, primaryColor: e.target.value })} className="w-full h-10 rounded-lg cursor-pointer border border-gray-200 dark:border-gray-700" />
+            </div>
+            <div>
+              <label htmlFor="poster-secondary" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Secondary Color</label>
+              <input id="poster-secondary" type="color" value={data.secondaryColor} onChange={e => setData({ ...data, secondaryColor: e.target.value })} className="w-full h-10 rounded-lg cursor-pointer border border-gray-200 dark:border-gray-700" />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="poster-image" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Background Image (optional)</label>
+            <input id="poster-image" type="file" accept="image/*" onChange={e => e.target.files?.[0] && uploadImage(e.target.files[0])} className="text-xs text-gray-500 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-600 dark:file:bg-indigo-950/30 dark:file:text-indigo-400 file:text-xs file:font-medium" />
+            {uploading && <p className="text-xs text-indigo-500 mt-1">Uploading...</p>}
+          </div>
+          <button type="button" onClick={() => setStep('gallery')} className="text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline">← Choose a different template</button>
+        </div>
+        <div className="flex items-center justify-center">
+          <div id="poster-canvas" className="shadow-2xl rounded-lg overflow-hidden">
+            <PosterPreview template={templateKey} data={data} />
+          </div>
+        </div>
+      </div>
+      <ModalFooter>
+        <button type="button" onClick={handleDownload} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Download PNG</button>
+        <div className="flex-1" />
+        <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Cancel</button>
+        <button type="button" disabled={!data.title || saveMutation.isPending} onClick={() => saveMutation.mutate()} className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+          {saveMutation.isPending ? 'Saving...' : 'Save Poster'}
+        </button>
+      </ModalFooter>
     </Modal>
   );
 }
