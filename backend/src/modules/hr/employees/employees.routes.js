@@ -4,6 +4,7 @@ const { authenticate, sameCompany } = require('../../../middleware/auth');
 const { success, created, paginated, notFound } = require('../../../utils/response');
 const { paginate, paginateMeta } = require('../../../utils/helpers');
 const { auditLog } = require('../../../middleware/audit');
+const { sendCsv } = require('../../../utils/csv');
 
 router.use(authenticate, sameCompany);
 
@@ -34,6 +35,42 @@ router.get('/', async (req, res, next) => {
       prisma.employee.count({ where }),
     ]);
     return paginated(res, employees, paginateMeta(total, page, limit));
+  } catch (err) { next(err); }
+});
+
+// GET /hr/employees/export — CSV export (must precede /:id)
+router.get('/export', async (req, res, next) => {
+  try {
+    const { search, departmentId, status } = req.query;
+    const where = {
+      companyId: req.companyId,
+      ...(departmentId && { departmentId }),
+      ...(status && { status }),
+      ...(search && { user: { OR: [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ]}}),
+    };
+    const employees = await prisma.employee.findMany({
+      where,
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true } },
+        department: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    sendCsv(res, 'employees.csv', employees, [
+      { key: 'firstName', label: 'firstName', accessor: (e) => e.user?.firstName },
+      { key: 'lastName', label: 'lastName', accessor: (e) => e.user?.lastName },
+      { key: 'email', label: 'email', accessor: (e) => e.user?.email },
+      { key: 'employeeCode', label: 'employeeCode' },
+      { key: 'department', label: 'department', accessor: (e) => e.department?.name },
+      { key: 'jobTitle', label: 'jobTitle' },
+      { key: 'status', label: 'status' },
+      { key: 'startDate', label: 'startDate' },
+      { key: 'createdAt', label: 'createdAt' },
+    ]);
   } catch (err) { next(err); }
 });
 

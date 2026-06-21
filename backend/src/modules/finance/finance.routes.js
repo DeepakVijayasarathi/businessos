@@ -5,6 +5,7 @@ const { success, created, paginated, notFound, error } = require('../../utils/re
 const { paginate, paginateMeta, generateNumber } = require('../../utils/helpers');
 const emailService = require('../../services/email.service');
 const { auditLog } = require('../../middleware/audit');
+const { sendCsv } = require('../../utils/csv');
 
 router.use(authenticate, sameCompany);
 
@@ -40,6 +41,28 @@ router.get('/invoices/summary', async (req, res, next) => {
       prisma.invoice.aggregate({ where: { companyId: req.companyId, status: 'draft' }, _sum: { total: true }, _count: true }),
     ]);
     return success(res, { paid, pending, overdue, draft });
+  } catch (err) { next(err); }
+});
+
+// GET /finance/invoices/export — CSV export (must precede /invoices/:id)
+router.get('/invoices/export', async (req, res, next) => {
+  try {
+    const { status, search, clientEmail } = req.query;
+    const where = {
+      companyId: req.companyId,
+      ...(status && { status }),
+      ...(clientEmail && { clientEmail }),
+      ...(search && { OR: [
+        { invoiceNo: { contains: search, mode: 'insensitive' } },
+        { clientName: { contains: search, mode: 'insensitive' } },
+      ]}),
+    };
+    const invoices = await prisma.invoice.findMany({ where, orderBy: { createdAt: 'desc' } });
+    sendCsv(res, 'invoices.csv', invoices, [
+      'invoiceNo', 'clientName', 'clientEmail', 'status',
+      'subtotal', 'taxAmount', 'discountAmount', 'total', 'currency',
+      'issueDate', 'dueDate', 'paidAt', 'createdAt',
+    ]);
   } catch (err) { next(err); }
 });
 
@@ -318,28 +341,55 @@ router.delete('/invoices/:id/recurring', async (req, res, next) => {
 
 // ── REPORTS ─────────────────────────────────────────────────
 
+async function buildProfitLossReport(companyId, year) {
+  const start = new Date(`${year}-01-01`);
+  const end = new Date(`${year}-12-31T23:59:59.999`);
+
+  const [incomeRows, expenseRows, paidInvoiceRows] = await Promise.all([
+    prisma.income.findMany({ where: { companyId, date: { gte: start, lte: end } }, select: { amount: true, date: true } }),
+    prisma.expense.findMany({ where: { companyId, date: { gte: start, lte: end }, status: { not: 'rejected' } }, select: { amount: true, date: true } }),
+    prisma.invoice.findMany({ where: { companyId, status: 'paid', paidAt: { gte: start, lte: end } }, select: { total: true, paidAt: true } }),
+  ]);
+
+  const months = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, revenue: 0, expenses: 0 }));
+  for (const row of incomeRows) months[row.date.getMonth()].revenue += Number(row.amount);
+  for (const row of paidInvoiceRows) months[row.paidAt.getMonth()].revenue += Number(row.total);
+  for (const row of expenseRows) months[row.date.getMonth()].expenses += Number(row.amount);
+
+  const totalRevenue = months.reduce((sum, m) => sum + m.revenue, 0);
+  const totalExpenses = months.reduce((sum, m) => sum + m.expenses, 0);
+
+  return {
+    year: Number(year),
+    totalRevenue,
+    totalExpenses,
+    grossProfit: totalRevenue - totalExpenses,
+    profitMargin: totalRevenue > 0 ? Number(((totalRevenue - totalExpenses) / totalRevenue * 100).toFixed(2)) : 0,
+    invoiceCount: paidInvoiceRows.length,
+    expenseCount: expenseRows.length,
+    months,
+  };
+}
+
 router.get('/reports/profit-loss', async (req, res, next) => {
   try {
-    const { year = new Date().getFullYear() } = req.query;
-    const start = new Date(`${year}-01-01`);
-    const end = new Date(`${year}-12-31`);
+    const report = await buildProfitLossReport(req.companyId, req.query.year || new Date().getFullYear());
+    return success(res, report);
+  } catch (err) { next(err); }
+});
 
-    const [totalIncome, totalExpenses, paidInvoices] = await Promise.all([
-      prisma.income.aggregate({ where: { companyId: req.companyId, date: { gte: start, lte: end } }, _sum: { amount: true } }),
-      prisma.expense.aggregate({ where: { companyId: req.companyId, date: { gte: start, lte: end }, status: { not: 'rejected' } }, _sum: { amount: true } }),
-      prisma.invoice.aggregate({ where: { companyId: req.companyId, status: 'paid', paidAt: { gte: start, lte: end } }, _sum: { total: true } }),
-    ]);
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-    const totalRevenue = Number(totalIncome._sum.amount || 0) + Number(paidInvoices._sum.total || 0);
-    const totalCost = Number(totalExpenses._sum.amount || 0);
-
-    return success(res, {
-      year,
-      totalRevenue,
-      totalExpenses: totalCost,
-      grossProfit: totalRevenue - totalCost,
-      profitMargin: totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue * 100).toFixed(2) : 0,
-    });
+router.get('/reports/profit-loss/export', async (req, res, next) => {
+  try {
+    const report = await buildProfitLossReport(req.companyId, req.query.year || new Date().getFullYear());
+    const rows = report.months.map((m) => ({
+      month: MONTH_NAMES[m.month - 1],
+      revenue: m.revenue.toFixed(2),
+      expenses: m.expenses.toFixed(2),
+      net: (m.revenue - m.expenses).toFixed(2),
+    }));
+    sendCsv(res, `profit-loss-${report.year}.csv`, rows, ['month', 'revenue', 'expenses', 'net']);
   } catch (err) { next(err); }
 });
 

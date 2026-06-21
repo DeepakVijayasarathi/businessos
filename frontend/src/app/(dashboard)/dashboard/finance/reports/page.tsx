@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { ExportButton } from '@/components/ui/ExportButton';
 
 const RevenueBarChart = dynamic(() => import('./RevenueBarChart'), { ssr: false });
 
@@ -38,9 +39,12 @@ export default function ReportsPage() {
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Financial Reports</h1>
           <p className="text-sm text-gray-500 mt-0.5">Profit & Loss for {year}</p>
         </div>
-        <select value={year} onChange={e => setYear(parseInt(e.target.value))} className="px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none">
-          {[2023, 2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
+        <div className="flex items-center gap-2">
+          <select value={year} onChange={e => setYear(parseInt(e.target.value))} className="px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none">
+            {[2023, 2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <ExportButton endpoint="/finance/reports/profit-loss/export" filename={`profit-loss-${year}.csv`} params={{ year: String(year) }} />
+        </div>
       </div>
 
       {/* P&L Summary */}

@@ -7,6 +7,7 @@ import { Plus, Search, Mail, Phone, Building2, UserSquare, Users, UserPlus } fro
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
+import { ExportButton } from '@/components/ui/ExportButton';
 
 export default function EmployeesPage() {
   const [search, setSearch] = useState('');
@@ -43,9 +44,12 @@ export default function EmployeesPage() {
           <p className="text-sm text-gray-500 mt-0.5">{employees?.meta?.total || 0} employees</p>
         </div>
         {tab === 'employees' ? (
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
-            <Plus className="w-4 h-4" /> Add Employee
-          </button>
+          <div className="flex items-center gap-2">
+            <ExportButton endpoint="/hr/employees/export" filename="employees.csv" params={{ search: debouncedSearch }} />
+            <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
+              <Plus className="w-4 h-4" /> Add Employee
+            </button>
+          </div>
         ) : (
           <button onClick={() => setShowDeptModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
             <Plus className="w-4 h-4" /> Add Department

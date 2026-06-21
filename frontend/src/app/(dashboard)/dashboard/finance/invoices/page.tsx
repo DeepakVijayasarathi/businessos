@@ -7,6 +7,7 @@ import { Plus, Send, CheckCircle2, FileText, DollarSign, Clock, AlertCircle, Fil
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField } from '@/components/ui/FormField';
+import { ExportButton } from '@/components/ui/ExportButton';
 
 export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState('');
@@ -41,9 +42,12 @@ export default function InvoicesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">Invoices</h1>
-        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
-          <Plus className="w-4 h-4" /> New Invoice
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportButton endpoint="/finance/invoices/export" filename="invoices.csv" params={{ status: statusFilter }} />
+          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
+            <Plus className="w-4 h-4" /> New Invoice
+          </button>
+        </div>
       </div>
 
       {/* Summary cards */}
