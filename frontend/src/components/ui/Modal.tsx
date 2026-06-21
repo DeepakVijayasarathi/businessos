@@ -48,7 +48,7 @@ export function Modal({ onClose, title, subtitle, icon: Icon, iconColor = 'indig
       tabIndex={-1}
       className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200"
     >
-      <div className={`glass-card rounded-2xl w-full ${MAX_WIDTHS[size]} shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col`}>
+      <div className={`bg-white dark:bg-gray-800 border border-gray-200/50 dark:border-gray-700/50 rounded-2xl w-full ${MAX_WIDTHS[size]} shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col`}>
         <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           {Icon && (
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${colors.bg}`}>
