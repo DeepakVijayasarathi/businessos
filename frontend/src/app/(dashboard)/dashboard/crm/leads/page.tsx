@@ -7,6 +7,7 @@ import { Plus, Search, Filter, Mail, Phone, Building2, Star, Trash2, Edit2, User
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
+import { CustomFieldsEditor } from '@/components/ui/CustomFieldsEditor';
 
 const STATUSES = ['new', 'contacted', 'qualified', 'lost', 'converted'];
 const SOURCES = ['website', 'whatsapp', 'email', 'referral', 'social', 'manual'];
@@ -320,6 +321,7 @@ function LeadModal({ lead, onClose }: { lead: any; onClose: () => void }) {
     source: lead?.source || 'website',
     status: lead?.status || 'new',
     notes: lead?.notes || '',
+    customFields: lead?.customFields || {},
   });
 
   const mutation = useMutation({
@@ -355,6 +357,7 @@ function LeadModal({ lead, onClose }: { lead: any; onClose: () => void }) {
             </SelectField>
           </div>
           <TextAreaField id="lead-notes" label="Notes" rows={3} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+          <CustomFieldsEditor value={form.customFields} onChange={customFields => setForm({ ...form, customFields })} />
         </div>
         <ModalFooter>
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Cancel</button>

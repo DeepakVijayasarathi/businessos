@@ -46,7 +46,7 @@ export default function PayrollPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
           { label: 'Total Gross', value: formatCurrency(totalGross), color: 'text-indigo-600' },
           { label: 'Total Deductions', value: formatCurrency(totalDeductions), color: 'text-red-500' },

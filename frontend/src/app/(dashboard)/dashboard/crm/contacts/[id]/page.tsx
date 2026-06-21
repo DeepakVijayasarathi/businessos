@@ -38,7 +38,7 @@ export default function ContactTimelinePage() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
-        <button onClick={() => router.back()} className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+        <button onClick={() => router.back()} aria-label="Go back" className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
           <ArrowLeft className="w-4 h-4 text-gray-600" />
         </button>
         <div>

@@ -64,7 +64,7 @@ export default function SuperAdminPage() {
 
       {/* Health overview */}
       {health && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Companies', value: health.stats.companies, icon: Building2, color: 'bg-indigo-500' },
             { label: 'Users', value: health.stats.users, icon: Users, color: 'bg-violet-500' },

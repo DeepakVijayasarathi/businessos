@@ -33,7 +33,7 @@ export default function IncomePage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
           { label: 'Total Income', value: formatCurrency(total), color: 'text-green-600' },
           { label: 'This Month', value: formatCurrency(data?.data?.filter((i: any) => new Date(i.date).getMonth() === new Date().getMonth()).reduce((s: number, i: any) => s + (i.amount || 0), 0) || 0), color: 'text-indigo-600' },

@@ -39,7 +39,7 @@ export default function ExpensesPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
           { label: 'Total Expenses', value: formatCurrency(total), color: 'text-red-600' },
           { label: 'Pending Approval', value: pending, color: 'text-yellow-600' },

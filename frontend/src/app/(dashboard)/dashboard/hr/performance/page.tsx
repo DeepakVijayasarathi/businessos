@@ -48,7 +48,7 @@ export default function PerformancePage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: 'Total Reviews', value: reviews?.length || 0, icon: TrendingUp, color: 'text-indigo-600' },
           { label: 'Avg Rating', value: reviews?.length ? (reviews.reduce((s: number, r: any) => s + (r.overallRating || 0), 0) / reviews.length).toFixed(1) : '—', icon: Star, color: 'text-yellow-500' },

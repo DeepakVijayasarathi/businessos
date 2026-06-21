@@ -65,7 +65,7 @@ export default function WorkflowPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[
           { label: 'Total Workflows', value: workflows?.meta?.total || workflows?.data?.length || 0, color: 'text-indigo-600' },
           { label: 'Active', value: workflows?.data?.filter((w: any) => w.isActive).length || 0, color: 'text-green-600' },

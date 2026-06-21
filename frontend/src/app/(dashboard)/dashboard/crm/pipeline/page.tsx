@@ -78,7 +78,7 @@ export default function PipelinePage() {
                   <span className="text-sm font-semibold text-gray-900 dark:text-white">{stage.name}</span>
                   <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">{stage.deals.length}</span>
                 </div>
-                <button onClick={() => { setSelectedStageId(stage.id); setShowDealModal(true); }} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-indigo-600 rounded">
+                <button onClick={() => { setSelectedStageId(stage.id); setShowDealModal(true); }} aria-label={`Add deal to ${stage.name}`} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-indigo-600 rounded">
                   <Plus className="w-4 h-4" />
                 </button>
               </div>

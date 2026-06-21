@@ -51,7 +51,7 @@ export default function InvoicesPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: 'Paid', value: formatCurrency(Number(summary?.paid?._sum?.total || 0)), count: summary?.paid?._count, icon: CheckCircle2, color: 'text-green-500 bg-green-50 dark:bg-green-950/30' },
           { label: 'Pending', value: formatCurrency(Number(summary?.pending?._sum?.total || 0)), count: summary?.pending?._count, icon: Clock, color: 'text-yellow-500 bg-yellow-50 dark:bg-yellow-950/30' },
@@ -190,11 +190,11 @@ function InvoiceModal({ onClose }: { onClose: () => void }) {
           <div>
             <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Items</p>
             {form.items.map((item, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2 mb-2 items-center">
-                <input value={item.description} onChange={e => handleItemChange(i, 'description', e.target.value)} placeholder="Description" className="col-span-5 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" />
-                <input type="number" value={item.qty} onChange={e => handleItemChange(i, 'qty', Number(e.target.value))} placeholder="Qty" className="col-span-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" />
-                <input type="number" value={item.rate} onChange={e => handleItemChange(i, 'rate', Number(e.target.value))} placeholder="Rate" className="col-span-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" />
-                <div className="col-span-2 flex items-center px-2 text-sm font-medium text-gray-700 dark:text-gray-300">{formatCurrency(item.qty * item.rate)}</div>
+              <div key={i} className="grid grid-cols-2 sm:grid-cols-12 gap-2 mb-2 sm:items-center">
+                <input aria-label={`Item ${i + 1} description`} value={item.description} onChange={e => handleItemChange(i, 'description', e.target.value)} placeholder="Description" className="col-span-2 sm:col-span-5 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" />
+                <input aria-label={`Item ${i + 1} quantity`} type="number" value={item.qty} onChange={e => handleItemChange(i, 'qty', Number(e.target.value))} placeholder="Qty" className="col-span-1 sm:col-span-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" />
+                <input aria-label={`Item ${i + 1} rate`} type="number" value={item.rate} onChange={e => handleItemChange(i, 'rate', Number(e.target.value))} placeholder="Rate" className="col-span-1 sm:col-span-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" />
+                <div className="col-span-1 sm:col-span-2 flex items-center px-2 text-sm font-medium text-gray-700 dark:text-gray-300">{formatCurrency(item.qty * item.rate)}</div>
                 <button
                   type="button"
                   onClick={() => setForm({ ...form, items: form.items.filter((_, idx) => idx !== i) })}

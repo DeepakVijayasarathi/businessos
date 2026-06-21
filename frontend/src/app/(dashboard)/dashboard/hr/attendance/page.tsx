@@ -88,7 +88,7 @@ export default function AttendancePage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: 'Present', value: present, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
           { label: 'Absent', value: absent, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20' },

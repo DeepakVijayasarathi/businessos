@@ -3,8 +3,11 @@ const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   images: {
+    // next/image isn't used anywhere in this app yet (images are plain
+    // <img> tags served from /uploads) — no remotePatterns needed until
+    // that changes. A bare '**' wildcard here would let the Image
+    // Optimization API fetch/proxy from any https host.
     remotePatterns: [
-      { protocol: 'https', hostname: '**' },
       { protocol: 'http', hostname: 'localhost' },
     ],
   },
