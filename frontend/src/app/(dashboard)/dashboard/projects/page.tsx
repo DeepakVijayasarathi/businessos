@@ -5,6 +5,8 @@ import api from '@/lib/api';
 import { formatDate, statusColor } from '@/lib/utils';
 import { Plus, FolderKanban, Calendar, Users, CheckCircle2, Clock, AlertCircle, Circle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
 
 export default function ProjectsPage() {
   const [showModal, setShowModal] = useState(false);
@@ -121,32 +123,32 @@ function ProjectModal({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-card rounded-2xl w-full max-w-lg shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-white">New Project</h3>
-          <button onClick={onClose} className="text-gray-400">✕</button>
-        </div>
-        <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
-          <div><label htmlFor="project-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Project Name*</label><input id="project-name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" /></div>
-          <div><label htmlFor="project-description" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label><textarea id="project-description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none" /></div>
+    <Modal onClose={onClose} title="New Project" subtitle="Set up a new project to track tasks and progress" icon={FolderKanban} iconColor="teal">
+      <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="flex flex-col">
+        <div className="p-6 space-y-4">
+          <TextField id="project-name" label="Project Name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+          <TextAreaField id="project-description" label="Description" rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
           <div className="grid grid-cols-2 gap-4">
-            <div><label htmlFor="project-status" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label><select id="project-status" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none">{['planning', 'active', 'on_hold'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}</select></div>
-            <div><label htmlFor="project-priority" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label><select id="project-priority" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none">{['low', 'medium', 'high'].map(p => <option key={p} value={p}>{p}</option>)}</select></div>
-            <div><label htmlFor="project-startDate" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label><input id="project-startDate" type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" /></div>
-            <div><label htmlFor="project-endDate" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label><input id="project-endDate" type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none" /></div>
+            <SelectField id="project-status" label="Status" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+              {['planning', 'active', 'on_hold'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+            </SelectField>
+            <SelectField id="project-priority" label="Priority" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
+              {['low', 'medium', 'high'].map(p => <option key={p} value={p}>{p}</option>)}
+            </SelectField>
+            <TextField id="project-startDate" label="Start Date" type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} />
+            <TextField id="project-endDate" label="End Date" type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} />
           </div>
           <div className="flex items-center gap-3">
             <label htmlFor="project-color" className="text-xs font-medium text-gray-700 dark:text-gray-300">Color</label>
             <input id="project-color" type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} className="w-10 h-10 rounded-lg cursor-pointer border border-gray-200" />
           </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">{mutation.isPending ? 'Creating...' : 'Create Project'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+        <ModalFooter>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
+          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">{mutation.isPending ? 'Creating...' : 'Create Project'}</button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }
 

@@ -5,7 +5,8 @@ import api from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { Plus, Search, Mail, Phone, Building2, User, Trash2, Edit } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useModalA11y } from '@/hooks/useModalA11y';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { TextField, TextAreaField } from '@/components/ui/FormField';
 
 export default function ContactsPage() {
   const [search, setSearch] = useState('');
@@ -112,7 +113,6 @@ export default function ContactsPage() {
 }
 
 function ContactModal({ contact, onClose }: { contact: any; onClose: () => void }) {
-  const modalRef = useModalA11y(onClose);
   const qc = useQueryClient();
   const [form, setForm] = useState({
     firstName: contact?.firstName || '',
@@ -130,30 +130,25 @@ function ContactModal({ contact, onClose }: { contact: any; onClose: () => void 
   });
 
   const f = (k: string) => ({ value: (form as any)[k], onChange: (e: any) => setForm({ ...form, [k]: e.target.value }) });
-  const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500";
 
   return (
-    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
-      <div className="glass-card rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-white">{contact ? 'Edit' : 'New'} Contact</h3>
-          <button onClick={onClose} className="text-gray-400">✕</button>
-        </div>
-        <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
+    <Modal onClose={onClose} title={contact ? 'Edit Contact' : 'New Contact'} subtitle={contact ? 'Update contact details' : 'Add a new contact to your CRM'} icon={User} iconColor="blue">
+      <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }}>
+        <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div><label htmlFor="contact-firstName" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">First Name*</label><input id="contact-firstName" required {...f('firstName')} className={inputCls} /></div>
-            <div><label htmlFor="contact-lastName" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name</label><input id="contact-lastName" {...f('lastName')} className={inputCls} /></div>
-            <div><label htmlFor="contact-email" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label><input id="contact-email" type="email" {...f('email')} className={inputCls} /></div>
-            <div><label htmlFor="contact-phone" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label><input id="contact-phone" {...f('phone')} className={inputCls} /></div>
+            <TextField id="contact-firstName" label="First Name" required {...f('firstName')} />
+            <TextField id="contact-lastName" label="Last Name" {...f('lastName')} />
+            <TextField id="contact-email" label="Email" type="email" {...f('email')} />
+            <TextField id="contact-phone" label="Phone" {...f('phone')} />
           </div>
-          <div><label htmlFor="contact-jobTitle" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Job Title</label><input id="contact-jobTitle" {...f('jobTitle')} className={inputCls} /></div>
-          <div><label htmlFor="contact-notes" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label><textarea id="contact-notes" rows={3} {...f('notes')} className={inputCls + ' resize-none'} /></div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Saving...' : 'Save'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <TextField id="contact-jobTitle" label="Job Title" {...f('jobTitle')} />
+          <TextAreaField id="contact-notes" label="Notes" rows={3} {...f('notes')} />
+        </div>
+        <ModalFooter>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
+          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Saving...' : 'Save'}</button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }

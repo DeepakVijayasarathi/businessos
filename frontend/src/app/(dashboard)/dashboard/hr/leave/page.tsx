@@ -5,7 +5,8 @@ import api from '@/lib/api';
 import { formatDate, statusColor } from '@/lib/utils';
 import { Plus, Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useModalA11y } from '@/hooks/useModalA11y';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
 
 export default function LeavePage() {
   const [showModal, setShowModal] = useState(false);
@@ -122,38 +123,30 @@ export default function LeavePage() {
 
 function LeaveModal({ leaveTypes, onClose }: { leaveTypes: any[]; onClose: () => void }) {
   const qc = useQueryClient();
-  const modalRef = useModalA11y(onClose);
   const [form, setForm] = useState({ leaveTypeId: leaveTypes[0]?.id || '', startDate: '', endDate: '', reason: '' });
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/hr/attendance/leaves', data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['leaves'] }); toast.success('Leave request submitted'); onClose(); },
     onError: () => toast.error('Failed to submit leave request'),
   });
-  const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500";
   return (
-    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
-      <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-white">Apply for Leave</h3>
-          <button onClick={onClose} className="text-gray-400">✕</button>
-        </div>
-        <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
-          <div><label htmlFor="leave-leaveTypeId" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Leave Type</label>
-            <select id="leave-leaveTypeId" value={form.leaveTypeId} onChange={e => setForm({ ...form, leaveTypeId: e.target.value })} className={inputCls}>
-              {leaveTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.daysAllowed} days/year)</option>)}
-            </select>
-          </div>
+    <Modal onClose={onClose} title="Apply for Leave" subtitle="Submit a new leave request for approval" icon={Calendar} iconColor="yellow">
+      <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }}>
+        <div className="p-6 space-y-4">
+          <SelectField id="leave-leaveTypeId" label="Leave Type" value={form.leaveTypeId} onChange={e => setForm({ ...form, leaveTypeId: e.target.value })}>
+            {leaveTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.daysAllowed} days/year)</option>)}
+          </SelectField>
           <div className="grid grid-cols-2 gap-4">
-            <div><label htmlFor="leave-startDate" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date*</label><input id="leave-startDate" required type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} className={inputCls} /></div>
-            <div><label htmlFor="leave-endDate" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">End Date*</label><input id="leave-endDate" required type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} min={form.startDate} className={inputCls} /></div>
+            <TextField id="leave-startDate" label="Start Date" required type="date" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} />
+            <TextField id="leave-endDate" label="End Date" required type="date" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} min={form.startDate} />
           </div>
-          <div><label htmlFor="leave-reason" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Reason</label><textarea id="leave-reason" rows={3} value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className={inputCls + ' resize-none'} /></div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Submitting...' : 'Submit'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <TextAreaField id="leave-reason" label="Reason" rows={3} value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} />
+        </div>
+        <ModalFooter>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
+          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Submitting...' : 'Submit'}</button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }

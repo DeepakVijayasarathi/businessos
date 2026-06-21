@@ -5,7 +5,7 @@ import api from '@/lib/api';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { FileText, Plus, Download, DollarSign } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useModalA11y } from '@/hooks/useModalA11y';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -133,7 +133,6 @@ export default function PayrollPage() {
 
 function GenerateModal({ month, year, onClose }: { month: number; year: number; onClose: () => void }) {
   const qc = useQueryClient();
-  const modalRef = useModalA11y(onClose);
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/hr/attendance/payslips/generate', data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['payslips'] }); toast.success('Payslips generated'); onClose(); },
@@ -141,17 +140,16 @@ function GenerateModal({ month, year, onClose }: { month: number; year: number; 
   });
 
   return (
-    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
-      <div className="glass-card rounded-2xl w-full max-w-sm shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
-        <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Generate Payslips</h3>
-        <p className="text-sm text-gray-500 mb-6">This will generate payslips for all active employees for {MONTHS[month - 1]} {year}.</p>
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
-          <button onClick={() => mutation.mutate({ month, year })} disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
-            {mutation.isPending ? 'Generating...' : 'Generate All'}
-          </button>
-        </div>
+    <Modal onClose={onClose} title="Generate Payslips" subtitle="Run payroll for the selected period" icon={DollarSign} iconColor="teal" size="sm">
+      <div className="p-6">
+        <p className="text-sm text-gray-500">This will generate payslips for all active employees for {MONTHS[month - 1]} {year}.</p>
       </div>
-    </div>
+      <ModalFooter>
+        <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
+        <button onClick={() => mutation.mutate({ month, year })} disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
+          {mutation.isPending ? 'Generating...' : 'Generate All'}
+        </button>
+      </ModalFooter>
+    </Modal>
   );
 }

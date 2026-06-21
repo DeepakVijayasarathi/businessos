@@ -5,7 +5,8 @@ import api from '@/lib/api';
 import { formatRelativeTime, statusColor } from '@/lib/utils';
 import { Plus, Search, Filter, Mail, Phone, Building2, Star, Trash2, Edit2, UserPlus, Download, Upload, Zap, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useModalA11y } from '@/hooks/useModalA11y';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
 
 const STATUSES = ['new', 'contacted', 'qualified', 'lost', 'converted'];
 const SOURCES = ['website', 'whatsapp', 'email', 'referral', 'social', 'manual'];
@@ -308,7 +309,6 @@ export default function LeadsPage() {
 }
 
 function LeadModal({ lead, onClose }: { lead: any; onClose: () => void }) {
-  const modalRef = useModalA11y(onClose);
   const qc = useQueryClient();
   const [form, setForm] = useState({
     firstName: lead?.firstName || '',
@@ -335,61 +335,34 @@ function LeadModal({ lead, onClose }: { lead: any; onClose: () => void }) {
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); mutation.mutate(form); };
 
   return (
-    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
-      <div className="glass-card rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-white">{lead ? 'Edit Lead' : 'Add New Lead'}</h3>
-          <button onClick={onClose} aria-label="Close dialog" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
+    <Modal onClose={onClose} title={lead ? 'Edit Lead' : 'Add New Lead'} subtitle={lead ? 'Update lead details' : 'Add a new lead to your pipeline'} icon={UserPlus} iconColor="indigo">
+      <form onSubmit={handleSubmit}>
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <TextField id="lead-firstName" label="First Name" required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} />
+            <TextField id="lead-lastName" label="Last Name" value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} />
+            <TextField id="lead-email" label="Email" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+            <TextField id="lead-phone" label="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+            <TextField id="lead-company" label="Company" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} />
+            <TextField id="lead-jobTitle" label="Job Title" value={form.jobTitle} onChange={e => setForm({ ...form, jobTitle: e.target.value })} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <SelectField id="lead-source" label="Source" value={form.source} onChange={e => setForm({ ...form, source: e.target.value })}>
+              {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+            </SelectField>
+            <SelectField id="lead-status" label="Status" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+              {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+            </SelectField>
+          </div>
+          <TextAreaField id="lead-notes" label="Notes" rows={3} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              { k: 'firstName', l: 'First Name*', r: true },
-              { k: 'lastName', l: 'Last Name' },
-              { k: 'email', l: 'Email', t: 'email' },
-              { k: 'phone', l: 'Phone' },
-              { k: 'company', l: 'Company' },
-              { k: 'jobTitle', l: 'Job Title' },
-            ].map(({ k, l, t, r }) => (
-              <div key={k}>
-                <label htmlFor={`lead-${k}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
-                <input
-                  id={`lead-${k}`}
-                  type={t || 'text'}
-                  required={r}
-                  value={form[k as keyof typeof form]}
-                  onChange={e => setForm({ ...form, [k]: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="lead-source" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label>
-              <select id="lead-source" value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none">
-                {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="lead-status" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-              <select id="lead-status" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none">
-                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label htmlFor="lead-notes" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
-            <textarea id="lead-notes" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
-              {mutation.isPending ? 'Saving...' : lead ? 'Update Lead' : 'Add Lead'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <ModalFooter>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Cancel</button>
+          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+            {mutation.isPending ? 'Saving...' : lead ? 'Update Lead' : 'Add Lead'}
+          </button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }

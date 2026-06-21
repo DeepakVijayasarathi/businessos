@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatRelativeTime, statusColor, priorityColor } from '@/lib/utils';
-import { Plus, Search, MessageSquare, Clock, CheckCircle2, AlertTriangle, Brain, X, Zap } from 'lucide-react';
+import { Plus, Search, MessageSquare, Clock, CheckCircle2, AlertTriangle, Brain, X, Zap, Ticket } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useModalA11y } from '@/hooks/useModalA11y';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
 
 export default function HelpdeskPage() {
   const [search, setSearch] = useState('');
@@ -213,7 +214,6 @@ export default function HelpdeskPage() {
 
 function NewTicketModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
-  const modalRef = useModalA11y(onClose);
   const [form, setForm] = useState({ subject: '', description: '', priority: 'medium', source: 'web' });
 
   const mutation = useMutation({
@@ -223,50 +223,33 @@ function NewTicketModal({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
-      <div className="glass-card rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-white">New Support Ticket</h3>
-          <button onClick={onClose} aria-label="Close dialog" className="text-gray-400 hover:text-gray-600">✕</button>
-        </div>
-        <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
-          <div>
-            <label htmlFor="ticket-subject" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Subject*</label>
-            <input id="ticket-subject" required value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="Brief description of the issue" className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
-          </div>
-          <div>
-            <label htmlFor="ticket-description" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-            <textarea id="ticket-description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={4} placeholder="Detailed description..." className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
-          </div>
+    <Modal onClose={onClose} title="New Support Ticket" subtitle="Log a new issue for the support team to triage" icon={Ticket} iconColor="red">
+      <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }}>
+        <div className="p-6 space-y-4">
+          <TextField id="ticket-subject" label="Subject" required value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="Brief description of the issue" />
+          <TextAreaField id="ticket-description" label="Description" rows={4} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Detailed description..." />
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="ticket-priority" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
-              <select id="ticket-priority" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none">
-                {['low', 'medium', 'high', 'urgent'].map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="ticket-source" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Source</label>
-              <select id="ticket-source" value={form.source} onChange={e => setForm({ ...form, source: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none">
-                {['web', 'email', 'whatsapp', 'phone'].map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
+            <SelectField id="ticket-priority" label="Priority" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
+              {['low', 'medium', 'high', 'urgent'].map(p => <option key={p} value={p}>{p}</option>)}
+            </SelectField>
+            <SelectField id="ticket-source" label="Source" value={form.source} onChange={e => setForm({ ...form, source: e.target.value })}>
+              {['web', 'email', 'whatsapp', 'phone'].map(s => <option key={s} value={s}>{s}</option>)}
+            </SelectField>
           </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
-              {mutation.isPending ? 'Creating...' : 'Create Ticket'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+        <ModalFooter>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">Cancel</button>
+          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+            {mutation.isPending ? 'Creating...' : 'Create Ticket'}
+          </button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }
 
 function TicketDetailModal({ ticket, onClose }: { ticket: any; onClose: () => void }) {
   const qc = useQueryClient();
-  const modalRef = useModalA11y(onClose);
   const [comment, setComment] = useState('');
 
   const { data } = useQuery({
@@ -290,29 +273,18 @@ function TicketDetailModal({ ticket, onClose }: { ticket: any; onClose: () => vo
   const t = data || ticket;
 
   return (
-    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
-      <div className="glass-card rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-mono text-gray-500">#{t.ticketNo}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusColor(t.status)}`}>{t.status?.replace('_', ' ')}</span>
-            </div>
-            <h3 className="font-semibold text-gray-900 dark:text-white">{t.subject}</h3>
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={t.status}
-              onChange={e => statusMutation.mutate(e.target.value)}
-              className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 outline-none"
-            >
-              {['open', 'in_progress', 'pending', 'resolved', 'closed'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
-            </select>
-            <button onClick={onClose} aria-label="Close dialog" className="text-gray-400 hover:text-gray-600 ml-2">✕</button>
-          </div>
-        </div>
+    <Modal onClose={onClose} title={t.subject} subtitle={`#${t.ticketNo} · ${t.status?.replace('_', ' ')}`} icon={MessageSquare} iconColor="blue" size="2xl">
+      <div className="flex items-center justify-end gap-2 px-6 pt-4">
+        <select
+          value={t.status}
+          onChange={e => statusMutation.mutate(e.target.value)}
+          className="text-xs px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 outline-none"
+        >
+          {['open', 'in_progress', 'pending', 'resolved', 'closed'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+        </select>
+      </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="p-6 space-y-4">
           {t.description && (
             <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
               <p className="text-sm text-gray-700 dark:text-gray-300">{t.description}</p>
@@ -334,27 +306,26 @@ function TicketDetailModal({ ticket, onClose }: { ticket: any; onClose: () => vo
               </div>
             </div>
           ))}
-        </div>
+      </div>
 
-        <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex gap-3">
-            <textarea
-              value={comment}
-              onChange={e => setComment(e.target.value)}
-              placeholder="Add a comment..."
-              rows={2}
-              className="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-            />
-            <button
-              onClick={() => { if (comment.trim()) commentMutation.mutate(comment.trim()); }}
-              disabled={!comment.trim() || commentMutation.isPending}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
-            >
-              Send
-            </button>
-          </div>
+      <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex gap-3">
+          <textarea
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            placeholder="Add a comment..."
+            rows={2}
+            className="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          />
+          <button
+            onClick={() => { if (comment.trim()) commentMutation.mutate(comment.trim()); }}
+            disabled={!comment.trim() || commentMutation.isPending}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+          >
+            Send
+          </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

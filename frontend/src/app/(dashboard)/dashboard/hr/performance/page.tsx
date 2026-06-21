@@ -3,13 +3,13 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Plus, Star, User, Calendar, TrendingUp, ChevronDown } from 'lucide-react';
-import { useModalA11y } from '@/hooks/useModalA11y';
+import { Plus, Star, User, Calendar, TrendingUp, ChevronDown, Award } from 'lucide-react';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
 
 export default function PerformancePage() {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
-  const modalRef = useModalA11y(() => setShowModal(false));
   const [form, setForm] = useState<any>({ employeeId: '', period: '', reviewDate: new Date().toISOString().slice(0, 10), overallRating: '', goals: '', achievements: '', improvements: '', comments: '' });
 
   const { data: reviews, isLoading } = useQuery({
@@ -126,53 +126,50 @@ export default function PerformancePage() {
 
       {/* Modal */}
       {showModal && (
-        <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 outline-none animate-in fade-in duration-200">
-          <div className="glass-card rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-900 dark:text-white">New Performance Review</h3>
+        <Modal onClose={() => setShowModal(false)} title="New Performance Review" subtitle="Record a performance evaluation for an employee" icon={Award} iconColor="indigo">
+          <form onSubmit={e => { e.preventDefault(); createMutation.mutate(form); }}>
+            <div className="p-6 space-y-4">
+              <SelectField id="review-employeeId" label="Employee" required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })}>
+                <option value="">Select employee</option>
+                {employees?.map((emp: any) => (
+                  <option key={emp.id} value={emp.id}>{emp.user?.firstName} {emp.user?.lastName}</option>
+                ))}
+              </SelectField>
+              {[
+                { k: 'period', l: 'Period (e.g. Q1 2026)', placeholder: 'Q1 2026' },
+                { k: 'reviewDate', l: 'Review Date', type: 'date' },
+                { k: 'overallRating', l: 'Overall Rating (1-5)', type: 'number', placeholder: '4.5' },
+              ].map(({ k, l, type = 'text', placeholder = '' }) => (
+                <TextField
+                  key={k}
+                  id={`review-${k}`}
+                  label={l}
+                  type={type}
+                  step={k === 'overallRating' ? '0.1' : undefined}
+                  min={k === 'overallRating' ? '1' : undefined}
+                  max={k === 'overallRating' ? '5' : undefined}
+                  placeholder={placeholder}
+                  value={form[k]}
+                  onChange={e => setForm({ ...form, [k]: e.target.value })}
+                />
+              ))}
+              {[
+                { k: 'goals', l: 'Goals' },
+                { k: 'achievements', l: 'Achievements' },
+                { k: 'improvements', l: 'Areas for Improvement' },
+                { k: 'comments', l: 'Additional Comments' },
+              ].map(({ k, l }) => (
+                <TextAreaField key={k} id={`review-${k}`} label={l} value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} rows={3} />
+              ))}
             </div>
-            <form onSubmit={e => { e.preventDefault(); createMutation.mutate(form); }}>
-              <div className="p-6 space-y-4">
-                <div>
-                  <label htmlFor="review-employeeId" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Employee *</label>
-                  <select id="review-employeeId" required value={form.employeeId} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="">Select employee</option>
-                    {employees?.map((emp: any) => (
-                      <option key={emp.id} value={emp.id}>{emp.user?.firstName} {emp.user?.lastName}</option>
-                    ))}
-                  </select>
-                </div>
-                {[
-                  { k: 'period', l: 'Period (e.g. Q1 2026)', placeholder: 'Q1 2026' },
-                  { k: 'reviewDate', l: 'Review Date', type: 'date' },
-                  { k: 'overallRating', l: 'Overall Rating (1-5)', type: 'number', placeholder: '4.5' },
-                ].map(({ k, l, type = 'text', placeholder = '' }) => (
-                  <div key={k}>
-                    <label htmlFor={`review-${k}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
-                    <input id={`review-${k}`} type={type} step={k === 'overallRating' ? '0.1' : undefined} min={k === 'overallRating' ? '1' : undefined} max={k === 'overallRating' ? '5' : undefined} placeholder={placeholder} value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
-                  </div>
-                ))}
-                {[
-                  { k: 'goals', l: 'Goals' },
-                  { k: 'achievements', l: 'Achievements' },
-                  { k: 'improvements', l: 'Areas for Improvement' },
-                  { k: 'comments', l: 'Additional Comments' },
-                ].map(({ k, l }) => (
-                  <div key={k}>
-                    <label htmlFor={`review-${k}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
-                    <textarea id={`review-${k}`} value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} rows={3} className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
-                  </div>
-                ))}
-              </div>
-              <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-3 justify-end">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Cancel</button>
-                <button type="submit" disabled={!form.employeeId || createMutation.isPending} className="px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
-                  {createMutation.isPending ? 'Saving...' : 'Create Review'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <ModalFooter>
+              <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Cancel</button>
+              <button type="submit" disabled={!form.employeeId || createMutation.isPending} className="px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                {createMutation.isPending ? 'Saving...' : 'Create Review'}
+              </button>
+            </ModalFooter>
+          </form>
+        </Modal>
       )}
     </div>
   );

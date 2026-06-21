@@ -5,7 +5,8 @@ import api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { Plus, ChevronDown, DollarSign, User } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useModalA11y } from '@/hooks/useModalA11y';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
 
 export default function PipelinePage() {
   const [activePipelineId, setActivePipelineId] = useState<string>('');
@@ -155,7 +156,6 @@ function DealCard({ deal, stages, onMove }: { deal: any; stages: any[]; onMove: 
 }
 
 function DealModal({ pipelineId, stageId, stages, onClose }: { pipelineId: string; stageId: string; stages: any[]; onClose: () => void }) {
-  const modalRef = useModalA11y(onClose);
   const qc = useQueryClient();
   const [form, setForm] = useState({
     name: '', value: '', stageId: stageId || stages[0]?.id || '', probability: '50',
@@ -168,34 +168,26 @@ function DealModal({ pipelineId, stageId, stages, onClose }: { pipelineId: strin
     onError: () => toast.error('Failed to create deal'),
   });
 
-  const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500";
-
   return (
-    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
-      <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-white">New Deal</h3>
-          <button onClick={onClose} className="text-gray-400">✕</button>
-        </div>
-        <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
-          <div><label htmlFor="deal-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Deal Name*</label><input id="deal-name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputCls} /></div>
+    <Modal onClose={onClose} title="New Deal" subtitle="Add a new deal to your pipeline" icon={DollarSign} iconColor="green">
+      <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }}>
+        <div className="p-6 space-y-4">
+          <TextField id="deal-name" label="Deal Name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
           <div className="grid grid-cols-2 gap-4">
-            <div><label htmlFor="deal-value" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Value</label><input id="deal-value" type="number" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} className={inputCls} placeholder="0.00" /></div>
-            <div><label htmlFor="deal-probability" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Win Probability %</label><input id="deal-probability" type="number" min="0" max="100" value={form.probability} onChange={e => setForm({ ...form, probability: e.target.value })} className={inputCls} /></div>
-            <div><label htmlFor="deal-stageId" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Stage</label>
-              <select id="deal-stageId" value={form.stageId} onChange={e => setForm({ ...form, stageId: e.target.value })} className={inputCls}>
-                {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div><label htmlFor="deal-expectedCloseDate" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Expected Close</label><input id="deal-expectedCloseDate" type="date" value={form.expectedCloseDate} onChange={e => setForm({ ...form, expectedCloseDate: e.target.value })} className={inputCls} /></div>
+            <TextField id="deal-value" label="Value" type="number" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} placeholder="0.00" />
+            <TextField id="deal-probability" label="Win Probability %" type="number" min="0" max="100" value={form.probability} onChange={e => setForm({ ...form, probability: e.target.value })} />
+            <SelectField id="deal-stageId" label="Stage" value={form.stageId} onChange={e => setForm({ ...form, stageId: e.target.value })}>
+              {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </SelectField>
+            <TextField id="deal-expectedCloseDate" label="Expected Close" type="date" value={form.expectedCloseDate} onChange={e => setForm({ ...form, expectedCloseDate: e.target.value })} />
           </div>
-          <div><label htmlFor="deal-notes" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label><textarea id="deal-notes" rows={3} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className={inputCls + ' resize-none'} /></div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Creating...' : 'Create Deal'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <TextAreaField id="deal-notes" label="Notes" rows={3} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+        </div>
+        <ModalFooter>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
+          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Creating...' : 'Create Deal'}</button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }

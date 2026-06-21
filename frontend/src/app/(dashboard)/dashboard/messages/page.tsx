@@ -6,10 +6,11 @@ import { useAuthStore } from '@/store/auth.store';
 import toast from 'react-hot-toast';
 import {
   Search, Plus, Send, MoreVertical, Phone, Video, Smile,
-  Paperclip, Check, CheckCheck, MessageSquare, Users, X,
+  Paperclip, Check, CheckCheck, MessageSquare, Users,
   ChevronLeft, Wifi, WifiOff, Circle
 } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/utils';
+import { Modal } from '@/components/ui/Modal';
 
 interface Message {
   id: string;
@@ -132,14 +133,6 @@ export default function MessagesPage() {
       socketRef.current.emit('join-conversation', activeConvId);
     }
   }, [activeConvId]);
-
-  // Close new chat modal on Escape
-  useEffect(() => {
-    if (!showNewChat) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowNewChat(false); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [showNewChat]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -364,35 +357,29 @@ export default function MessagesPage() {
 
       {/* New Chat Modal */}
       {showNewChat && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900 dark:text-white">New Message</h3>
-              <button onClick={() => setShowNewChat(false)} aria-label="Close new message dialog" className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="p-3 max-h-72 overflow-y-auto">
-              {companyUsers.length === 0 ? (
-                <p className="text-center text-gray-400 text-sm py-8">No other users in your company</p>
-              ) : (
-                companyUsers.map((u: any) => (
-                  <button
-                    key={u.id}
-                    onClick={() => startChatMutation.mutate(u.id)}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold flex-shrink-0">
-                      {u.firstName?.[0]}{u.lastName?.[0]}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{u.firstName} {u.lastName}</p>
-                      <p className="text-xs text-gray-500">{u.email}</p>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
+        <Modal onClose={() => setShowNewChat(false)} title="New Message" subtitle="Start a conversation with a teammate" icon={MessageSquare} iconColor="indigo" size="sm">
+          <div className="p-3 max-h-72 overflow-y-auto">
+            {companyUsers.length === 0 ? (
+              <p className="text-center text-gray-400 text-sm py-8">No other users in your company</p>
+            ) : (
+              companyUsers.map((u: any) => (
+                <button
+                  key={u.id}
+                  onClick={() => startChatMutation.mutate(u.id)}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
+                >
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold flex-shrink-0">
+                    {u.firstName?.[0]}{u.lastName?.[0]}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{u.firstName} {u.lastName}</p>
+                    <p className="text-xs text-gray-500">{u.email}</p>
+                  </div>
+                </button>
+              ))
+            )}
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

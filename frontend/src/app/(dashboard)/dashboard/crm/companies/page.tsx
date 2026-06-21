@@ -5,7 +5,8 @@ import api from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { Plus, Building2, Search, Globe, Trash2, Edit, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useModalA11y } from '@/hooks/useModalA11y';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { TextField, TextAreaField } from '@/components/ui/FormField';
 
 export default function CrmCompaniesPage() {
   const [search, setSearch] = useState('');
@@ -96,7 +97,6 @@ export default function CrmCompaniesPage() {
 }
 
 function CompanyModal({ company, onClose }: { company: any; onClose: () => void }) {
-  const modalRef = useModalA11y(onClose);
   const qc = useQueryClient();
   const [form, setForm] = useState({
     name: company?.name || '',
@@ -114,35 +114,28 @@ function CompanyModal({ company, onClose }: { company: any; onClose: () => void 
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['crm-companies'] }); toast.success(company ? 'Company updated' : 'Company created'); onClose(); },
     onError: () => toast.error('Failed to save company'),
   });
-  const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500";
   const f = (k: string) => ({ value: (form as any)[k], onChange: (e: any) => setForm({ ...form, [k]: e.target.value }) });
 
   return (
-    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
-      <div className="glass-card rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-white">{company ? 'Edit' : 'New'} Company</h3>
-          <button onClick={onClose} className="text-gray-400">✕</button>
+    <Modal onClose={onClose} title={company ? 'Edit Company' : 'New Company'} subtitle={company ? 'Update company details' : 'Add a new company to your CRM'} icon={Building2} iconColor="purple">
+      <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }}>
+        <div className="p-6 space-y-4">
+          <TextField id="company-name" label="Company Name" required {...f('name')} />
+          <div className="grid grid-cols-2 gap-4">
+            <TextField id="company-industry" label="Industry" {...f('industry')} placeholder="Technology, Finance..." />
+            <TextField id="company-employees" label="Employees" type="number" {...f('employees')} />
+            <TextField id="company-email" label="Email" type="email" {...f('email')} />
+            <TextField id="company-phone" label="Phone" {...f('phone')} />
+          </div>
+          <TextField id="company-website" label="Website" type="url" {...f('website')} placeholder="https://" />
+          <TextField id="company-address" label="Address" {...f('address')} />
+          <TextAreaField id="company-description" label="Description" rows={3} {...f('description')} />
         </div>
-        <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
-            <div><label htmlFor="company-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Company Name*</label><input id="company-name" required {...f('name')} className={inputCls} /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div><label htmlFor="company-industry" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Industry</label><input id="company-industry" {...f('industry')} placeholder="Technology, Finance..." className={inputCls} /></div>
-              <div><label htmlFor="company-employees" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Employees</label><input id="company-employees" type="number" {...f('employees')} className={inputCls} /></div>
-              <div><label htmlFor="company-email" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label><input id="company-email" type="email" {...f('email')} className={inputCls} /></div>
-              <div><label htmlFor="company-phone" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label><input id="company-phone" {...f('phone')} className={inputCls} /></div>
-            </div>
-            <div><label htmlFor="company-website" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Website</label><input id="company-website" type="url" {...f('website')} placeholder="https://" className={inputCls} /></div>
-            <div><label htmlFor="company-address" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Address</label><input id="company-address" {...f('address')} className={inputCls} /></div>
-            <div><label htmlFor="company-description" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label><textarea id="company-description" rows={3} {...f('description')} className={inputCls + ' resize-none'} /></div>
-          </div>
-          <div className="flex gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Saving...' : 'Save'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <ModalFooter>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
+          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Saving...' : 'Save'}</button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }

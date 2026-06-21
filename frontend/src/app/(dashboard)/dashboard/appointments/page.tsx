@@ -5,7 +5,8 @@ import api from '@/lib/api';
 import { formatDate, formatDateTime, statusColor } from '@/lib/utils';
 import { Plus, Calendar, Clock, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useModalA11y } from '@/hooks/useModalA11y';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
 
 const STATUS_OPTS = ['scheduled', 'confirmed', 'completed', 'cancelled', 'no_show'];
 
@@ -185,7 +186,6 @@ export default function AppointmentsPage() {
 }
 
 function BookModal({ services, initialStartTime, onClose }: { services: any[]; initialStartTime?: string | null; onClose: () => void }) {
-  const modalRef = useModalA11y(onClose);
   const qc = useQueryClient();
   const [form, setForm] = useState({
     serviceId: services[0]?.id || '',
@@ -203,35 +203,27 @@ function BookModal({ services, initialStartTime, onClose }: { services: any[]; i
     onError: () => toast.error('Failed to book appointment'),
   });
 
-  const inputCls = "w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500";
-
   return (
-    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
-      <div className="glass-card rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-white">Book Appointment</h3>
-          <button onClick={onClose} className="text-gray-400">✕</button>
-        </div>
-        <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="p-6 space-y-4">
-          <div><label htmlFor="appointment-serviceId" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Service</label>
-            <select id="appointment-serviceId" value={form.serviceId} onChange={e => setForm({ ...form, serviceId: e.target.value })} className={inputCls}>
-              {services.map(s => <option key={s.id} value={s.id}>{s.name} ({s.duration}min)</option>)}
-            </select>
-          </div>
-          <div><label htmlFor="appointment-startTime" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Date & Time*</label><input id="appointment-startTime" required type="datetime-local" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className={inputCls} /></div>
+    <Modal onClose={onClose} title="Book Appointment" subtitle="Schedule a new appointment for a contact" icon={Calendar} iconColor="purple">
+      <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }}>
+        <div className="p-6 space-y-4">
+          <SelectField id="appointment-serviceId" label="Service" value={form.serviceId} onChange={e => setForm({ ...form, serviceId: e.target.value })}>
+            {services.map(s => <option key={s.id} value={s.id}>{s.name} ({s.duration}min)</option>)}
+          </SelectField>
+          <TextField id="appointment-startTime" label="Date & Time" required type="datetime-local" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} />
           <div className="grid grid-cols-2 gap-4">
-            <div><label htmlFor="appointment-firstName" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">First Name*</label><input id="appointment-firstName" required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} className={inputCls} /></div>
-            <div><label htmlFor="appointment-lastName" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name</label><input id="appointment-lastName" value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} className={inputCls} /></div>
-            <div><label htmlFor="appointment-email" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label><input id="appointment-email" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className={inputCls} /></div>
-            <div><label htmlFor="appointment-phone" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label><input id="appointment-phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className={inputCls} /></div>
+            <TextField id="appointment-firstName" label="First Name" required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} />
+            <TextField id="appointment-lastName" label="Last Name" value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} />
+            <TextField id="appointment-email" label="Email" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+            <TextField id="appointment-phone" label="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
           </div>
-          <div><label htmlFor="appointment-notes" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label><textarea id="appointment-notes" rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className={inputCls + ' resize-none'} /></div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Booking...' : 'Book'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+          <TextAreaField id="appointment-notes" label="Notes" rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+        </div>
+        <ModalFooter>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
+          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Booking...' : 'Book'}</button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }

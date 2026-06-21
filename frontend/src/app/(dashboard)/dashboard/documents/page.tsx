@@ -5,7 +5,8 @@ import api from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { Upload, FolderPlus, Folder, FileText, Download, Trash2, ChevronRight, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useModalA11y } from '@/hooks/useModalA11y';
+import { Modal, ModalFooter } from '@/components/ui/Modal';
+import { TextField } from '@/components/ui/FormField';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -226,7 +227,6 @@ export default function DocumentsPage() {
 }
 
 function FolderModal({ parentId, onClose }: { parentId: string | null; onClose: () => void }) {
-  const modalRef = useModalA11y(onClose);
   const qc = useQueryClient();
   const [name, setName] = useState('');
   const mutation = useMutation({
@@ -235,20 +235,16 @@ function FolderModal({ parentId, onClose }: { parentId: string | null; onClose: 
     onError: () => toast.error('Failed to create folder'),
   });
   return (
-    <div ref={modalRef} tabIndex={-1} className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 outline-none animate-in fade-in duration-200">
-      <div className="glass-card rounded-2xl w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="font-semibold text-gray-900 dark:text-white">New Folder</h3>
-          <button onClick={onClose} className="text-gray-400">✕</button>
+    <Modal onClose={onClose} title="New Folder" subtitle="Create a folder to organize your documents" icon={Folder} iconColor="yellow" size="sm">
+      <form onSubmit={e => { e.preventDefault(); mutation.mutate({ name, parentId }); }}>
+        <div className="p-6 space-y-4">
+          <TextField id="folder-name" label="Folder name" required value={name} onChange={e => setName(e.target.value)} placeholder="Folder name" />
         </div>
-        <form onSubmit={e => { e.preventDefault(); mutation.mutate({ name, parentId }); }} className="p-6 space-y-4">
-          <input required value={name} onChange={e => setName(e.target.value)} placeholder="Folder name" className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
-          <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Creating...' : 'Create'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <ModalFooter>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
+          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Creating...' : 'Create'}</button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }
