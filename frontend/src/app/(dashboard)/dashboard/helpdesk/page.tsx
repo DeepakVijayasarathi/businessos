@@ -13,6 +13,7 @@ export default function HelpdeskPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [triageResult, setTriageResult] = useState<any>(null);
@@ -24,16 +25,19 @@ export default function HelpdeskPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, priorityFilter]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ['tickets', debouncedSearch, statusFilter, priorityFilter],
+    queryKey: ['tickets', debouncedSearch, statusFilter, priorityFilter, page],
     queryFn: async () => {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (debouncedSearch) params.append('search', debouncedSearch);
       if (statusFilter) params.append('status', statusFilter);
       if (priorityFilter) params.append('priority', priorityFilter);
       const { data } = await api.get(`/helpdesk?${params}`);
       return data;
     },
+    refetchInterval: 30000,
   });
 
   const { data: stats } = useQuery({
@@ -91,8 +95,8 @@ export default function HelpdeskPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 flex-1 max-w-sm">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 flex-1 min-w-[200px] max-w-sm">
           <Search className="w-4 h-4 text-gray-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tickets..." className="bg-transparent text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 outline-none flex-1" />
         </div>
@@ -160,6 +164,31 @@ export default function HelpdeskPage() {
           </div>
         ))}
       </div>
+
+      {/* Pagination */}
+      {data?.meta && data.meta.totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-xs text-gray-500">
+            Page {data.meta.page} of {data.meta.totalPages} · {data.meta.total} tickets
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={!data.meta.hasPrevPage}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={!data.meta.hasNextPage}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-800"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {showModal && <NewTicketModal onClose={() => setShowModal(false)} />}
       {selectedTicket && <TicketDetailModal ticket={selectedTicket} onClose={() => setSelectedTicket(null)} />}
@@ -251,6 +280,7 @@ function NewTicketModal({ onClose }: { onClose: () => void }) {
 function TicketDetailModal({ ticket, onClose }: { ticket: any; onClose: () => void }) {
   const qc = useQueryClient();
   const [comment, setComment] = useState('');
+  const [isInternal, setIsInternal] = useState(false);
 
   const { data } = useQuery({
     queryKey: ['ticket', ticket.id],
@@ -261,13 +291,15 @@ function TicketDetailModal({ ticket, onClose }: { ticket: any; onClose: () => vo
   });
 
   const commentMutation = useMutation({
-    mutationFn: (content: string) => api.post(`/helpdesk/${ticket.id}/comments`, { content }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ticket', ticket.id] }); setComment(''); },
+    mutationFn: ({ content, isInternal }: { content: string; isInternal: boolean }) => api.post(`/helpdesk/${ticket.id}/comments`, { content, isInternal }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ticket', ticket.id] }); setComment(''); setIsInternal(false); },
+    onError: () => toast.error('Failed to add comment'),
   });
 
   const statusMutation = useMutation({
     mutationFn: (status: string) => api.put(`/helpdesk/${ticket.id}`, { status }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tickets'] }); qc.invalidateQueries({ queryKey: ['ticket', ticket.id] }); },
+    onError: () => toast.error('Failed to update ticket status'),
   });
 
   const t = data || ticket;
@@ -292,39 +324,43 @@ function TicketDetailModal({ ticket, onClose }: { ticket: any; onClose: () => vo
           )}
 
           {t.comments?.map((c: any) => (
-            <div key={c.id} className="flex gap-3">
+            <div key={c.id} className={`flex gap-3 ${c.isInternal ? 'opacity-90' : ''}`}>
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                {c.user.firstName[0]}
+                {c.user?.firstName?.[0] || '?'}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{c.user.firstName} {c.user.lastName}</span>
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{c.user ? `${c.user.firstName} ${c.user.lastName}` : 'Unknown user'}</span>
                   <span className="text-xs text-gray-400">{formatRelativeTime(c.createdAt)}</span>
                   {c.isInternal && <span className="text-xs text-orange-500 bg-orange-50 dark:bg-orange-950/30 px-1.5 py-0.5 rounded">Internal</span>}
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700">{c.content}</p>
+                <p className={`text-sm text-gray-600 dark:text-gray-400 rounded-xl p-3 border ${c.isInternal ? 'bg-orange-50/50 dark:bg-orange-950/10 border-orange-100 dark:border-orange-900' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}`}>{c.content}</p>
               </div>
             </div>
           ))}
       </div>
 
-      <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+      <div className="p-6 border-t border-gray-200 dark:border-gray-700 space-y-2">
         <div className="flex gap-3">
           <textarea
             value={comment}
             onChange={e => setComment(e.target.value)}
-            placeholder="Add a comment..."
+            placeholder={isInternal ? 'Add an internal note (not visible to the customer)...' : 'Add a comment...'}
             rows={2}
             className="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
           />
           <button
-            onClick={() => { if (comment.trim()) commentMutation.mutate(comment.trim()); }}
+            onClick={() => { if (comment.trim()) commentMutation.mutate({ content: comment.trim(), isInternal }); }}
             disabled={!comment.trim() || commentMutation.isPending}
             className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
           >
             Send
           </button>
         </div>
+        <label className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 cursor-pointer w-fit">
+          <input type="checkbox" checked={isInternal} onChange={e => setIsInternal(e.target.checked)} className="rounded" />
+          Internal note (only visible to your team)
+        </label>
       </div>
     </Modal>
   );

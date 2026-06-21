@@ -44,31 +44,35 @@ export default function LoginPage() {
         <div className="glass-card rounded-2xl p-8 shadow-xl">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email</label>
+              <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email</label>
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
                 required
+                autoComplete="email"
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-colors"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+                <label htmlFor="login-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
                 <Link href="/forgot-password" className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
                   Forgot password?
                 </Link>
               </div>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  autoComplete="current-password"
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm transition-colors pr-10"
                 />
                 <button
@@ -104,14 +108,17 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Demo credentials */}
-          <div className="mt-6 p-4 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl">
-            <p className="text-xs font-medium text-indigo-700 dark:text-indigo-400 mb-2">Demo Credentials</p>
-            <div className="space-y-1 text-xs text-indigo-600 dark:text-indigo-300">
-              <p>Admin: <span className="font-mono">admin@demo.com</span> / <span className="font-mono">Demo@1234</span></p>
-              <p>Sales: <span className="font-mono">sales@demo.com</span> / <span className="font-mono">Demo@1234</span></p>
+          {/* Demo credentials — only ever rendered when explicitly opted into via env,
+              never on a production deploy by default */}
+          {process.env.NEXT_PUBLIC_SHOW_DEMO_CREDENTIALS === 'true' && (
+            <div className="mt-6 p-4 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl">
+              <p className="text-xs font-medium text-indigo-700 dark:text-indigo-400 mb-2">Demo Credentials</p>
+              <div className="space-y-1 text-xs text-indigo-600 dark:text-indigo-300">
+                <p>Admin: <span className="font-mono">admin@demo.com</span> / <span className="font-mono">Demo@1234</span></p>
+                <p>Sales: <span className="font-mono">sales@demo.com</span> / <span className="font-mono">Demo@1234</span></p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

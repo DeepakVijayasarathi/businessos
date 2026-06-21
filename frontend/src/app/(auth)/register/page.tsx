@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { Zap, CheckCircle2 } from 'lucide-react';
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', companyName: '' });
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', confirmPassword: '', companyName: '' });
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -16,9 +16,14 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.password !== form.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/register', form);
+      const { confirmPassword, ...payload } = form;
+      const { data } = await api.post('/auth/register', payload);
       setAccessToken(data.data.accessToken);
       useAuthStore.setState({ user: data.data.user, isAuthenticated: true });
       toast.success('Account created! Welcome aboard!');
@@ -65,16 +70,18 @@ export default function RegisterPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { field: 'firstName', label: 'First Name', placeholder: 'John' },
-                  { field: 'lastName', label: 'Last Name', placeholder: 'Smith' },
-                ].map(({ field, label, placeholder }) => (
+                  { field: 'firstName', label: 'First Name', placeholder: 'John', autoComplete: 'given-name' },
+                  { field: 'lastName', label: 'Last Name', placeholder: 'Smith', autoComplete: 'family-name' },
+                ].map(({ field, label, placeholder, autoComplete }) => (
                   <div key={field}>
-                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+                    <label htmlFor={`register-${field}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
                     <input
+                      id={`register-${field}`}
                       value={form[field as keyof typeof form]}
                       onChange={e => setForm({ ...form, [field]: e.target.value })}
                       placeholder={placeholder}
                       required
+                      autoComplete={autoComplete}
                       className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                     />
                   </div>
@@ -82,19 +89,22 @@ export default function RegisterPage() {
               </div>
 
               {[
-                { field: 'companyName', label: 'Company Name', placeholder: 'Acme Inc.', type: 'text' },
-                { field: 'email', label: 'Work Email', placeholder: 'you@company.com', type: 'email' },
-                { field: 'password', label: 'Password', placeholder: 'Min 8 characters', type: 'password' },
-              ].map(({ field, label, placeholder, type }) => (
+                { field: 'companyName', label: 'Company Name', placeholder: 'Acme Inc.', type: 'text', autoComplete: 'organization' },
+                { field: 'email', label: 'Work Email', placeholder: 'you@company.com', type: 'email', autoComplete: 'email' },
+                { field: 'password', label: 'Password', placeholder: 'Min 8 characters', type: 'password', autoComplete: 'new-password' },
+                { field: 'confirmPassword', label: 'Confirm Password', placeholder: 'Re-enter your password', type: 'password', autoComplete: 'new-password' },
+              ].map(({ field, label, placeholder, type, autoComplete }) => (
                 <div key={field}>
-                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
+                  <label htmlFor={`register-${field}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>
                   <input
+                    id={`register-${field}`}
                     type={type}
                     value={form[field as keyof typeof form]}
                     onChange={e => setForm({ ...form, [field]: e.target.value })}
                     placeholder={placeholder}
                     required
-                    minLength={field === 'password' ? 8 : undefined}
+                    autoComplete={autoComplete}
+                    minLength={field === 'password' || field === 'confirmPassword' ? 8 : undefined}
                     className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                   />
                 </div>

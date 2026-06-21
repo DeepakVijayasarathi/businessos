@@ -95,8 +95,9 @@ router.put('/:id', requirePermission('helpdesk.*'), auditLog('helpdesk.tickets',
   } catch (err) { next(err); }
 });
 
-router.post('/:id/comments', async (req, res, next) => {
+router.post('/:id/comments', requirePermission('helpdesk.*'), async (req, res, next) => {
   try {
+    if (!req.body.content?.trim()) return error(res, 'Comment content is required', 400);
     const ticket = await prisma.ticket.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!ticket) return notFound(res, 'Ticket not found');
     const comment = await prisma.comment.create({
@@ -150,6 +151,17 @@ router.post('/:id/ai-triage', async (req, res, next) => {
     // Auto-update priority if AI detected urgent
     if (triage.priority === 'urgent' && ticket.priority !== 'urgent') {
       await prisma.ticket.update({ where: { id: ticket.id }, data: { priority: 'urgent' } });
+      await prisma.auditLog.create({
+        data: {
+          companyId: req.companyId,
+          userId: req.userId,
+          action: 'AI_TRIAGE',
+          module: 'helpdesk.tickets',
+          resourceId: ticket.id,
+          before: { priority: ticket.priority },
+          after: { priority: 'urgent' },
+        },
+      }).catch(() => {});
     }
 
     return res.json({ success: true, data: triage });

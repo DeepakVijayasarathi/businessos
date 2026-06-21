@@ -42,7 +42,7 @@ export function getInitials(name: string): string {
 export function statusColor(status: string): string {
   const map: Record<string, string> = {
     active: 'badge-active', new: 'badge-new', open: 'badge-new',
-    pending: 'badge-pending', scheduled: 'badge-pending',
+    pending: 'badge-pending', scheduled: 'badge-pending', in_progress: 'badge-pending',
     closed: 'badge-closed', resolved: 'badge-closed', done: 'badge-active',
     failed: 'badge-error', cancelled: 'badge-error', lost: 'badge-error',
     won: 'badge-active', paid: 'badge-active', draft: 'badge-closed',

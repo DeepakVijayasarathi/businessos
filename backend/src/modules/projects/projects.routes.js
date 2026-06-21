@@ -128,17 +128,21 @@ router.delete('/tasks/:id', auditLog('projects.tasks', 'task'), async (req, res,
   } catch (err) { next(err); }
 });
 
-// Kanban board for project
+// Kanban board for project — capped per-column (was previously fetching
+// every task for the project unbounded, then bucketing in memory).
 router.get('/:id/kanban', async (req, res, next) => {
   try {
     const columns = ['todo', 'in_progress', 'review', 'done'];
-    const tasks = await prisma.task.findMany({
-      where: { projectId: req.params.id, companyId: req.companyId },
-      include: { assignee: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
-      orderBy: { order: 'asc' },
-    });
-    const board = columns.reduce((acc, col) => {
-      acc[col] = tasks.filter(t => t.status === col);
+    const columnResults = await Promise.all(columns.map(status =>
+      prisma.task.findMany({
+        where: { projectId: req.params.id, companyId: req.companyId, status },
+        include: { assignee: { select: { id: true, firstName: true, lastName: true, avatar: true } } },
+        orderBy: { order: 'asc' },
+        take: 100,
+      })
+    ));
+    const board = columns.reduce((acc, col, i) => {
+      acc[col] = columnResults[i];
       return acc;
     }, {});
     return success(res, board);
