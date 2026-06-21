@@ -31,6 +31,14 @@ export function PosterPreview({ template, data }: { template: string; data: Post
   const base = 'w-[300px] h-[400px] relative overflow-hidden flex flex-col font-sans select-none';
 
   switch (template) {
+    case 'ai-generated':
+      return (
+        <div className={base} style={{ background: imageUrl ? `url(${imageUrl}) center/cover` : '#e5e7eb' }}>
+          {!imageUrl && (
+            <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Generating...</div>
+          )}
+        </div>
+      );
     case 'side-banner':
       return (
         <div className={base} style={{ background: '#fff' }}>

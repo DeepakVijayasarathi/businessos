@@ -23,4 +23,24 @@ async function callAI({ messages, system, companyAnthropicKey, companyOpenaiKey,
   return { text: response.content[0].text, model: config.ai.claudeModel, provider: 'claude' };
 }
 
-module.exports = { callAI };
+/**
+ * Generates an image from a text prompt via OpenAI's DALL-E. Image generation
+ * has no Claude equivalent, so this always uses an OpenAI key regardless of
+ * the company's chat provider preference.
+ */
+async function generateImage({ prompt, companyOpenaiKey, size = '1024x1024' }) {
+  const rawKey = (companyOpenaiKey ? decrypt(companyOpenaiKey) : null) || config.ai.openaiKey;
+  if (!rawKey) throw new Error('AI image generation requires an OpenAI API key — add one in Settings > AI Config');
+
+  const client = new OpenAI({ apiKey: rawKey });
+  const response = await client.images.generate({
+    model: 'dall-e-3',
+    prompt,
+    size,
+    n: 1,
+    quality: 'standard',
+  });
+  return { url: response.data[0].url };
+}
+
+module.exports = { callAI, generateImage };

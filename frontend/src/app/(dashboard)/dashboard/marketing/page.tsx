@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate, formatDateTime, formatRelativeTime } from '@/lib/utils';
-import { Plus, Globe, FormInput, Eye, MousePointer, Trash2, ExternalLink, Image as ImageIcon, Activity as ActivityIcon, Megaphone, Share2, Mail, Calendar, MoreHorizontal } from 'lucide-react';
+import { Plus, Globe, FormInput, Eye, MousePointer, Trash2, ExternalLink, Image as ImageIcon, Activity as ActivityIcon, Megaphone, Share2, Mail, Calendar, MoreHorizontal, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
@@ -395,10 +395,15 @@ function PosterGallery({ posters, isLoading, onDelete }: { posters: any[]; isLoa
 
 function PosterDesigner({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
-  const [step, setStep] = useState<'gallery' | 'customize'>('gallery');
+  const [step, setStep] = useState<'choice' | 'gallery' | 'ai' | 'customize'>('choice');
   const [templateKey, setTemplateKey] = useState(POSTER_TEMPLATES[0].key);
   const [data, setData] = useState<PosterData>({ title: '', subtitle: '', primaryColor: '#6366f1', secondaryColor: '#8b5cf6', imageUrl: null });
   const [uploading, setUploading] = useState(false);
+  const [prompt, setPrompt] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [aiTitle, setAiTitle] = useState('');
+
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
   const uploadImage = async (file: File) => {
     setUploading(true);
@@ -406,7 +411,6 @@ function PosterDesigner({ onClose }: { onClose: () => void }) {
       const fd = new FormData();
       fd.append('image', file);
       const { data: res } = await api.post('/marketing/posters/upload-image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       setData(d => ({ ...d, imageUrl: `${base}${res.data.url}` }));
     } catch {
       toast.error('Image upload failed');
@@ -415,8 +419,28 @@ function PosterDesigner({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const handleGenerate = async () => {
+    if (!prompt.trim()) { toast.error('Describe the poster you want'); return; }
+    setGenerating(true);
+    try {
+      const { data: res } = await api.post('/marketing/posters/generate-image', { prompt: prompt.trim() });
+      setData(d => ({ ...d, imageUrl: `${base}${res.data.url}` }));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Image generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const saveMutation = useMutation({
-    mutationFn: () => api.post('/marketing/posters', { title: data.title, subtitle: data.subtitle, templateKey, primaryColor: data.primaryColor, secondaryColor: data.secondaryColor, imageUrl: data.imageUrl }),
+    mutationFn: () => api.post('/marketing/posters', {
+      title: step === 'ai' ? (aiTitle || prompt.slice(0, 60)) : data.title,
+      subtitle: step === 'ai' ? null : data.subtitle,
+      templateKey: step === 'ai' ? 'ai-generated' : templateKey,
+      primaryColor: data.primaryColor,
+      secondaryColor: data.secondaryColor,
+      imageUrl: data.imageUrl,
+    }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['posters'] }); toast.success('Poster saved'); onClose(); },
     onError: () => toast.error('Failed to save poster'),
   });
@@ -428,13 +452,82 @@ function PosterDesigner({ onClose }: { onClose: () => void }) {
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(node, { scale: 2, useCORS: true, backgroundColor: null });
       const link = document.createElement('a');
-      link.download = `${(data.title || 'poster').replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.download = `${(data.title || aiTitle || 'poster').replace(/\s+/g, '-').toLowerCase()}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch {
       toast.error('Failed to generate image. Try saving instead.');
     }
   };
+
+  if (step === 'choice') {
+    return (
+      <Modal onClose={onClose} title="Create a Poster" subtitle="Generate one with AI, or build it from a template" icon={ImageIcon} iconColor="purple">
+        <div className="p-6 grid grid-cols-2 gap-4">
+          <button
+            onClick={() => setStep('ai')}
+            className="rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 hover:border-indigo-400 dark:hover:border-indigo-500 p-5 text-left transition-colors flex flex-col items-center text-center gap-2"
+          >
+            <Sparkles className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">AI Generate</p>
+            <p className="text-xs text-gray-500">Describe it, AI creates the full poster image</p>
+          </button>
+          <button
+            onClick={() => setStep('gallery')}
+            className="rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 p-5 text-left transition-colors flex flex-col items-center text-center gap-2"
+          >
+            <ImageIcon className="w-8 h-8 text-gray-500" />
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">Use a Template</p>
+            <p className="text-xs text-gray-500">Pick a layout and customize text & colors</p>
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
+  if (step === 'ai') {
+    return (
+      <Modal onClose={onClose} title="AI Generate Poster" subtitle="Describe the poster and let AI create it" icon={Sparkles} iconColor="indigo" size="xl">
+        <div className="p-6 grid md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <TextAreaField
+              id="ai-prompt"
+              label="Describe your poster"
+              required
+              rows={5}
+              value={prompt}
+              onChange={e => setPrompt(e.target.value)}
+              placeholder="A vibrant summer sale poster with palm trees, sunset colors, and bold text saying 'SUMMER SALE 50% OFF'"
+              hint="Be specific: mood, colors, objects, and any text you want shown."
+            />
+            <TextField id="ai-title" label="Poster Name" value={aiTitle} onChange={e => setAiTitle(e.target.value)} placeholder="Used to identify it in your library" />
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={generating || !prompt.trim()}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            >
+              <Sparkles className="w-4 h-4" /> {generating ? 'Generating...' : data.imageUrl ? 'Regenerate' : 'Generate'}
+            </button>
+            <button type="button" onClick={() => { setStep('choice'); setData(d => ({ ...d, imageUrl: null })); }} className="text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline">← Back</button>
+          </div>
+          <div className="flex items-center justify-center">
+            <div id="poster-canvas" className="shadow-2xl rounded-lg overflow-hidden">
+              <PosterPreview template="ai-generated" data={data} />
+            </div>
+          </div>
+        </div>
+        <ModalFooter>
+          <button type="button" onClick={handleDownload} disabled={!data.imageUrl} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors">Download PNG</button>
+          <div className="flex-1" />
+          <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Cancel</button>
+          <button type="button" disabled={!data.imageUrl || saveMutation.isPending} onClick={() => saveMutation.mutate()} className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+            {saveMutation.isPending ? 'Saving...' : 'Save Poster'}
+          </button>
+        </ModalFooter>
+      </Modal>
+    );
+  }
 
   if (step === 'gallery') {
     return (

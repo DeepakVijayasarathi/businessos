@@ -2,11 +2,13 @@ const router = require('express').Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany, optionalAuth } = require('../../middleware/auth');
 const { success, created, notFound, error } = require('../../utils/response');
 const { slugify, paginate, paginateMeta } = require('../../utils/helpers');
+const { generateImage } = require('../../services/ai.service');
 
 const uploadDir = process.env.UPLOAD_PATH || './uploads';
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -166,6 +168,30 @@ router.post('/posters/upload-image', authenticate, sameCompany, (req, res, next)
     if (!req.file) return error(res, 'No image uploaded', 400);
     return success(res, { url: `/uploads/${req.file.filename}` }, 'Image uploaded');
   });
+});
+
+router.post('/posters/generate-image', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { prompt, size } = req.body;
+    if (!prompt || !prompt.trim()) return error(res, 'A description of the poster is required', 400);
+
+    const company = await prisma.company.findUnique({ where: { id: req.companyId }, select: { openaiKey: true } });
+    const { url: remoteUrl } = await generateImage({
+      prompt: prompt.trim(),
+      companyOpenaiKey: company?.openaiKey,
+      size: ['1024x1024', '1024x1792', '1792x1024'].includes(size) ? size : '1024x1024',
+    });
+
+    // OpenAI's image URL expires after ~1 hour — download and persist locally.
+    const imgResponse = await axios.get(remoteUrl, { responseType: 'arraybuffer', timeout: 30000 });
+    const filename = `${uuidv4()}.png`;
+    fs.writeFileSync(path.join(uploadDir, filename), imgResponse.data);
+
+    return success(res, { url: `/uploads/${filename}` }, 'Image generated');
+  } catch (err) {
+    if (err.message?.includes('OpenAI API key')) return error(res, err.message, 400);
+    next(err);
+  }
 });
 
 router.post('/posters', authenticate, sameCompany, async (req, res, next) => {
