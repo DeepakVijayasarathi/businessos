@@ -27,7 +27,7 @@ function StatCard({ title, value, change, icon: Icon, color, prefix }: any) {
           </div>
         )}
       </div>
-      <p className="text-2xl font-bold text-gray-900 dark:text-white">{prefix}{value?.toLocaleString() ?? '—'}</p>
+      <p className="text-2xl font-bold text-gray-900 dark:text-white">{prefix}{typeof value === 'number' ? value.toLocaleString() : value ?? '—'}</p>
       <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{title}</p>
     </div>
   );

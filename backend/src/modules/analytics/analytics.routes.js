@@ -44,11 +44,11 @@ router.get('/dashboard', async (req, res, next) => {
     return success(res, {
       leads: { total: totalLeads, thisMonth: newLeadsThisMonth, growth: leadGrowth },
       contacts: { total: totalContacts },
-      deals: { open: totalDeals, wonCount: wonDeals._count, wonValue: wonDeals._sum.value },
+      deals: { open: totalDeals, wonCount: wonDeals._count, wonValue: Number(wonDeals._sum.value || 0) },
       tickets: { open: openTickets, resolvedThisMonth: resolvedTickets },
       employees: { active: totalEmployees },
       projects: { active: activeProjects },
-      revenue: { total: totalRevenue._sum.total, thisMonth: monthRevenue._sum.total },
+      revenue: { total: Number(totalRevenue._sum.total || 0), thisMonth: Number(monthRevenue._sum.total || 0) },
       ai: { conversationsThisMonth: aiConversations },
     });
   } catch (err) { next(err); }
@@ -198,7 +198,7 @@ router.get('/forecast', async (req, res, next) => {
         where: { companyId: cid, status: 'paid', paidAt: { gte: start, lte: end } },
         _sum: { total: true },
       });
-      months.push({ month: start.toISOString().slice(0, 7), revenue: rev._sum.total || 0, type: 'actual' });
+      months.push({ month: start.toISOString().slice(0, 7), revenue: Number(rev._sum.total || 0), type: 'actual' });
     }
 
     // Forecast: next 3 months using linear regression
@@ -227,7 +227,7 @@ router.get('/forecast', async (req, res, next) => {
       success: true,
       data: {
         months,
-        pipelineValue: pipeline._sum.value || 0,
+        pipelineValue: Number(pipeline._sum.value || 0),
         growthRate: values[0] > 0 ? ((values[n - 1] - values[0]) / values[0]) * 100 : 0,
       },
     });

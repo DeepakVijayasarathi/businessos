@@ -146,7 +146,7 @@ export default function ClientsPage() {
                           <p className="text-xs text-gray-400">{formatDate(inv.issueDate)}</p>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white">${inv.total?.toLocaleString()}</span>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white">${Number(inv.total || 0).toLocaleString()}</span>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColor(inv.status)}`}>{inv.status}</span>
                         </div>
                       </div>

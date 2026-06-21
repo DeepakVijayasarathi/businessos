@@ -33,7 +33,7 @@ export default function PipelinePage() {
     enabled: !!activePipelineId,
     queryFn: async () => {
       const { data } = await api.get(`/crm/kanban/${activePipelineId}`);
-      return data.data;
+      return data.data.stages || [];
     },
   });
 

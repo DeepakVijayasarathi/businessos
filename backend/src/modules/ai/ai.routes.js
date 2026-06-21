@@ -223,13 +223,13 @@ router.get('/intelligence', async (req, res, next) => {
       prisma.invoice.aggregate({ where: { companyId: cid, status: { in: ['sent', 'overdue', 'draft'] } }, _sum: { total: true } }),
     ]);
 
-    const rev30 = revenue30._sum.total || 0;
-    const rev60 = revenue60._sum.total || 0;
+    const rev30 = Number(revenue30._sum.total || 0);
+    const rev60 = Number(revenue60._sum.total || 0);
     const revenueGrowth = rev60 > 0 ? ((rev30 - rev60) / rev60) * 100 : 0;
     const leadGrowth = prevLeads > 0 ? ((newLeads - prevLeads) / prevLeads) * 100 : 0;
     const conversionRate = newLeads > 0 ? (convertedLeads / newLeads) * 100 : 0;
-    const pipelineValue = totalDealValue._sum.value || 0;
-    const outstanding = totalOutstanding._sum.total || 0;
+    const pipelineValue = Number(totalDealValue._sum.value || 0);
+    const outstanding = Number(totalOutstanding._sum.total || 0);
 
     // Health score (0-100): weighted across dimensions
     const scores = {

@@ -71,6 +71,12 @@ router.get('/kanban/:pipelineId', async (req, res, next) => {
       },
     });
     if (!pipeline) return notFound(res, 'Pipeline not found');
+    // Coerce Decimal `value` to a plain number — Prisma Decimals serialize to
+    // strings over JSON, which silently string-concatenates in frontend sums.
+    pipeline.stages = pipeline.stages.map((stage) => ({
+      ...stage,
+      deals: stage.deals.map((deal) => ({ ...deal, value: deal.value != null ? Number(deal.value) : null })),
+    }));
     return success(res, pipeline);
   } catch (err) { next(err); }
 });

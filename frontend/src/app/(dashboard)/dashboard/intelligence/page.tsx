@@ -120,9 +120,9 @@ export default function IntelligencePage() {
           {/* Key Metrics Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Revenue (30d)', value: `$${(intel?.metrics?.revenue30 || 0).toLocaleString()}`, change: intel?.metrics?.revenueGrowth, icon: DollarSign, colorClass: 'text-indigo-500' },
+              { label: 'Revenue (30d)', value: `$${Number(intel?.metrics?.revenue30 || 0).toLocaleString()}`, change: intel?.metrics?.revenueGrowth, icon: DollarSign, colorClass: 'text-indigo-500' },
               { label: 'New Leads', value: intel?.metrics?.newLeads || 0, change: intel?.metrics?.leadGrowth, icon: Target, colorClass: 'text-green-500' },
-              { label: 'Pipeline Value', value: `$${(intel?.metrics?.pipelineValue || 0).toLocaleString()}`, icon: TrendingUp, colorClass: 'text-blue-500' },
+              { label: 'Pipeline Value', value: `$${Number(intel?.metrics?.pipelineValue || 0).toLocaleString()}`, icon: TrendingUp, colorClass: 'text-blue-500' },
               { label: 'Open Tickets', value: intel?.metrics?.openTickets || 0, sub: `${intel?.metrics?.urgentTickets || 0} urgent`, icon: Headphones, colorClass: 'text-red-500' },
             ].map(m => (
               <div key={m.label} className="glass-card rounded-2xl p-5">
@@ -148,7 +148,7 @@ export default function IntelligencePage() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="font-semibold text-gray-900 dark:text-white">Revenue Forecast</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">Historical + 3-month AI projection · Pipeline: ${(forecast.pipelineValue || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Historical + 3-month AI projection · Pipeline: ${Number(forecast.pipelineValue || 0).toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-gray-500">
                   <span className="flex items-center gap-1.5"><span className="w-3 h-1 bg-indigo-500 rounded inline-block" />Actual</span>
@@ -166,7 +166,7 @@ export default function IntelligencePage() {
                           style={{ height: `${Math.max(4, pct * 1.4)}px` }}
                         />
                         <div className="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:block bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
-                          ${m.revenue.toLocaleString()}
+                          ${Number(m.revenue || 0).toLocaleString()}
                         </div>
                       </div>
                       <p className="text-xs text-gray-400 rotate-45 origin-left mt-2">{m.month.slice(5)}</p>
