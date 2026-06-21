@@ -174,27 +174,39 @@ router.post('/import', upload.single('file'), async (req, res, next) => {
 
     const created = [];
     const skipped = [];
-    for (const [i, row] of rows.entries()) {
-      if (!row.email && !row.firstName) continue;
-      try {
-        const lead = await prisma.lead.create({
-          data: {
-            companyId: req.companyId,
-            firstName: row.firstName || row.first_name || 'Unknown',
-            lastName: row.lastName || row.last_name || '',
-            email: row.email || null,
-            phone: row.phone || null,
-            company: row.company || row.companyName || null,
-            jobTitle: row.jobTitle || row.job_title || null,
-            source: row.source || 'import',
-            status: ['new','contacted','qualified','converted','lost'].includes(row.status) ? row.status : 'new',
-            notes: row.notes || null,
-          },
-        });
-        created.push(lead.id);
-      } catch (err) {
-        skipped.push({ row: i + 2, email: row.email || null, reason: err.code === 'P2002' ? 'duplicate' : (err.message || 'unknown error') });
-      }
+    const importable = rows
+      .map((row, i) => ({ row, i }))
+      .filter(({ row }) => row.email || row.firstName);
+
+    // Insert in parallel chunks rather than one row at a time — a 500-row CSV
+    // was previously 500 sequential round-trips. Chunked (not all-at-once) to
+    // avoid opening hundreds of simultaneous connections against the pool.
+    const CHUNK_SIZE = 25;
+    for (let start = 0; start < importable.length; start += CHUNK_SIZE) {
+      const chunk = importable.slice(start, start + CHUNK_SIZE);
+      const results = await Promise.allSettled(chunk.map(({ row }) => prisma.lead.create({
+        data: {
+          companyId: req.companyId,
+          firstName: row.firstName || row.first_name || 'Unknown',
+          lastName: row.lastName || row.last_name || '',
+          email: row.email || null,
+          phone: row.phone || null,
+          company: row.company || row.companyName || null,
+          jobTitle: row.jobTitle || row.job_title || null,
+          source: row.source || 'import',
+          status: ['new','contacted','qualified','converted','lost'].includes(row.status) ? row.status : 'new',
+          notes: row.notes || null,
+        },
+      })));
+      results.forEach((result, idx) => {
+        const { row, i } = chunk[idx];
+        if (result.status === 'fulfilled') {
+          created.push(result.value.id);
+        } else {
+          const err = result.reason;
+          skipped.push({ row: i + 2, email: row.email || null, reason: err.code === 'P2002' ? 'duplicate' : (err.message || 'unknown error') });
+        }
+      });
     }
 
     return success(res, { imported: created.length, total: rows.length, skipped }, `Imported ${created.length} leads`);

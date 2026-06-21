@@ -542,6 +542,7 @@ model Task {
   comments      Comment[]  @relation("TaskComments")
 
   @@index([companyId])
+  @@index([companyId, status])
   @@map("tasks")
 }
 
@@ -559,6 +560,8 @@ model Comment {
   task       Task?    @relation("TaskComments", fields: [taskId], references: [id], onDelete: Cascade)
   ticket     Ticket?  @relation("TicketComments", fields: [ticketId], references: [id], onDelete: Cascade)
 
+  @@index([taskId])
+  @@index([ticketId])
   @@map("comments")
 }
 
@@ -1085,6 +1088,7 @@ model Appointment {
   contact     Contact?            @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
+  @@index([companyId, startAt])
   @@map("appointments")
 }
 
