@@ -1,10 +1,26 @@
 const router = require('express').Router();
 const prisma = require('../../config/prisma');
 const { authenticate, superAdminOnly } = require('../../middleware/auth');
-const { success, paginated } = require('../../utils/response');
-const { paginate, paginateMeta } = require('../../utils/helpers');
+const { success, paginated, error } = require('../../utils/response');
+const { paginate, paginateMeta, pick } = require('../../utils/helpers');
+const { auditLog } = require('../../middleware/audit');
 
 router.use(authenticate, superAdminOnly);
+
+// Excludes encrypted integration secrets (smtpPass, whatsappApiKey, openaiKey,
+// anthropicKey, s3Key, s3Secret) — those should never transit to any client,
+// encrypted or not.
+const SAFE_COMPANY_SELECT = {
+  id: true, name: true, slug: true, email: true, phone: true, website: true,
+  address: true, city: true, state: true, country: true, zipCode: true,
+  logo: true, favicon: true, primaryColor: true, secondaryColor: true,
+  timezone: true, currency: true, language: true, industry: true, size: true,
+  taxId: true, gstNumber: true, whatsappPhone: true, whatsappProvider: true,
+  aiProvider: true, storageType: true, s3Bucket: true, s3Region: true,
+  isActive: true, createdAt: true,
+};
+const COMPANY_WRITABLE_FIELDS = ['name', 'email', 'phone', 'website', 'industry', 'size', 'isActive'];
+const PLAN_WRITABLE_FIELDS = ['name', 'description', 'price', 'yearlyPrice', 'currency', 'maxUsers', 'maxStorage', 'features', 'isActive', 'trialDays'];
 
 // Companies
 router.get('/companies', async (req, res, next) => {
@@ -38,28 +54,36 @@ router.get('/companies/:id', async (req, res, next) => {
   try {
     const company = await prisma.company.findUnique({
       where: { id: req.params.id },
-      include: {
+      select: {
+        ...SAFE_COMPANY_SELECT,
         subscriptions: { include: { plan: true } },
         _count: { select: { users: true, leads: true, contacts: true, employees: true } },
       },
     });
+    if (!company) return error(res, 'Company not found', 404);
     return success(res, company);
   } catch (err) { next(err); }
 });
 
-router.put('/companies/:id', async (req, res, next) => {
+router.put('/companies/:id', auditLog('superadmin.companies', 'company'), async (req, res, next) => {
   try {
-    const company = await prisma.company.update({ where: { id: req.params.id }, data: req.body });
+    const company = await prisma.company.update({
+      where: { id: req.params.id },
+      data: pick(req.body, COMPANY_WRITABLE_FIELDS),
+      select: SAFE_COMPANY_SELECT,
+    });
     return success(res, company, 'Company updated');
   } catch (err) { next(err); }
 });
 
-router.post('/companies/:id/toggle', async (req, res, next) => {
+router.post('/companies/:id/toggle', auditLog('superadmin.companies', 'company'), async (req, res, next) => {
   try {
-    const company = await prisma.company.findUnique({ where: { id: req.params.id } });
+    const company = await prisma.company.findUnique({ where: { id: req.params.id }, select: { isActive: true } });
+    if (!company) return error(res, 'Company not found', 404);
     const updated = await prisma.company.update({
       where: { id: req.params.id },
       data: { isActive: !company.isActive },
+      select: SAFE_COMPANY_SELECT,
     });
     return success(res, updated, `Company ${updated.isActive ? 'activated' : 'suspended'}`);
   } catch (err) { next(err); }
@@ -73,16 +97,18 @@ router.get('/plans', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/plans', async (req, res, next) => {
+router.post('/plans', auditLog('superadmin.plans', 'plan'), async (req, res, next) => {
   try {
-    const plan = await prisma.plan.create({ data: req.body });
+    if (!req.body.name) return error(res, 'Plan name is required', 400);
+    if (req.body.price == null) return error(res, 'Price is required', 400);
+    const plan = await prisma.plan.create({ data: pick(req.body, PLAN_WRITABLE_FIELDS) });
     return success(res, plan, 'Plan created', 201);
   } catch (err) { next(err); }
 });
 
-router.put('/plans/:id', async (req, res, next) => {
+router.put('/plans/:id', auditLog('superadmin.plans', 'plan'), async (req, res, next) => {
   try {
-    const plan = await prisma.plan.update({ where: { id: req.params.id }, data: req.body });
+    const plan = await prisma.plan.update({ where: { id: req.params.id }, data: pick(req.body, PLAN_WRITABLE_FIELDS) });
     return success(res, plan, 'Plan updated');
   } catch (err) { next(err); }
 });

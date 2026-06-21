@@ -2,10 +2,14 @@ const router = require('express').Router();
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany } = require('../../middleware/auth');
 const { success, created, paginated, notFound, error } = require('../../utils/response');
-const { paginate, paginateMeta, generateNumber } = require('../../utils/helpers');
+const { paginate, paginateMeta, generateNumber, pick } = require('../../utils/helpers');
+
+const INVOICE_WRITABLE_FIELDS = ['clientName', 'clientEmail', 'clientAddress', 'clientGst', 'dueDate', 'subtotal', 'taxAmount', 'discountAmount', 'total', 'currency', 'notes', 'terms', 'items', 'projectId', 'dealId'];
+const EXPENSE_WRITABLE_FIELDS = ['title', 'category', 'amount', 'currency', 'date', 'receipt', 'description', 'isReimbursable', 'employeeId'];
 const emailService = require('../../services/email.service');
 const { auditLog } = require('../../middleware/audit');
 const { sendCsv } = require('../../utils/csv');
+const logger = require('../../config/logger');
 
 router.use(authenticate, sameCompany);
 
@@ -40,7 +44,8 @@ router.get('/invoices/summary', async (req, res, next) => {
       prisma.invoice.aggregate({ where: { companyId: req.companyId, status: 'overdue' }, _sum: { total: true }, _count: true }),
       prisma.invoice.aggregate({ where: { companyId: req.companyId, status: 'draft' }, _sum: { total: true }, _count: true }),
     ]);
-    return success(res, { paid, pending, overdue, draft });
+    const num = (agg) => ({ ...agg, _sum: { total: Number(agg._sum.total || 0) } });
+    return success(res, { paid: num(paid), pending: num(pending), overdue: num(overdue), draft: num(draft) });
   } catch (err) { next(err); }
 });
 
@@ -76,10 +81,12 @@ router.get('/invoices/:id', async (req, res, next) => {
 
 router.post('/invoices', auditLog('finance.invoices', 'invoice'), async (req, res, next) => {
   try {
+    if (!req.body.clientName) return error(res, 'Client name is required', 400);
+    if (req.body.total == null) return error(res, 'Total is required', 400);
     const count = await prisma.invoice.count({ where: { companyId: req.companyId } });
     const invoiceNo = generateNumber('INV', count + 1);
     const invoice = await prisma.invoice.create({
-      data: { ...req.body, companyId: req.companyId, invoiceNo },
+      data: { ...pick(req.body, INVOICE_WRITABLE_FIELDS), companyId: req.companyId, invoiceNo },
     });
     return created(res, invoice, 'Invoice created');
   } catch (err) { next(err); }
@@ -89,7 +96,7 @@ router.put('/invoices/:id', auditLog('finance.invoices', 'invoice'), async (req,
   try {
     const existing = await prisma.invoice.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Invoice not found');
-    const invoice = await prisma.invoice.update({ where: { id: req.params.id }, data: req.body });
+    const invoice = await prisma.invoice.update({ where: { id: req.params.id }, data: pick(req.body, INVOICE_WRITABLE_FIELDS) });
     return success(res, invoice, 'Invoice updated');
   } catch (err) { next(err); }
 });
@@ -107,7 +114,7 @@ router.post('/invoices/:id/send', auditLog('finance.invoices', 'invoice'), async
         to: invoice.clientEmail,
         invoiceNo: invoice.invoiceNo,
         companyId: req.companyId,
-      }).catch(() => {});
+      }).catch((err) => logger.warn(`Failed to email invoice ${invoice.invoiceNo} to ${invoice.clientEmail}: ${err.message}`));
     }
     return success(res, invoice, 'Invoice sent');
   } catch (err) { next(err); }
@@ -147,8 +154,12 @@ router.get('/expenses', async (req, res, next) => {
 
 router.post('/expenses', async (req, res, next) => {
   try {
+    if (!req.body.title) return error(res, 'Title is required', 400);
+    if (!req.body.category) return error(res, 'Category is required', 400);
+    if (req.body.amount == null) return error(res, 'Amount is required', 400);
+    if (!req.body.date) return error(res, 'Date is required', 400);
     const expense = await prisma.expense.create({
-      data: { ...req.body, companyId: req.companyId },
+      data: { ...pick(req.body, EXPENSE_WRITABLE_FIELDS), companyId: req.companyId },
     });
     return created(res, expense, 'Expense recorded');
   } catch (err) { next(err); }
@@ -158,7 +169,7 @@ router.put('/expenses/:id', async (req, res, next) => {
   try {
     const existing = await prisma.expense.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Expense not found');
-    const expense = await prisma.expense.update({ where: { id: req.params.id }, data: req.body });
+    const expense = await prisma.expense.update({ where: { id: req.params.id }, data: pick(req.body, EXPENSE_WRITABLE_FIELDS) });
     return success(res, expense, 'Expense updated');
   } catch (err) { next(err); }
 });

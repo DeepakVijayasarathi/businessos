@@ -3,6 +3,7 @@ const { validate } = require('../../middleware/validate');
 const authService = require('./auth.service');
 const emailService = require('../../services/email.service');
 const { success, error } = require('../../utils/response');
+const logger = require('../../config/logger');
 
 const registerValidation = [
   body('firstName').trim().notEmpty().withMessage('First name is required'),
@@ -30,7 +31,7 @@ async function register(req, res, next) {
   try {
     const result = await authService.register(req.body);
     // Send verification email (non-blocking)
-    emailService.sendWelcomeEmail(result.user).catch(() => {});
+    emailService.sendWelcomeEmail(result.user).catch((err) => logger.warn(`Failed to send welcome email to ${result.user.email}: ${err.message}`));
     // Set refresh token as httpOnly cookie
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
@@ -49,6 +50,7 @@ async function register(req, res, next) {
 async function login(req, res, next) {
   try {
     const result = await authService.login(req.body);
+    logger.info(`Login success: ${req.body.email} from ${req.ip}`);
     // Set refresh token as httpOnly cookie
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
@@ -60,6 +62,7 @@ async function login(req, res, next) {
     setAccessTokenCookie(res, result.accessToken);
     return success(res, { user: result.user, accessToken: result.accessToken }, 'Login successful');
   } catch (err) {
+    if (err.statusCode === 401) logger.warn(`Login failed: ${req.body.email} from ${req.ip} — ${err.message}`);
     next(err);
   }
 }
@@ -98,7 +101,7 @@ async function forgotPassword(req, res, next) {
   try {
     const data = await authService.forgotPassword(req.body.email);
     if (data) {
-      emailService.sendPasswordResetEmail(data).catch(() => {});
+      emailService.sendPasswordResetEmail(data).catch((err) => logger.warn(`Failed to send password reset email to ${data.email}: ${err.message}`));
     }
     return success(res, {}, 'If the email exists, a reset link has been sent');
   } catch (err) {

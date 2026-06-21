@@ -231,6 +231,9 @@ async function bootstrap() {
 
     const { startAppointmentReminderJob } = require('./jobs/appointmentReminders');
     startAppointmentReminderJob();
+
+    const { startRecurringInvoiceJob } = require('./jobs/recurringInvoices');
+    startRecurringInvoiceJob();
   } catch (err) {
     logger.error('Failed to start server:', err);
     process.exit(1);
