@@ -71,7 +71,7 @@ export default function DocumentsPage() {
       return api.post('/documents/upload-multiple', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['documents'] }); toast.success('Files uploaded'); },
-    onError: () => toast.error('Upload failed'),
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Upload failed'),
   });
 
   const deleteMutation = useMutation({
@@ -83,7 +83,7 @@ export default function DocumentsPage() {
   const deleteFolderMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/documents/folders/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['folders'] }); toast.success('Folder deleted'); },
-    onError: () => toast.error('Delete failed'),
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Delete failed'),
   });
 
   const openFolder = (id: string, name: string) => {
@@ -168,7 +168,7 @@ export default function DocumentsPage() {
                 <Folder className="w-8 h-8 text-yellow-400 mb-2" />
                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{folder.name}</p>
                 <p className="text-xs text-gray-400">{folder._count?.documents || 0} files</p>
-                <button onClick={e => { e.stopPropagation(); if (confirm(`Delete folder "${folder.name}" and its contents?`)) deleteFolderMutation.mutate(folder.id); }} className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={e => { e.stopPropagation(); if (confirm(`Delete folder "${folder.name}"? It must be empty first.`)) deleteFolderMutation.mutate(folder.id); }} className="absolute top-2 right-2 p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Trash2 className="w-3 h-3" />
                 </button>
               </div>

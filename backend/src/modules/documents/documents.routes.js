@@ -63,8 +63,18 @@ router.post('/folders', async (req, res, next) => {
 
 router.delete('/folders/:id', async (req, res, next) => {
   try {
-    const existing = await prisma.documentFolder.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    const existing = await prisma.documentFolder.findFirst({
+      where: { id: req.params.id, companyId: req.companyId },
+      include: { _count: { select: { documents: true, children: true } } },
+    });
     if (!existing) return notFound(res, 'Folder not found');
+    // Document.folderId is onDelete: SetNull, so deleting a non-empty folder
+    // wouldn't actually delete its contents — it'd silently orphan them into
+    // the root, contradicting the "delete folder and its contents" UI copy.
+    // Block it instead of surprising the user.
+    if (existing._count.documents > 0 || existing._count.children > 0) {
+      return res.status(400).json({ success: false, message: 'Folder is not empty — move or delete its contents first' });
+    }
     await prisma.documentFolder.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Folder deleted');
   } catch (err) { next(err); }
@@ -99,10 +109,16 @@ router.post('/upload', (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
 
+    let folderId = req.body.folderId || null;
+    if (folderId) {
+      const folder = await prisma.documentFolder.findFirst({ where: { id: folderId, companyId: req.companyId } });
+      if (!folder) return res.status(400).json({ success: false, message: 'Folder not found' });
+    }
+
     const doc = await prisma.document.create({
       data: {
         companyId: req.companyId,
-        folderId: req.body.folderId || null,
+        folderId,
         projectId: req.body.projectId || null,
         name: req.body.name || req.file.originalname,
         originalName: req.file.originalname,
@@ -126,10 +142,17 @@ router.post('/upload-multiple', (req, res, next) => {
 }, async (req, res, next) => {
   try {
     if (!req.files?.length) return res.status(400).json({ success: false, message: 'No files uploaded' });
+
+    let folderId = req.body.folderId || null;
+    if (folderId) {
+      const folder = await prisma.documentFolder.findFirst({ where: { id: folderId, companyId: req.companyId } });
+      if (!folder) return res.status(400).json({ success: false, message: 'Folder not found' });
+    }
+
     const docs = await prisma.document.createMany({
       data: req.files.map(f => ({
         companyId: req.companyId,
-        folderId: req.body.folderId || null,
+        folderId,
         name: f.originalname,
         originalName: f.originalname,
         mimeType: f.mimetype,

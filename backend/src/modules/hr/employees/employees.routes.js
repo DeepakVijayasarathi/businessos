@@ -98,13 +98,22 @@ router.get('/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// HTML date inputs (and most API clients) send plain "YYYY-MM-DD" strings,
+// which Prisma's DateTime fields reject outright ("premature end of input,
+// expected ISO-8601 DateTime") — coerce before writing.
+function coerceEmployeeDates(data) {
+  if (data.startDate) data.startDate = new Date(data.startDate);
+  if (data.endDate) data.endDate = new Date(data.endDate);
+  return data;
+}
+
 router.post('/', auditLog('hr.employees', 'employee'), async (req, res, next) => {
   try {
     if (!req.body.userId) return error(res, 'userId is required', 400);
     if (!req.body.employeeCode) return error(res, 'employeeCode is required', 400);
     if (!req.body.startDate) return error(res, 'startDate is required', 400);
     const employee = await prisma.employee.create({
-      data: { ...pick(req.body, EMPLOYEE_WRITABLE_FIELDS), companyId: req.companyId },
+      data: { ...coerceEmployeeDates(pick(req.body, EMPLOYEE_WRITABLE_FIELDS)), companyId: req.companyId },
       include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } },
     });
     return created(res, employee, 'Employee created');
@@ -115,7 +124,7 @@ router.put('/:id', auditLog('hr.employees', 'employee'), async (req, res, next) 
   try {
     const existing = await prisma.employee.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Employee not found');
-    const employee = await prisma.employee.update({ where: { id: req.params.id }, data: pick(req.body, EMPLOYEE_WRITABLE_FIELDS) });
+    const employee = await prisma.employee.update({ where: { id: req.params.id }, data: coerceEmployeeDates(pick(req.body, EMPLOYEE_WRITABLE_FIELDS)) });
     return success(res, employee, 'Employee updated');
   } catch (err) { next(err); }
 });

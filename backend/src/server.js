@@ -165,8 +165,20 @@ const authLimiter = rateLimit({
   message: { success: false, message: 'Too many auth attempts' },
 });
 
-// Static uploads
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Static uploads — images/video render inline safely (they can't execute
+// script), everything else (csv, txt, pdf, office docs, etc.) is forced to
+// download rather than render in-browser, since express.static otherwise
+// serves them with Content-Disposition: inline and no content sniffing
+// protection beyond Helmet's nosniff header.
+const INLINE_SAFE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.mp4', '.mp3']);
+app.use('/uploads', (req, res, next) => {
+  const ext = path.extname(req.path).toLowerCase();
+  if (!INLINE_SAFE_EXTENSIONS.has(ext)) {
+    res.setHeader('Content-Disposition', 'attachment');
+  }
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  next();
+}, express.static(path.join(__dirname, '../uploads')));
 
 // ── API Routes ────────────────────────────────────────────────
 const v1 = '/api/v1';
@@ -179,7 +191,11 @@ app.use(`${v1}/crm/activities`, crmActivitiesRoutes);
 app.use(`${v1}/crm`, pipelineRoutes);
 app.use(`${v1}/projects`, projectsRoutes);
 app.use(`${v1}/hr/employees`, employeesRoutes);
-app.use(`${v1}/hr`, hrRoutes);
+// Mounted at /hr/attendance (not bare /hr) to match what the frontend has
+// always called for attendance/leave/payroll (e.g. /hr/attendance/check-in,
+// /hr/attendance/leaves, /hr/attendance/payslips/generate) — this router was
+// previously mounted at /hr, so every one of those requests 404'd silently.
+app.use(`${v1}/hr/attendance`, hrRoutes);
 app.use(`${v1}/finance`, financeRoutes);
 app.use(`${v1}/finance/payments`, paymentsRoutes);
 app.use(`${v1}/helpdesk`, helpdeskRoutes);

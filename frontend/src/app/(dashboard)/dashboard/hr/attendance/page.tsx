@@ -32,13 +32,13 @@ export default function AttendancePage() {
   const checkInMutation = useMutation({
     mutationFn: () => api.post('/hr/attendance/check-in'),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['attendance'] }); qc.invalidateQueries({ queryKey: ['attendance-today'] }); toast.success('Checked in'); },
-    onError: () => toast.error('Already checked in'),
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to check in'),
   });
 
   const checkOutMutation = useMutation({
     mutationFn: () => api.post('/hr/attendance/check-out'),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['attendance'] }); qc.invalidateQueries({ queryKey: ['attendance-today'] }); toast.success('Checked out'); },
-    onError: () => toast.error('No active check-in'),
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to check out'),
   });
 
   const present = attendance?.filter((a: any) => a.status === 'present').length || 0;
@@ -73,7 +73,11 @@ export default function AttendancePage() {
             <div className="flex items-center gap-4 text-xs text-gray-500">
               {todayRecord?.checkIn && <span className="flex items-center gap-1 text-green-600"><LogIn className="w-3 h-3" /> In: {new Date(todayRecord.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
               {todayRecord?.checkOut && <span className="flex items-center gap-1 text-orange-500"><LogOut className="w-3 h-3" /> Out: {new Date(todayRecord.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
-              {todayRecord?.hoursWorked && <span className="flex items-center gap-1 text-gray-600"><Clock className="w-3 h-3" />{todayRecord.hoursWorked.toFixed(1)}h</span>}
+              {todayRecord?.hoursWorked ? (
+                <span className="flex items-center gap-1 text-gray-600"><Clock className="w-3 h-3" />{todayRecord.hoursWorked.toFixed(1)}h</span>
+              ) : todayRecord?.checkIn && !todayRecord?.checkOut ? (
+                <span className="flex items-center gap-1 text-indigo-600"><Clock className="w-3 h-3 animate-pulse" />Still clocked in</span>
+              ) : null}
             </div>
           </div>
           <div className="flex gap-3">

@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const prisma = require('../../../config/prisma');
-const { authenticate, sameCompany } = require('../../../middleware/auth');
+const { authenticate, sameCompany, requirePermission } = require('../../../middleware/auth');
 const { success, created, paginated, notFound, error } = require('../../../utils/response');
 
 router.use(authenticate, sameCompany);
@@ -29,37 +29,55 @@ router.get('/', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Self-service check-in/check-out always act on the caller's own employee
+// record — never trust a client-supplied employeeId here, otherwise any
+// authenticated employee could check another employee in/out by crafting
+// the request directly (company-scoping alone isn't enough; this must be
+// scoped to the caller specifically).
+async function getOwnEmployee(req) {
+  return prisma.employee.findFirst({ where: { userId: req.userId, companyId: req.companyId } });
+}
+
+// UTC-normalized "today" — matches the frontend's toISOString().split('T')[0]
+// query for the same day. Using server-local midnight here would disagree
+// with that UTC-based lookup near the day boundary depending on server TZ.
+function utcToday() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
 // POST check-in
 router.post('/check-in', async (req, res, next) => {
   try {
-    const { employeeId } = req.body;
-    const employee = await prisma.employee.findFirst({ where: { id: employeeId, companyId: req.companyId } });
-    if (!employee) return notFound(res, 'Employee not found');
+    const employee = await getOwnEmployee(req);
+    if (!employee) return notFound(res, 'No employee record found for your account');
+    const employeeId = employee.id;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = utcToday();
 
-    const existing = await prisma.attendance.findUnique({
-      where: { employeeId_date: { employeeId, date: today } },
-    });
-    if (existing) return success(res, existing, 'Already checked in today');
-
-    const record = await prisma.attendance.create({
-      data: { employeeId, date: today, checkIn: new Date(), status: 'present' },
-    });
-    return created(res, record, 'Checked in successfully');
+    try {
+      const record = await prisma.attendance.create({
+        data: { employeeId, date: today, checkIn: new Date(), status: 'present' },
+      });
+      return created(res, record, 'Checked in successfully');
+    } catch (err) {
+      if (err.code === 'P2002') {
+        const existing = await prisma.attendance.findUnique({ where: { employeeId_date: { employeeId, date: today } } });
+        return success(res, existing, 'Already checked in today');
+      }
+      throw err;
+    }
   } catch (err) { next(err); }
 });
 
 // POST check-out
 router.post('/check-out', async (req, res, next) => {
   try {
-    const { employeeId } = req.body;
-    const employee = await prisma.employee.findFirst({ where: { id: employeeId, companyId: req.companyId } });
-    if (!employee) return notFound(res, 'Employee not found');
+    const employee = await getOwnEmployee(req);
+    if (!employee) return notFound(res, 'No employee record found for your account');
+    const employeeId = employee.id;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = utcToday();
 
     const record = await prisma.attendance.findUnique({
       where: { employeeId_date: { employeeId, date: today } },
@@ -77,8 +95,9 @@ router.post('/check-out', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Bulk mark attendance
-router.post('/bulk', async (req, res, next) => {
+// Bulk mark attendance — HR/admin only, since this marks OTHER employees'
+// attendance on their behalf (unlike check-in/check-out above).
+router.post('/bulk', requirePermission('hr.*'), async (req, res, next) => {
   try {
     const { records } = req.body; // [{ employeeId, date, status }]
     const employeeIds = [...new Set((records || []).map(r => r.employeeId))];
