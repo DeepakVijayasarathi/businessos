@@ -215,7 +215,7 @@ router.get('/intelligence', async (req, res, next) => {
       prisma.deal.aggregate({ where: { companyId: cid, status: { in: ['open', 'negotiation'] } }, _sum: { value: true } }),
       prisma.ticket.count({ where: { companyId: cid, status: { in: ['open', 'pending'] } } }),
       prisma.ticket.count({ where: { companyId: cid, status: { in: ['open', 'pending'] }, priority: 'urgent' } }),
-      prisma.ticket.aggregate({ where: { companyId: cid, status: 'resolved', resolvedAt: { gte: thirtyDaysAgo }, NOT: { resolvedAt: null } }, _avg: { /* fallback */ } }).catch(() => null),
+      prisma.ticket.count({ where: { companyId: cid, status: 'resolved', resolvedAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
       prisma.invoice.aggregate({ where: { companyId: cid, status: 'paid', paidAt: { gte: thirtyDaysAgo } }, _sum: { total: true } }),
       prisma.invoice.aggregate({ where: { companyId: cid, status: 'paid', paidAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } }, _sum: { total: true } }),
       prisma.employee.count({ where: { companyId: cid, status: 'active' } }),
