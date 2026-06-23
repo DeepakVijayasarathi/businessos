@@ -209,7 +209,17 @@ export default function DocumentsPage() {
                   <td className="px-4 py-3 text-xs text-gray-400">{formatDate(doc.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
-                      <a href={`${API_URL}/api/v1/documents/${doc.id}/download`} target="_blank" rel="noopener noreferrer" className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"><Download className="w-4 h-4" /></a>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await api.get(`/documents/${doc.id}/download`, { responseType: 'blob' });
+                            const url = URL.createObjectURL(res.data);
+                            const a = document.createElement('a'); a.href = url; a.download = doc.name; a.click();
+                            setTimeout(() => URL.revokeObjectURL(url), 1000);
+                          } catch { toast.error('Download failed'); }
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                      ><Download className="w-4 h-4" /></button>
                       <button onClick={() => { if (confirm('Delete this file?')) deleteMutation.mutate(doc.id); }} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </td>

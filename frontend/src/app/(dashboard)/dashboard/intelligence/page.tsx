@@ -9,7 +9,7 @@ export default function IntelligencePage() {
   const qc = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { data: intel, isLoading, isError: intelError, refetch } = useQuery({
+  const { data: intel, isLoading, isError: intelError } = useQuery({
     queryKey: ['ai-intelligence'],
     queryFn: async () => {
       const { data } = await api.get('/ai/intelligence');
@@ -32,7 +32,6 @@ export default function IntelligencePage() {
     setIsRefreshing(true);
     try {
       await qc.invalidateQueries({ queryKey: ['ai-intelligence'] });
-      await refetch();
       toast.success('Intelligence updated');
     } catch {
       toast.error('Failed to refresh — try again');

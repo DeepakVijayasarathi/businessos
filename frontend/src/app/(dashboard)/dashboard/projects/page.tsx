@@ -3,15 +3,22 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate, statusColor } from '@/lib/utils';
-import { Plus, FolderKanban, Calendar, Users, CheckCircle2, Clock, AlertCircle, Circle } from 'lucide-react';
+import { Plus, FolderKanban, Calendar, Users, CheckCircle2, Clock, AlertCircle, Circle, Edit, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
 
 export default function ProjectsPage() {
   const [showModal, setShowModal] = useState(false);
+  const [editProject, setEditProject] = useState<any>(null);
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const qc = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/projects/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); toast.success('Project deleted'); },
+    onError: () => toast.error('Failed to delete project'),
+  });
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['projects'],
@@ -67,10 +74,22 @@ export default function ProjectsPage() {
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: (project.color || '#6366f1') + '20' }}>
                   <FolderKanban className="w-5 h-5" style={{ color: project.color || '#6366f1' }} />
                 </div>
-                <span className={`flex items-center gap-1 text-xs font-medium capitalize ${statusColors[project.status] || 'text-gray-500'}`}>
-                  <StatusIcon className="w-3.5 h-3.5" />
-                  {project.status.replace('_', ' ')}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className={`flex items-center gap-1 text-xs font-medium capitalize ${statusColors[project.status] || 'text-gray-500'}`}>
+                    <StatusIcon className="w-3.5 h-3.5" />
+                    {project.status.replace('_', ' ')}
+                  </span>
+                  <button
+                    onClick={e => { e.stopPropagation(); setEditProject(project); setShowModal(true); }}
+                    className="p-1 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label="Edit project"
+                  ><Edit className="w-3.5 h-3.5" /></button>
+                  <button
+                    onClick={e => { e.stopPropagation(); if (confirm('Delete this project and all its tasks?')) deleteMutation.mutate(project.id); }}
+                    className="p-1 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label="Delete project"
+                  ><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
               </div>
 
               <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{project.name}</h3>
@@ -111,31 +130,36 @@ export default function ProjectsPage() {
         })}
       </div>
 
-      {showModal && <ProjectModal onClose={() => setShowModal(false)} />}
+      {showModal && <ProjectModal project={editProject} onClose={() => { setShowModal(false); setEditProject(null); }} />}
       {selectedProject && <ProjectKanban project={selectedProject} onClose={() => setSelectedProject(null)} />}
     </div>
   );
 }
 
-function ProjectModal({ onClose }: { onClose: () => void }) {
+function ProjectModal({ project, onClose }: { project?: any; onClose: () => void }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ name: '', description: '', status: 'planning', priority: 'medium', startDate: '', endDate: '', color: '#6366f1' });
+  const [form, setForm] = useState({
+    name: project?.name || '', description: project?.description || '',
+    status: project?.status || 'planning', priority: project?.priority || 'medium',
+    startDate: project?.startDate?.slice(0,10) || '', endDate: project?.endDate?.slice(0,10) || '',
+    color: project?.color || '#6366f1',
+  });
 
   const mutation = useMutation({
-    mutationFn: (data: any) => api.post('/projects', data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); toast.success('Project created'); onClose(); },
-    onError: () => toast.error('Failed to create project'),
+    mutationFn: (data: any) => project ? api.put(`/projects/${project.id}`, data) : api.post('/projects', data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); toast.success(project ? 'Project updated' : 'Project created'); onClose(); },
+    onError: () => toast.error(project ? 'Failed to update project' : 'Failed to create project'),
   });
 
   return (
-    <Modal onClose={onClose} title="New Project" subtitle="Set up a new project to track tasks and progress" icon={FolderKanban} iconColor="teal">
+    <Modal onClose={onClose} title={project ? 'Edit Project' : 'New Project'} subtitle={project ? 'Update project details' : 'Set up a new project to track tasks and progress'} icon={FolderKanban} iconColor="teal">
       <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="flex flex-col">
         <div className="p-6 space-y-4">
           <TextField id="project-name" label="Project Name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
           <TextAreaField id="project-description" label="Description" rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
           <div className="grid grid-cols-2 gap-4">
             <SelectField id="project-status" label="Status" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
-              {['planning', 'active', 'on_hold'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+              {['planning', 'active', 'on_hold', 'completed', 'cancelled'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
             </SelectField>
             <SelectField id="project-priority" label="Priority" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
               {['low', 'medium', 'high'].map(p => <option key={p} value={p}>{p}</option>)}
@@ -150,7 +174,7 @@ function ProjectModal({ onClose }: { onClose: () => void }) {
         </div>
         <ModalFooter>
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
-          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">{mutation.isPending ? 'Creating...' : 'Create Project'}</button>
+          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">{mutation.isPending ? (project ? 'Saving...' : 'Creating...') : (project ? 'Save Changes' : 'Create Project')}</button>
         </ModalFooter>
       </form>
     </Modal>

@@ -183,7 +183,13 @@ app.use('/uploads', (req, res, next) => {
 // ── API Routes ────────────────────────────────────────────────
 const v1 = '/api/v1';
 
-app.use(`${v1}/auth`, authLimiter, authRoutes);
+// authLimiter only on login/register — refresh-token and logout must never be
+// rate-limited, otherwise expired access tokens cause silent logouts when the
+// refresh call itself gets a 429 and the client clears auth + redirects to /login
+const authRouterWithLimiter = require('express').Router();
+authRouterWithLimiter.use(['/login', '/register', '/forgot-password', '/reset-password'], authLimiter);
+authRouterWithLimiter.use('/', authRoutes);
+app.use(`${v1}/auth`, authRouterWithLimiter);
 app.use(`${v1}/users`, userRoutes);
 app.use(`${v1}/crm/leads`, leadsRoutes);
 app.use(`${v1}/crm/contacts`, contactsRoutes);

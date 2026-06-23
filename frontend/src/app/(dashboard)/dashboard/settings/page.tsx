@@ -7,6 +7,8 @@ import { Building2, Bell, Key, Shield, Mail, MessageSquare, Palette, Bot, Zap, C
 
 export default function SettingsPage() {
   const [tab, setTab] = useState('company');
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [newKeyName, setNewKeyName] = useState('');
   const qc = useQueryClient();
 
   const { data: company } = useQuery({
@@ -344,14 +346,38 @@ export default function SettingsPage() {
           <div className="glass-card rounded-2xl p-6">
             <h2 className="font-semibold text-gray-900 dark:text-white mb-4">API Keys</h2>
             <button
-              onClick={() => {
-                const name = prompt('API Key name:');
-                if (name) createKeyMutation.mutate({ name, permissions: [] });
-              }}
+              onClick={() => { setNewKeyName(''); setShowApiKeyModal(true); }}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 mb-4"
             >
               <Key className="w-4 h-4" /> Generate New Key
             </button>
+            {showApiKeyModal && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => { if (e.target === e.currentTarget) setShowApiKeyModal(false); }}>
+                <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-full max-w-md">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Generate API Key</h3>
+                  <p className="text-sm text-gray-500 mb-4">Give this key a descriptive name so you remember what it's used for.</p>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newKeyName}
+                    onChange={e => setNewKeyName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && newKeyName.trim()) { createKeyMutation.mutate({ name: newKeyName.trim(), permissions: [] }); setShowApiKeyModal(false); } if (e.key === 'Escape') setShowApiKeyModal(false); }}
+                    placeholder="e.g. Mobile App, Zapier Integration"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-indigo-500 outline-none mb-4"
+                  />
+                  <div className="flex gap-3">
+                    <button onClick={() => setShowApiKeyModal(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
+                    <button
+                      disabled={!newKeyName.trim() || createKeyMutation.isPending}
+                      onClick={() => { createKeyMutation.mutate({ name: newKeyName.trim(), permissions: [] }); setShowApiKeyModal(false); }}
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50 hover:bg-indigo-700"
+                    >
+                      {createKeyMutation.isPending ? 'Generating…' : 'Generate Key'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="space-y-3">
               {apiKeys?.map((key: any) => (
                 <div key={key.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">

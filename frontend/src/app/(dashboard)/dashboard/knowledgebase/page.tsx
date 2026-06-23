@@ -27,10 +27,12 @@ export default function KnowledgeBasePage() {
     queryFn: async () => { const { data } = await api.get('/knowledgebase/categories'); return data.data; },
   });
 
+  const [statusFilter, setStatusFilter] = useState('all');
   const { data: articles, isLoading } = useQuery({
-    queryKey: ['kb-articles', categoryId, debouncedSearch],
+    queryKey: ['kb-articles', categoryId, debouncedSearch, statusFilter],
     queryFn: async () => {
-      const params = new URLSearchParams({ status: 'published' });
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.set('status', statusFilter);
       if (categoryId) params.set('categoryId', categoryId);
       if (debouncedSearch) params.set('search', debouncedSearch);
       const { data } = await api.get(`/knowledgebase/articles?${params}`);
@@ -61,7 +63,14 @@ export default function KnowledgeBasePage() {
         </button>
       </div>
 
-      {/* Search */}
+      {/* Status filter + Search */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {(['all', 'published', 'draft', 'archived'] as const).map(s => (
+          <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${statusFilter === s ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+            {s === 'all' ? 'All' : s}
+          </button>
+        ))}
+      </div>
       <div className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 max-w-xl">
         <Search className="w-4 h-4 text-gray-400" />
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search articles..." className="bg-transparent text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 outline-none flex-1" />
