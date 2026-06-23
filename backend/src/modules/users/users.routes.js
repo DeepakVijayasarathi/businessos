@@ -30,6 +30,14 @@ router.get('/', requirePermission('users.*'), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /users/roles/list — must be declared before /:id to avoid route shadowing
+router.get('/roles/list', async (req, res, next) => {
+  try {
+    const roles = await prisma.role.findMany({ where: { companyId: req.companyId } });
+    return success(res, roles);
+  } catch (err) { next(err); }
+});
+
 // GET /users/:id
 router.get('/:id', async (req, res, next) => {
   try {
@@ -102,13 +110,6 @@ router.delete('/:id', requirePermission('users.*'), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /users/roles/list
-router.get('/roles/list', async (req, res, next) => {
-  try {
-    const roles = await prisma.role.findMany({ where: { companyId: req.companyId } });
-    return success(res, roles);
-  } catch (err) { next(err); }
-});
 
 // POST /roles
 router.post('/roles', requirePermission('roles.*'), async (req, res, next) => {

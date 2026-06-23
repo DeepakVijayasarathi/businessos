@@ -1,6 +1,13 @@
+// Set env vars before any module loads (config reads them at require time)
+process.env.JWT_SECRET = 'test-secret-key-32-chars-minimum!!';
+process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-32-chars!!xx';
+process.env.JWT_EXPIRES_IN = '15m';
+process.env.JWT_REFRESH_EXPIRES_IN = '7d';
+process.env.ENCRYPTION_KEY = 'test-encryption-key-32-chars-min';
+
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { describe, it, expect, jest, beforeEach } = require('@jest/globals');
+const { describe, it, expect, beforeEach } = require('@jest/globals');
 
 // Mock prisma
 jest.mock('../../src/config/prisma', () => ({
@@ -33,10 +40,6 @@ const prisma = require('../../src/config/prisma');
 describe('AuthService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.JWT_SECRET = 'test-secret-key-32-chars-minimum!!';
-    process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-32-chars!!';
-    process.env.JWT_EXPIRES_IN = '15m';
-    process.env.JWT_REFRESH_EXPIRES_IN = '7d';
   });
 
   describe('login', () => {

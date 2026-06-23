@@ -281,14 +281,14 @@ export default function SettingsPage() {
             {(companyForm.whatsappProvider || 'meta') === 'meta' && (
               <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-xs text-blue-700 dark:text-blue-300 space-y-1">
                 <p className="font-medium">Webhook setup</p>
-                <p>Callback URL: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">{process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/v1/whatsapp/webhook</code></p>
+                <p>Callback URL: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">{process.env.NEXT_PUBLIC_API_URL}/api/v1/whatsapp/webhook</code></p>
                 <p>Verify Token: <code className="bg-blue-100 dark:bg-blue-900 px-1 rounded">businessos-verify-2026</code></p>
               </div>
             )}
             {(companyForm.whatsappProvider || 'meta') === 'msg91' && (
               <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
                 <p className="font-medium">Webhook setup</p>
-                <p>Callback URL: <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">{process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/v1/whatsapp/webhook/msg91</code></p>
+                <p>Callback URL: <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">{process.env.NEXT_PUBLIC_API_URL}/api/v1/whatsapp/webhook/msg91</code></p>
                 <p className="mt-2">Add this URL in your MSG91 dashboard under WhatsApp → Webhook settings so replies show up automatically. This integration is built from MSG91&apos;s published docs and hasn&apos;t been verified against a live account yet — if messages don&apos;t appear after sending a test reply, check the backend logs for an &quot;Unrecognized MSG91 webhook payload shape&quot; entry and let your developer know the logged format.</p>
               </div>
             )}

@@ -136,17 +136,26 @@ router.post('/:id/ai-triage', async (req, res, next) => {
 
     const company = await prisma.company.findUnique({ where: { id: req.companyId }, select: { name: true, anthropicKey: true, openaiKey: true, aiProvider: true } });
 
-    const result = await callAI({
-      messages: [{ role: 'user', content: `Analyze this support ticket and provide triage. Subject: "${ticket.subject}". Message: "${ticket.message || ticket.description || ''}". Return JSON: {"priority": "low|medium|high|urgent", "sentiment": "positive|neutral|frustrated|angry", "category": "billing|technical|general|bug|feature", "suggestedReply": "professional reply draft (2-3 sentences)", "summary": "one sentence summary"}` }],
-      system: 'You are a customer support triage AI. Return only valid JSON, no markdown.',
-      companyAnthropicKey: company?.anthropicKey,
-      companyOpenaiKey: company?.openaiKey,
-      companyProvider: company?.aiProvider,
-      maxTokens: 400,
-    });
+    const fallbackTriage = {
+      priority: ticket.priority,
+      sentiment: 'neutral',
+      category: ticket.category || 'general',
+      suggestedReply: 'Thank you for contacting us. We have received your request and will respond shortly.',
+      summary: ticket.subject,
+    };
 
-    let triage = {};
-    try { triage = JSON.parse(result.text.trim()); } catch { triage = { priority: ticket.priority, sentiment: 'neutral', category: ticket.category || 'general', suggestedReply: 'Thank you for contacting us. We have received your request and will respond shortly.', summary: ticket.subject }; }
+    let triage = fallbackTriage;
+    try {
+      const result = await callAI({
+        messages: [{ role: 'user', content: `Analyze this support ticket and provide triage. Subject: "${ticket.subject}". Message: "${ticket.message || ticket.description || ''}". Return JSON: {"priority": "low|medium|high|urgent", "sentiment": "positive|neutral|frustrated|angry", "category": "billing|technical|general|bug|feature", "suggestedReply": "professional reply draft (2-3 sentences)", "summary": "one sentence summary"}` }],
+        system: 'You are a customer support triage AI. Return only valid JSON, no markdown.',
+        companyAnthropicKey: company?.anthropicKey,
+        companyOpenaiKey: company?.openaiKey,
+        companyProvider: company?.aiProvider,
+        maxTokens: 400,
+      });
+      triage = JSON.parse(result.text.trim());
+    } catch { triage = fallbackTriage; }
 
     // Auto-update priority if AI detected urgent
     if (triage.priority === 'urgent' && ticket.priority !== 'urgent') {

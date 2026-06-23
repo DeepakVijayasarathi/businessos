@@ -54,13 +54,5 @@
     "nodemon": "^3.1.4",
     "prisma": "^5.16.0",
     "supertest": "^7.0.0"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "testPathPattern": "tests",
-    "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/server.js"
-    ]
   }
 }

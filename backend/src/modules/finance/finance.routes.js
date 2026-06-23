@@ -195,6 +195,9 @@ router.get('/income', async (req, res, next) => {
 
 router.post('/income', async (req, res, next) => {
   try {
+    if (!req.body.title) return error(res, 'Title is required', 400);
+    if (req.body.amount == null) return error(res, 'Amount is required', 400);
+    if (!req.body.date) return error(res, 'Date is required', 400);
     const income = await prisma.income.create({
       data: { ...req.body, companyId: req.companyId },
     });
@@ -265,8 +268,8 @@ router.get('/invoices/:id/pdf', async (req, res, next) => {
       doc.fillColor('#111827').font('Helvetica').fontSize(9)
         .text(item.description || item.name || '', 58, y, { width: 270 })
         .text(String(item.quantity || 1), 340, y, { width: 50, align: 'right' })
-        .text(`$${Number(item.unitPrice || item.price || 0).toFixed(2)}`, 390, y, { width: 80, align: 'right' })
-        .text(`$${Number(item.total || (item.quantity * item.unitPrice) || 0).toFixed(2)}`, 470, y, { width: 75, align: 'right' });
+        .text(`$${Number(item.unitPrice ?? item.price ?? 0).toFixed(2)}`, 390, y, { width: 80, align: 'right' })
+        .text(`$${Number(item.total ?? (item.quantity * (item.unitPrice ?? item.price ?? 0))).toFixed(2)}`, 470, y, { width: 75, align: 'right' });
       y += 22;
     });
 

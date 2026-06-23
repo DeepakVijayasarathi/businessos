@@ -11,11 +11,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
-    fetchMe().then(() => {
-      if (!useAuthStore.getState().isAuthenticated) {
+    fetchMe()
+      .then(() => {
+        if (!useAuthStore.getState().isAuthenticated) {
+          router.push('/login');
+        }
+      })
+      .catch(() => {
         router.push('/login');
-      }
-    });
+      });
   }, [fetchMe, router]);
 
   if (!isAuthenticated) {

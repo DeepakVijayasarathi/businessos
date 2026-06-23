@@ -67,6 +67,15 @@ router.post('/campaigns/:id/send', async (req, res, next) => {
     });
     if (!campaign) return notFound(res, 'Campaign not found');
 
+    const smtpConfig = await prisma.company.findUnique({
+      where: { id: req.companyId },
+      select: { smtpHost: true, smtpUser: true },
+    });
+    const globalSmtp = require('../../config').smtp;
+    if (!smtpConfig?.smtpHost && !globalSmtp.host) {
+      return res.status(400).json({ success: false, message: 'SMTP not configured — add SMTP credentials in Settings before sending campaigns' });
+    }
+
     const audience = Array.isArray(campaign.audience) ? campaign.audience : [];
     const result = await emailService.sendCampaign({
       templateId: campaign.templateId,

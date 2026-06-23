@@ -110,8 +110,13 @@ router.post('/tasks', auditLog('projects.tasks', 'task'), async (req, res, next)
   } catch (err) { next(err); }
 });
 
+const VALID_TASK_STATUSES = ['todo', 'in_progress', 'review', 'done'];
+
 router.put('/tasks/:id', auditLog('projects.tasks', 'task'), async (req, res, next) => {
   try {
+    if (req.body.status !== undefined && !VALID_TASK_STATUSES.includes(req.body.status)) {
+      return error(res, `Invalid status. Must be one of: ${VALID_TASK_STATUSES.join(', ')}`, 400);
+    }
     const existing = await prisma.task.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Task not found');
     const task = await prisma.task.update({ where: { id: req.params.id }, data: pick(req.body, TASK_WRITABLE_FIELDS) });
