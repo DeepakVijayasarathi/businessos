@@ -3,7 +3,8 @@ import { useState, useEffect, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Building2, Bell, Key, Shield, Mail, MessageSquare, Palette, Bot, Zap, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Building2, Bell, Key, Shield, Mail, MessageSquare, Palette, Bot, Zap, CheckCircle, XCircle, Clock, Plus, Trash2, Users, ToggleLeft, ToggleRight } from 'lucide-react';
+import { ALL_MODULES } from '@/hooks/usePermissions';
 
 export default function SettingsPage() {
   const [tab, setTab] = useState('company');
@@ -302,43 +303,7 @@ export default function SettingsPage() {
       )}
 
       {tab === 'roles' && (
-        <div className="glass-card rounded-2xl overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900 dark:text-white">Roles & Permissions</h2>
-          </div>
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-700">
-                <th className="text-left text-xs font-medium text-gray-500 px-6 py-3">Role</th>
-                <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Users</th>
-                <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Type</th>
-                <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Permissions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {roles?.map((role: any) => (
-                <tr key={role.id}>
-                  <td className="px-6 py-4">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{role.name}</p>
-                    <p className="text-xs text-gray-500">{role.slug}</p>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-400">{role._count?.userRoles || 0}</td>
-                  <td className="px-4 py-4">
-                    {role.isSystem && <span className="text-xs bg-blue-50 dark:bg-blue-950/30 text-blue-600 px-2 py-0.5 rounded-full">System</span>}
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="flex flex-wrap gap-1">
-                      {(Array.isArray(role.permissions) ? role.permissions : []).slice(0, 3).map((p: string) => (
-                        <span key={p} className="text-xs text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{p}</span>
-                      ))}
-                      {(role.permissions?.length || 0) > 3 && <span className="text-xs text-gray-400">+{role.permissions.length - 3}</span>}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <RolesEditor roles={roles ?? []} />
       )}
 
       {tab === 'api-keys' && (
@@ -556,6 +521,226 @@ function AuditLogTable() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Roles Editor ──────────────────────────────────────────────────────────────
+
+function RolesEditor({ roles }: { roles: any[] }) {
+  const qc = useQueryClient();
+  const [selected, setSelected] = useState<any>(null);
+  const [moduleToggles, setModuleToggles] = useState<Record<string, boolean>>({});
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState('');
+
+  // Sync module toggles when selected role changes
+  useEffect(() => {
+    if (!selected) return;
+    const perms: string[] = Array.isArray(selected.permissions) ? selected.permissions : [];
+    const toggles: Record<string, boolean> = {};
+    ALL_MODULES.forEach(m => {
+      // explicit module.* grant OR legacy coarse permission
+      const legacyMap: Record<string, string[]> = {
+        crm: ['crm.*', 'crm.leads.*', 'crm.contacts.*'],
+        hr: ['hr.*'], projects: ['projects.*', 'tasks.*'],
+        finance: ['finance.*'], clients: ['crm.*', 'clients.*'],
+        helpdesk: ['helpdesk.*'], knowledgebase: ['knowledge.*', 'knowledgebase.*'],
+        documents: ['documents.*'], intelligence: ['ai.*', 'analytics.*'],
+        ai: ['ai.*'], workflow: ['workflow.*'], appointments: ['appointments.*'],
+        whatsapp: ['whatsapp.*'], email: ['email.*'], marketing: ['marketing.*'],
+        analytics: ['analytics.*'], settings: ['settings.*', 'roles.*'],
+        messages: ['*'],
+      };
+      toggles[m.key] =
+        perms.includes(`module.${m.key}`) ||
+        perms.includes('*') ||
+        perms.includes('module.*') ||
+        (legacyMap[m.key] ?? []).some(p => perms.includes(p));
+    });
+    setModuleToggles(toggles);
+  }, [selected]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => {
+      const existingPerms: string[] = (Array.isArray(selected.permissions) ? selected.permissions : [])
+        .filter((p: string) => !p.startsWith('module.'));
+      const modulePerms = ALL_MODULES
+        .filter(m => moduleToggles[m.key])
+        .map(m => `module.${m.key}`);
+      // keep settings.* if settings module enabled (needed for backend guard)
+      const settingsPerms = moduleToggles['settings'] ? ['settings.*'] : [];
+      const finalPerms = [...new Set([...existingPerms, ...modulePerms, ...settingsPerms])];
+      return api.put(`/settings/roles/${selected.id}`, { permissions: finalPerms });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['roles'] });
+      toast.success('Role permissions saved');
+    },
+    onError: () => toast.error('Failed to save permissions'),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () => api.post('/settings/roles', { name: newName.trim(), permissions: [] }),
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ['roles'] });
+      toast.success('Role created');
+      setShowCreate(false);
+      setNewName('');
+      setSelected(res.data.data);
+    },
+    onError: () => toast.error('Failed to create role'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/settings/roles/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['roles'] });
+      toast.success('Role deleted');
+      setSelected(null);
+    },
+    onError: () => toast.error('Cannot delete system roles'),
+  });
+
+  const toggleAll = (on: boolean) => {
+    const next: Record<string, boolean> = {};
+    ALL_MODULES.forEach(m => { next[m.key] = on; });
+    setModuleToggles(next);
+  };
+
+  const enabledCount = Object.values(moduleToggles).filter(Boolean).length;
+
+  return (
+    <div className="grid lg:grid-cols-3 gap-6">
+      {/* Role list */}
+      <div className="lg:col-span-1 space-y-2">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-semibold text-gray-900 dark:text-white text-sm">Roles</h2>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1 text-xs text-indigo-600 font-medium hover:text-indigo-700"
+          >
+            <Plus className="w-3.5 h-3.5" /> New Role
+          </button>
+        </div>
+
+        {showCreate && (
+          <div className="glass-card rounded-xl p-3 space-y-2">
+            <input
+              autoFocus
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && newName.trim()) createMutation.mutate(); if (e.key === 'Escape') setShowCreate(false); }}
+              placeholder="Role name (e.g. Sales Manager)"
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <div className="flex gap-2">
+              <button onClick={() => setShowCreate(false)} className="flex-1 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs text-gray-600">Cancel</button>
+              <button disabled={!newName.trim() || createMutation.isPending} onClick={() => createMutation.mutate()} className="flex-1 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium disabled:opacity-50">
+                {createMutation.isPending ? 'Creating…' : 'Create'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {roles.map(role => (
+          <button
+            key={role.id}
+            onClick={() => setSelected(role)}
+            className={`w-full text-left glass-card rounded-xl p-3 transition-all ${selected?.id === role.id ? 'ring-2 ring-indigo-500' : 'hover:shadow-md'}`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{role.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                  <Users className="w-3 h-3" /> {role._count?.userRoles || 0} users
+                  {role.isSystem && <span className="ml-1 bg-blue-50 dark:bg-blue-950/30 text-blue-600 px-1.5 py-0.5 rounded-full text-[10px]">System</span>}
+                </p>
+              </div>
+              <div className="text-xs text-gray-400">
+                {(Array.isArray(role.permissions) ? role.permissions : []).filter((p: string) => p.startsWith('module.')).length}/{ALL_MODULES.length}
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Module toggles */}
+      <div className="lg:col-span-2">
+        {!selected ? (
+          <div className="glass-card rounded-2xl h-full flex items-center justify-center text-gray-400 py-20">
+            <div className="text-center">
+              <Shield className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">Select a role to configure module access</p>
+            </div>
+          </div>
+        ) : (
+          <div className="glass-card rounded-2xl overflow-hidden">
+            <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">{selected.name}</h3>
+                <p className="text-xs text-gray-500 mt-0.5">{enabledCount} of {ALL_MODULES.length} modules enabled</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => toggleAll(true)} className="text-xs text-indigo-600 hover:underline">All on</button>
+                <span className="text-gray-300">·</span>
+                <button onClick={() => toggleAll(false)} className="text-xs text-gray-400 hover:underline">All off</button>
+                {!selected.isSystem && (
+                  <>
+                    <span className="text-gray-300">·</span>
+                    <button
+                      onClick={() => { if (confirm(`Delete role "${selected.name}"? This cannot be undone.`)) deleteMutation.mutate(selected.id); }}
+                      className="text-xs text-red-500 hover:text-red-700"
+                    >
+                      Delete role
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {ALL_MODULES.map(m => {
+                const on = moduleToggles[m.key] ?? false;
+                const alwaysOn = m.key === 'dashboard';
+                return (
+                  <button
+                    key={m.key}
+                    disabled={alwaysOn}
+                    onClick={() => !alwaysOn && setModuleToggles(prev => ({ ...prev, [m.key]: !prev[m.key] }))}
+                    className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                      on
+                        ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-950/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    } ${alwaysOn ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <div className={`w-8 h-5 rounded-full flex-shrink-0 relative transition-colors ${on ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${on ? 'left-3' : 'left-0.5'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium ${on ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                        {m.label}
+                        {alwaysOn && <span className="ml-1 text-[10px] text-indigo-400">(always on)</span>}
+                      </p>
+                      <p className="text-xs text-gray-400 truncate">{m.desc}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="px-5 pb-5">
+              <button
+                onClick={() => saveMutation.mutate()}
+                disabled={saveMutation.isPending}
+                className="w-full py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                {saveMutation.isPending ? 'Saving…' : 'Save Module Permissions'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

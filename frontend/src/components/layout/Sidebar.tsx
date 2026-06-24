@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
+import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Users, Briefcase, FolderKanban, DollarSign,
@@ -14,42 +15,42 @@ import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
-  { name: 'CRM', href: '/dashboard/crm', icon: Target, children: [
-    { name: 'Leads', href: '/dashboard/crm/leads' },
-    { name: 'Contacts', href: '/dashboard/crm/contacts' },
-    { name: 'Companies', href: '/dashboard/crm/companies' },
-    { name: 'Pipeline', href: '/dashboard/crm/pipeline' },
+  { name: 'Dashboard',      href: '/dashboard',              icon: LayoutDashboard, module: 'dashboard' },
+  { name: 'Messages',       href: '/dashboard/messages',     icon: MessageSquare,   module: 'messages' },
+  { name: 'CRM', href: '/dashboard/crm', icon: Target, module: 'crm', children: [
+    { name: 'Leads',      href: '/dashboard/crm/leads' },
+    { name: 'Contacts',   href: '/dashboard/crm/contacts' },
+    { name: 'Companies',  href: '/dashboard/crm/companies' },
+    { name: 'Pipeline',   href: '/dashboard/crm/pipeline' },
     { name: 'Activities', href: '/dashboard/crm/activities' },
   ]},
-  { name: 'HR Management', href: '/dashboard/hr', icon: UserSquare, children: [
-    { name: 'Employees', href: '/dashboard/hr/employees' },
-    { name: 'Attendance', href: '/dashboard/hr/attendance' },
-    { name: 'Leave', href: '/dashboard/hr/leave' },
-    { name: 'Payroll', href: '/dashboard/hr/payroll' },
+  { name: 'HR Management', href: '/dashboard/hr', icon: UserSquare, module: 'hr', children: [
+    { name: 'Employees',   href: '/dashboard/hr/employees' },
+    { name: 'Attendance',  href: '/dashboard/hr/attendance' },
+    { name: 'Leave',       href: '/dashboard/hr/leave' },
+    { name: 'Payroll',     href: '/dashboard/hr/payroll' },
     { name: 'Performance', href: '/dashboard/hr/performance' },
   ]},
-  { name: 'Projects', href: '/dashboard/projects', icon: FolderKanban },
-  { name: 'Finance', href: '/dashboard/finance', icon: DollarSign, children: [
+  { name: 'Projects',      href: '/dashboard/projects',     icon: FolderKanban, module: 'projects' },
+  { name: 'Finance', href: '/dashboard/finance', icon: DollarSign, module: 'finance', children: [
     { name: 'Invoices', href: '/dashboard/finance/invoices' },
     { name: 'Expenses', href: '/dashboard/finance/expenses' },
-    { name: 'Income', href: '/dashboard/finance/income' },
-    { name: 'Reports', href: '/dashboard/finance/reports' },
+    { name: 'Income',   href: '/dashboard/finance/income' },
+    { name: 'Reports',  href: '/dashboard/finance/reports' },
   ]},
-  { name: 'Clients', href: '/dashboard/clients', icon: Users },
-  { name: 'Helpdesk', href: '/dashboard/helpdesk', icon: Headphones },
-  { name: 'Knowledge Base', href: '/dashboard/knowledgebase', icon: BookOpen },
-  { name: 'Documents', href: '/dashboard/documents', icon: FileText },
-  { name: 'AI Intelligence', href: '/dashboard/intelligence', icon: Brain },
-  { name: 'AI Assistant', href: '/dashboard/ai', icon: Bot },
-  { name: 'Workflows', href: '/dashboard/workflow', icon: Workflow },
-  { name: 'Appointments', href: '/dashboard/appointments', icon: Calendar },
-  { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageSquare },
-  { name: 'Email', href: '/dashboard/email', icon: Mail },
-  { name: 'Marketing', href: '/dashboard/marketing', icon: Globe },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { name: 'Clients',        href: '/dashboard/clients',       icon: Users,       module: 'clients' },
+  { name: 'Helpdesk',       href: '/dashboard/helpdesk',      icon: Headphones,  module: 'helpdesk' },
+  { name: 'Knowledge Base', href: '/dashboard/knowledgebase', icon: BookOpen,    module: 'knowledgebase' },
+  { name: 'Documents',      href: '/dashboard/documents',     icon: FileText,    module: 'documents' },
+  { name: 'AI Intelligence',href: '/dashboard/intelligence',  icon: Brain,       module: 'intelligence' },
+  { name: 'AI Assistant',   href: '/dashboard/ai',            icon: Bot,         module: 'ai' },
+  { name: 'Workflows',      href: '/dashboard/workflow',      icon: Workflow,    module: 'workflow' },
+  { name: 'Appointments',   href: '/dashboard/appointments',  icon: Calendar,    module: 'appointments' },
+  { name: 'WhatsApp',       href: '/dashboard/whatsapp',      icon: MessageSquare, module: 'whatsapp' },
+  { name: 'Email',          href: '/dashboard/email',         icon: Mail,        module: 'email' },
+  { name: 'Marketing',      href: '/dashboard/marketing',     icon: Globe,       module: 'marketing' },
+  { name: 'Analytics',      href: '/dashboard/analytics',     icon: BarChart3,   module: 'analytics' },
+  { name: 'Settings',       href: '/dashboard/settings',      icon: Settings,    module: 'settings' },
 ];
 
 const adminNav = [
@@ -64,8 +65,11 @@ interface SidebarProps {
 export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuthStore();
+  const { hasModule } = usePermissions();
   const [collapsed, setCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>(['CRM']);
+
+  const visibleNav = navigation.filter(item => hasModule(item.module ?? 'dashboard'));
 
   const toggleItem = (name: string) => {
     setExpandedItems(prev =>
@@ -132,7 +136,7 @@ export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-        {navigation.map((item) => (
+        {visibleNav.map((item) => (
           <div key={item.name}>
             {item.children ? (
               <div>
