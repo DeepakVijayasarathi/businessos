@@ -1,11 +1,19 @@
 const router = require('express').Router();
 const Anthropic = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany } = require('../../middleware/auth');
 const { success, created, error, notFound } = require('../../utils/response');
 const { decrypt, generateNumber } = require('../../utils/helpers');
 const config = require('../../config');
+const { generateImage } = require('../../services/ai.service');
+
+const uploadDir = process.env.UPLOAD_PATH || path.join(__dirname, '../../../uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 router.use(authenticate, sameCompany);
 
@@ -658,6 +666,18 @@ const AGENT_TOOLS = [
     },
   },
   {
+    name: 'generate_image',
+    description: 'Generate an AI image using DALL-E 3 (OpenAI). Use for banners, product images, marketing visuals, social media graphics, or any visual content.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        prompt: { type: 'string', description: 'Detailed description of the image to generate' },
+        size: { type: 'string', enum: ['1024x1024', '1024x1792', '1792x1024'], description: 'Image dimensions — square (default), portrait, or landscape' },
+      },
+      required: ['prompt'],
+    },
+  },
+  {
     name: 'bulk_update_leads',
     description: 'Bulk update status for multiple leads at once — e.g. mark all new leads as contacted, or archive all unqualified leads',
     input_schema: {
@@ -1044,6 +1064,19 @@ async function executeAgentTool(name, input, req) {
       });
       return { employees: employees.map(e => ({ id: e.id, code: e.employeeCode, name: `${e.user?.firstName || ''} ${e.user?.lastName || ''}`.trim(), email: e.user?.email, jobTitle: e.jobTitle, jobType: e.jobType, status: e.status })), count: employees.length };
     }
+    case 'generate_image': {
+      const company = await prisma.company.findUnique({ where: { id: cid }, select: { openaiKey: true } });
+      const { url: remoteUrl } = await generateImage({
+        prompt: input.prompt,
+        companyOpenaiKey: company?.openaiKey,
+        size: ['1024x1024', '1024x1792', '1792x1024'].includes(input.size) ? input.size : '1024x1024',
+      });
+      const imgResponse = await axios.get(remoteUrl, { responseType: 'arraybuffer', timeout: 60000 });
+      const filename = `${uuidv4()}.png`;
+      fs.writeFileSync(path.join(uploadDir, filename), imgResponse.data);
+      const imageUrl = `/uploads/${filename}`;
+      return { success: true, imageUrl, message: 'Image generated successfully' };
+    }
     case 'bulk_update_leads': {
       const mode = 'insensitive';
       const where = {
@@ -1193,6 +1226,24 @@ function getAgentSuggestions(actions) {
   }
   return [...new Set(s)].slice(0, 3);
 }
+
+// POST /ai/generate-image — direct DALL-E 3 image generation (always OpenAI)
+router.post('/generate-image', async (req, res, next) => {
+  try {
+    const { prompt, size = '1024x1024' } = req.body;
+    if (!prompt?.trim()) return error(res, 'Prompt is required', 400);
+    const company = await prisma.company.findUnique({ where: { id: req.companyId }, select: { openaiKey: true } });
+    const { url: remoteUrl } = await generateImage({
+      prompt: prompt.trim(),
+      companyOpenaiKey: company?.openaiKey,
+      size: ['1024x1024', '1024x1792', '1792x1024'].includes(size) ? size : '1024x1024',
+    });
+    const imgResponse = await axios.get(remoteUrl, { responseType: 'arraybuffer', timeout: 60000 });
+    const filename = `${uuidv4()}.png`;
+    fs.writeFileSync(path.join(uploadDir, filename), imgResponse.data);
+    return success(res, { url: `/uploads/${filename}` }, 'Image generated');
+  } catch (err) { next(err); }
+});
 
 // OpenAI tool format (converted from Anthropic input_schema format)
 const OPENAI_TOOLS = AGENT_TOOLS.map(t => ({

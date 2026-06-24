@@ -38,6 +38,7 @@ const TOOL_LABELS: Record<string, { label: string; url?: string }> = {
   list_tasks:            { label: '📋 Tasks fetched',          url: '/dashboard/projects' },
   resolve_ticket:        { label: '✓ Ticket resolved',         url: '/dashboard/helpdesk' },
   add_note:              { label: '📝 Note added',             url: '/dashboard/crm/leads' },
+  generate_image:        { label: '🖼️ Image generated' },
 };
 
 const STARTERS = [
@@ -234,6 +235,20 @@ export function AIAgent() {
                     })}
                   </div>
                 )}
+
+                {/* Generated images */}
+                {msg.actions?.filter(a => a.result?.imageUrl).map((a, j) => {
+                  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+                  return (
+                    <div key={j} className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 max-w-[320px]">
+                      <img src={`${baseUrl}${a.result.imageUrl}`} alt="AI generated" className="w-full object-cover" />
+                      <a href={`${baseUrl}${a.result.imageUrl}`} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors">
+                        <ExternalLink className="w-2.5 h-2.5" /> Open full size
+                      </a>
+                    </div>
+                  );
+                })}
 
                 {/* Message bubble */}
                 <div className={`px-3.5 py-2.5 rounded-2xl ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-tr-sm text-sm leading-relaxed' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-sm'}`}>
