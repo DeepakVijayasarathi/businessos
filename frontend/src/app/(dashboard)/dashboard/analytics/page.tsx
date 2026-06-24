@@ -1,33 +1,43 @@
 'use client';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
 import api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
-import { TrendingUp, Users, Target, DollarSign, MessageSquare, Headphones } from 'lucide-react';
+import { TrendingUp, Users, Target, DollarSign, MessageSquare, Headphones, Percent, CalendarDays } from 'lucide-react';
 
 const RevenueChart = dynamic(() => import('./RevenueChart'), { ssr: false });
 
 const COLORS = ['#6366f1', '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
 
+const DATE_RANGES = [
+  { label: '7d', days: 7 },
+  { label: '30d', days: 30 },
+  { label: '90d', days: 90 },
+  { label: '1y', days: 365 },
+];
+
 export default function AnalyticsPage() {
+  const [rangeDays, setRangeDays] = useState(30);
+
   const { data: revenue } = useQuery({
-    queryKey: ['analytics-revenue'],
-    queryFn: async () => { const { data } = await api.get('/analytics/revenue'); return data.data; },
+    queryKey: ['analytics-revenue', rangeDays],
+    queryFn: async () => { const { data } = await api.get(`/analytics/revenue?days=${rangeDays}`); return data.data; },
   });
 
   const { data: leadFunnel } = useQuery({
-    queryKey: ['lead-funnel'],
-    queryFn: async () => { const { data } = await api.get('/analytics/leads/funnel'); return data.data; },
+    queryKey: ['lead-funnel', rangeDays],
+    queryFn: async () => { const { data } = await api.get(`/analytics/leads/funnel?days=${rangeDays}`); return data.data; },
   });
 
   const { data: support } = useQuery({
-    queryKey: ['analytics-support'],
-    queryFn: async () => { const { data } = await api.get('/analytics/support'); return data.data; },
+    queryKey: ['analytics-support', rangeDays],
+    queryFn: async () => { const { data } = await api.get(`/analytics/support?days=${rangeDays}`); return data.data; },
   });
 
   const { data: aiUsage } = useQuery({
-    queryKey: ['analytics-ai'],
-    queryFn: async () => { const { data } = await api.get('/analytics/ai/usage'); return data.data; },
+    queryKey: ['analytics-ai', rangeDays],
+    queryFn: async () => { const { data } = await api.get(`/analytics/ai/usage?days=${rangeDays}`); return data.data; },
   });
 
   const { data: stats } = useQuery({
@@ -35,12 +45,30 @@ export default function AnalyticsPage() {
     queryFn: async () => { const { data } = await api.get('/analytics/dashboard'); return data.data; },
   });
 
+  const totalLeads = leadFunnel?.reduce((s: number, f: any) => s + (f._count || 0), 0) || 0;
+  const wonLeads = leadFunnel?.find((f: any) => f.status === 'won')?._count || 0;
+  const conversionRate = totalLeads > 0 ? ((wonLeads / totalLeads) * 100).toFixed(1) : '0.0';
+
   return (
     <div className="space-y-8 max-w-[1400px]">
-      <h1 className="text-xl font-bold text-gray-900 dark:text-white">Analytics</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">Analytics</h1>
+        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
+          <CalendarDays className="w-4 h-4 text-gray-400 ml-2" />
+          {DATE_RANGES.map(r => (
+            <button
+              key={r.days}
+              onClick={() => setRangeDays(r.days)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${rangeDays === r.days ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* KPI summary */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         {[
           { label: 'Total Revenue', value: formatCurrency(stats?.revenue?.total || 0), icon: DollarSign, color: 'bg-emerald-500' },
           { label: 'Total Leads', value: stats?.leads?.total || 0, icon: Target, color: 'bg-indigo-500' },
@@ -48,6 +76,7 @@ export default function AnalyticsPage() {
           { label: 'Active Employees', value: stats?.employees?.active || 0, icon: Users, color: 'bg-blue-500' },
           { label: 'Open Tickets', value: stats?.tickets?.open || 0, icon: Headphones, color: 'bg-orange-500' },
           { label: 'AI Conversations', value: stats?.ai?.conversationsThisMonth || 0, icon: MessageSquare, color: 'bg-pink-500' },
+          { label: 'Conversion Rate', value: `${conversionRate}%`, icon: Percent, color: 'bg-teal-500' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="glass-card rounded-2xl p-5">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${color}`}>

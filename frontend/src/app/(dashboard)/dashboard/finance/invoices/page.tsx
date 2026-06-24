@@ -3,7 +3,11 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatCurrency, formatDate, statusColor } from '@/lib/utils';
-import { Plus, Send, CheckCircle2, FileText, DollarSign, Clock, AlertCircle, FileDown } from 'lucide-react';
+import { Plus, Send, CheckCircle2, FileText, DollarSign, Clock, AlertCircle, FileDown, Bell } from 'lucide-react';
+
+function daysOverdue(dueDate: string) {
+  return Math.max(0, Math.floor((Date.now() - new Date(dueDate).getTime()) / 86400000));
+}
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField } from '@/components/ui/FormField';
@@ -96,14 +100,26 @@ export default function InvoicesPage() {
             ) : invoices?.data?.length === 0 ? (
               <tr><td colSpan={7} className="text-center py-12 text-gray-400"><FileText className="w-10 h-10 mx-auto mb-2 opacity-30" /><p>No invoices found</p></td></tr>
             ) : invoices?.data?.map((inv: any) => (
-              <tr key={inv.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+              <tr key={inv.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 ${inv.status === 'overdue' ? 'bg-red-50/40 dark:bg-red-950/10' : ''}`}>
                 <td className="px-6 py-4 text-sm font-mono font-medium text-indigo-600 dark:text-indigo-400">{inv.invoiceNo}</td>
                 <td className="px-4 py-4">
                   <p className="text-sm font-medium text-gray-900 dark:text-white">{inv.clientName}</p>
                   <p className="text-xs text-gray-500">{inv.clientEmail}</p>
                 </td>
                 <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-400">{formatDate(inv.issueDate)}</td>
-                <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-400">{inv.dueDate ? formatDate(inv.dueDate) : '—'}</td>
+                <td className="px-4 py-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{inv.dueDate ? formatDate(inv.dueDate) : '—'}</p>
+                  {inv.status === 'overdue' && inv.dueDate && (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-100 dark:bg-red-950/30 px-1.5 py-0.5 rounded-md mt-0.5">
+                      <AlertCircle className="w-3 h-3" /> {daysOverdue(inv.dueDate)}d overdue
+                    </span>
+                  )}
+                  {inv.status === 'sent' && inv.dueDate && new Date(inv.dueDate) < new Date(Date.now() + 7 * 86400000) && (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-orange-600 bg-orange-100 dark:bg-orange-950/30 px-1.5 py-0.5 rounded-md mt-0.5">
+                      <Clock className="w-3 h-3" /> Due soon
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-4 text-sm font-semibold text-gray-900 dark:text-white">{formatCurrency(Number(inv.total))}</td>
                 <td className="px-4 py-4">
                   <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${statusColor(inv.status)}`}>{inv.status}</span>
@@ -111,8 +127,13 @@ export default function InvoicesPage() {
                 <td className="px-4 py-4 pr-6">
                   <div className="flex items-center gap-1">
                     {inv.status === 'draft' && (
-                      <button onClick={() => sendMutation.mutate(inv.id)} className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/30 text-blue-500 transition-colors" title="Send">
+                      <button onClick={() => sendMutation.mutate(inv.id)} className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/30 text-blue-500 transition-colors" title="Send Invoice">
                         <Send className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {inv.status === 'overdue' && (
+                      <button onClick={() => { sendMutation.mutate(inv.id); }} className="p-1.5 rounded-lg hover:bg-orange-50 text-orange-500 transition-colors" title="Send Reminder">
+                        <Bell className="w-3.5 h-3.5" />
                       </button>
                     )}
                     {(inv.status === 'sent' || inv.status === 'overdue') && (

@@ -10,6 +10,7 @@ import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField
 
 export default function LeavePage() {
   const [showModal, setShowModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const qc = useQueryClient();
 
   const { data: leaves, isLoading } = useQuery({
@@ -34,13 +35,14 @@ export default function LeavePage() {
 
   const pending = leaves?.data?.filter((l: any) => l.status === 'pending').length || 0;
   const approved = leaves?.data?.filter((l: any) => l.status === 'approved').length || 0;
+  const filtered = leaves?.data?.filter((l: any) => activeTab === 'all' || l.status === activeTab) || [];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Leave Management</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{pending} pending requests</p>
+          <p className="text-sm text-gray-500 mt-0.5">{pending} pending approval</p>
         </div>
         <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
           <Plus className="w-4 h-4" /> Apply Leave
@@ -66,6 +68,24 @@ export default function LeavePage() {
         })}
       </div>
 
+      {/* Status tabs */}
+      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 w-fit">
+        {([
+          { key: 'all', label: 'All' },
+          { key: 'pending', label: `Pending${pending > 0 ? ` (${pending})` : ''}` },
+          { key: 'approved', label: 'Approved' },
+          { key: 'rejected', label: 'Rejected' },
+        ] as const).map(t => (
+          <button
+            key={t.key}
+            onClick={() => setActiveTab(t.key)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${activeTab === t.key ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'} ${t.key === 'pending' && pending > 0 ? 'relative' : ''}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <div className="glass-card rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
         <table className="w-full">
@@ -81,9 +101,9 @@ export default function LeavePage() {
               Array.from({ length: 4 }).map((_, i) => (
                 <tr key={i}><td colSpan={8} className="px-4 py-3"><div className="h-5 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" /></td></tr>
               ))
-            ) : leaves?.data?.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-400 text-sm">No leave requests</td></tr>
-            ) : leaves?.data?.map((leave: any) => {
+            ) : filtered.length === 0 ? (
+              <tr><td colSpan={8} className="px-4 py-12 text-center text-gray-400 text-sm">No {activeTab === 'all' ? '' : activeTab} leave requests</td></tr>
+            ) : filtered.map((leave: any) => {
               const days = Math.ceil((new Date(leave.endDate).getTime() - new Date(leave.startDate).getTime()) / 86400000) + 1;
               return (
                 <tr key={leave.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">

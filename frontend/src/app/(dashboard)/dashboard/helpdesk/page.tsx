@@ -3,7 +3,17 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatRelativeTime, statusColor, priorityColor } from '@/lib/utils';
-import { Plus, Search, MessageSquare, Clock, CheckCircle2, AlertTriangle, Brain, X, Zap, Ticket } from 'lucide-react';
+import { Plus, Search, MessageSquare, Clock, CheckCircle2, AlertTriangle, Brain, X, Zap, Ticket, Timer, User, Users } from 'lucide-react';
+
+function slaStatus(ticket: any) {
+  if (!ticket.slaDeadline) return null;
+  const now = Date.now();
+  const deadline = new Date(ticket.slaDeadline).getTime();
+  const hoursLeft = (deadline - now) / 3600000;
+  if (hoursLeft < 0) return { label: `SLA breached ${Math.abs(Math.round(hoursLeft))}h ago`, cls: 'text-red-600 bg-red-100 dark:bg-red-950/30' };
+  if (hoursLeft < 4) return { label: `SLA: ${Math.round(hoursLeft)}h left`, cls: 'text-orange-600 bg-orange-100 dark:bg-orange-950/30' };
+  return null;
+}
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
@@ -62,11 +72,13 @@ export default function HelpdeskPage() {
     }
   };
 
+  const avgResHours = stats?.avgResolutionTime ? Math.round(stats.avgResolutionTime / 60) : null;
   const statCards = [
     { label: 'Open', value: stats?.byStatus?.find((s: any) => s.status === 'open')?._count || 0, icon: MessageSquare, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/30' },
     { label: 'In Progress', value: stats?.byStatus?.find((s: any) => s.status === 'in_progress')?._count || 0, icon: Clock, color: 'text-yellow-500 bg-yellow-50 dark:bg-yellow-950/30' },
     { label: 'Resolved', value: stats?.byStatus?.find((s: any) => s.status === 'resolved')?._count || 0, icon: CheckCircle2, color: 'text-green-500 bg-green-50 dark:bg-green-950/30' },
     { label: 'Urgent', value: stats?.urgentCount || 0, icon: AlertTriangle, color: 'text-red-500 bg-red-50 dark:bg-red-950/30' },
+    ...(avgResHours !== null ? [{ label: 'Avg Resolution', value: `${avgResHours}h`, icon: Timer, color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/30' }] : []),
   ];
 
   return (
@@ -134,22 +146,29 @@ export default function HelpdeskPage() {
             tabIndex={0}
             onClick={() => setSelectedTicket(ticket)}
             onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedTicket(ticket); } }}
-            className="glass-card rounded-xl p-5 cursor-pointer hover:shadow-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className={`glass-card rounded-xl p-5 cursor-pointer hover:shadow-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${ticket.priority === 'urgent' ? 'border-l-2 border-red-400' : ticket.priority === 'high' ? 'border-l-2 border-orange-400' : ''}`}
           >
             <div className="flex items-start gap-4">
-              <div className={`mt-0.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${ticket.priority === 'urgent' ? 'bg-red-500' : ticket.priority === 'high' ? 'bg-orange-500' : ticket.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'}`} />
+              <div className={`mt-0.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${ticket.priority === 'urgent' ? 'bg-red-500 animate-pulse' : ticket.priority === 'high' ? 'bg-orange-500' : ticket.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'}`} />
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-xs font-mono text-gray-500">#{ticket.ticketNo}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusColor(ticket.status)}`}>{ticket.status.replace('_', ' ')}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${priorityColor(ticket.priority)}`}>{ticket.priority}</span>
                   {ticket.category && <span className="text-xs text-gray-500">{ticket.category.name}</span>}
+                  {(() => { const s = slaStatus(ticket); return s ? <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${s.cls}`}>{s.label}</span> : null; })()}
                 </div>
                 <p className="font-medium text-gray-900 dark:text-white text-sm">{ticket.subject}</p>
-                <div className="flex items-center gap-4 mt-1">
+                <div className="flex items-center gap-4 mt-1 flex-wrap">
                   <span className="text-xs text-gray-500">{ticket.source}</span>
                   <span className="text-xs text-gray-400">{formatRelativeTime(ticket.createdAt)}</span>
                   <span className="text-xs text-gray-400">{ticket._count?.comments} comments</span>
+                  {ticket.assignedTo && (
+                    <span className="flex items-center gap-1 text-xs text-gray-400">
+                      <User className="w-3 h-3" />{ticket.assignedTo.firstName} {ticket.assignedTo.lastName}
+                    </span>
+                  )}
+                  {!ticket.assignedTo && <span className="flex items-center gap-1 text-xs text-orange-400"><Users className="w-3 h-3" />Unassigned</span>}
                 </div>
               </div>
               <button

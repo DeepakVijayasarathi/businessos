@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
-import { Plus, ChevronDown, DollarSign, User } from 'lucide-react';
+import { Plus, ChevronDown, DollarSign, User, TrendingUp, BarChart2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
@@ -44,13 +44,15 @@ export default function PipelinePage() {
 
   const pipeline = pipelines?.find((p: any) => p.id === activePipelineId);
   const totalValue = kanban?.reduce((sum: number, stage: any) => sum + stage.deals.reduce((s: number, d: any) => s + (d.value || 0), 0), 0) || 0;
+  const weightedForecast = kanban?.reduce((sum: number, stage: any) => sum + stage.deals.reduce((s: number, d: any) => s + ((d.value || 0) * ((d.probability || 0) / 100)), 0), 0) || 0;
+  const [showForecast, setShowForecast] = useState(false);
 
   return (
     <div className="space-y-6 h-full flex flex-col">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Pipeline</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Total value: {formatCurrency(totalValue)}</p>
+          <p className="text-sm text-gray-500 mt-0.5">Total value: {formatCurrency(totalValue)} · Weighted: {formatCurrency(weightedForecast)}</p>
         </div>
         <div className="flex items-center gap-3">
           {pipelines?.length > 1 && (
@@ -58,11 +60,46 @@ export default function PipelinePage() {
               {pipelines.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           )}
+          <button onClick={() => setShowForecast(!showForecast)} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border transition-colors ${showForecast ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/20 dark:border-indigo-700 dark:text-indigo-300' : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
+            <BarChart2 className="w-4 h-4" /> Forecast
+          </button>
           <button onClick={() => setShowDealModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
             <Plus className="w-4 h-4" /> Add Deal
           </button>
         </div>
       </div>
+
+      {showForecast && kanban && (
+        <div className="glass-card rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="w-4 h-4 text-indigo-500" />
+            <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Weighted Forecast by Stage</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {kanban.map((stage: any) => {
+              const raw = stage.deals.reduce((s: number, d: any) => s + (d.value || 0), 0);
+              const weighted = stage.deals.reduce((s: number, d: any) => s + ((d.value || 0) * ((d.probability || 0) / 100)), 0);
+              const avgProb = stage.deals.length ? Math.round(stage.deals.reduce((s: number, d: any) => s + (d.probability || 0), 0) / stage.deals.length) : 0;
+              return (
+                <div key={stage.id} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: stage.color || '#6366f1' }} />
+                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{stage.name}</p>
+                  </div>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(weighted)}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{stage.deals.length} deal{stage.deals.length !== 1 ? 's' : ''} · {avgProb}% avg</p>
+                  <p className="text-xs text-gray-400">Raw: {formatCurrency(raw)}</p>
+                </div>
+              );
+            })}
+            <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700">
+              <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mb-2">Total Forecast</p>
+              <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">{formatCurrency(weightedForecast)}</p>
+              <p className="text-xs text-indigo-400 mt-0.5">of {formatCurrency(totalValue)} pipeline</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-x-auto pb-4">
         <div className="flex gap-4 min-w-max h-full">
