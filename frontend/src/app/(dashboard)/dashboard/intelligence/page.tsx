@@ -53,7 +53,7 @@ export default function IntelligencePage() {
     { key: 'invoicing', label: 'Invoicing', icon: BarChart3 },
   ];
 
-  const forecastMonths: any[] = forecast?.months ?? [];
+  const forecastMonths: any[] = useMemo(() => forecast?.months ?? [], [forecast]);
   const maxForecast = useMemo(
     () => forecastMonths.length > 0 ? Math.max(...forecastMonths.map((m: any) => Number(m.revenue) || 0), 1) : 1,
     [forecastMonths]

@@ -355,7 +355,7 @@ export default function SettingsPage() {
               <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => { if (e.target === e.currentTarget) setShowApiKeyModal(false); }}>
                 <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-6 w-full max-w-md">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Generate API Key</h3>
-                  <p className="text-sm text-gray-500 mb-4">Give this key a descriptive name so you remember what it's used for.</p>
+                  <p className="text-sm text-gray-500 mb-4">Give this key a descriptive name so you remember what it&apos;s used for.</p>
                   <input
                     autoFocus
                     type="text"
