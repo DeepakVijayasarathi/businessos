@@ -50,6 +50,7 @@ const navigation = [
   { name: 'Email',          href: '/dashboard/email',         icon: Mail,        module: 'email' },
   { name: 'Marketing',      href: '/dashboard/marketing',     icon: Globe,       module: 'marketing' },
   { name: 'Analytics',      href: '/dashboard/analytics',     icon: BarChart3,   module: 'analytics' },
+  { name: 'Notifications',   href: '/dashboard/notifications',  icon: Bell,        module: 'dashboard' },
   { name: 'Settings',       href: '/dashboard/settings',      icon: Settings,    module: 'settings' },
 ];
 

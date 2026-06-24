@@ -143,6 +143,26 @@ router.post('/invoices/:id/mark-paid', auditLog('finance.invoices', 'invoice'), 
 
 // ── EXPENSES ─────────────────────────────────────────────────
 
+router.get('/expenses/export', async (req, res, next) => {
+  try {
+    const { category, status } = req.query;
+    const where = {
+      companyId: req.companyId,
+      ...(category && { category }),
+      ...(status && { status }),
+    };
+    const expenses = await prisma.expense.findMany({ where, orderBy: { date: 'desc' } });
+    const rows = expenses.map(e => ({
+      title: e.title || e.description || '',
+      category: e.category,
+      amount: Number(e.amount),
+      date: e.date ? e.date.toISOString().split('T')[0] : '',
+      status: e.status,
+    }));
+    sendCsv(res, 'expenses.csv', rows, ['title', 'category', 'amount', 'date', 'status']);
+  } catch (err) { next(err); }
+});
+
 router.get('/expenses', async (req, res, next) => {
   try {
     const { page = 1, limit = 20, category, status, startDate, endDate } = req.query;
@@ -180,6 +200,30 @@ router.put('/expenses/:id', async (req, res, next) => {
     if (!existing) return notFound(res, 'Expense not found');
     const expense = await prisma.expense.update({ where: { id: req.params.id }, data: pick(req.body, EXPENSE_WRITABLE_FIELDS) });
     return success(res, expense, 'Expense updated');
+  } catch (err) { next(err); }
+});
+
+router.post('/expenses/:id/approve', async (req, res, next) => {
+  try {
+    const existing = await prisma.expense.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Expense not found');
+    const expense = await prisma.expense.update({
+      where: { id: req.params.id },
+      data: { status: 'approved', approvedById: req.userId, approvedAt: new Date() },
+    });
+    return success(res, expense, 'Expense approved');
+  } catch (err) { next(err); }
+});
+
+router.post('/expenses/:id/reject', async (req, res, next) => {
+  try {
+    const existing = await prisma.expense.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Expense not found');
+    const expense = await prisma.expense.update({
+      where: { id: req.params.id },
+      data: { status: 'rejected' },
+    });
+    return success(res, expense, 'Expense rejected');
   } catch (err) { next(err); }
 });
 
