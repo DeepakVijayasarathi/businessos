@@ -9,7 +9,7 @@ export default function IntelligencePage() {
   const qc = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { data: intel, isLoading, isError: intelError } = useQuery({
+  const { data: intel, isLoading, isPending, isError: intelError } = useQuery({
     queryKey: ['ai-intelligence'],
     queryFn: async () => {
       const { data } = await api.get('/ai/intelligence');
@@ -78,7 +78,7 @@ export default function IntelligencePage() {
         </button>
       </div>
 
-      {isLoading ? (
+      {isLoading || isPending || !intel ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => <div key={i} className="glass-card rounded-2xl p-6 h-32 animate-pulse bg-gray-100 dark:bg-gray-800" />)}
         </div>
