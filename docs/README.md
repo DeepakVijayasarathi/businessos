@@ -2,7 +2,7 @@
 
 ## Overview
 
-BusinessOS AI is an all-in-one AI-powered SaaS platform designed to replace multiple business tools with a single unified system. It provides CRM, HR Management, Project Management, Finance, Helpdesk, Knowledge Base, Document Management, AI Automation, Workflow Engine, WhatsApp Automation, Email Marketing, Appointment Booking, Analytics, and more — all in a multi-tenant architecture.
+BusinessOS AI is an all-in-one AI-powered SaaS platform designed to replace multiple business tools with a single unified system. It provides CRM, HR Management, Project Management, Finance, Helpdesk, Knowledge Base, Document Management, AI Automation, Workflow Engine, WhatsApp Automation, Email Marketing, Appointment Booking, Analytics, and more — all in a multi-tenant architecture. Test
 
 ---
 
