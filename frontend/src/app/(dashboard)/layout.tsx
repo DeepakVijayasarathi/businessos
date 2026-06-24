@@ -30,6 +30,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .catch(() => {
         router.push('/login');
       });
+
+    // Auto-logout when any request fails to refresh the token
+    const handleForceLogout = () => {
+      useAuthStore.setState({ user: null, isAuthenticated: false });
+    };
+    window.addEventListener('bos:logout', handleForceLogout);
+    return () => window.removeEventListener('bos:logout', handleForceLogout);
   }, [fetchMe, router]);
 
   if (!mounted || !isAuthenticated) {

@@ -49,8 +49,7 @@ api.interceptors.response.use(
       } catch (refreshErr) {
         failedQueue.forEach((p) => p.reject(refreshErr));
         failedQueue = [];
-        clearAuth();
-        if (typeof window !== 'undefined') window.location.href = '/login';
+        forceLogout();
         return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;
@@ -74,8 +73,17 @@ function clearAuth(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('bos_token');
     localStorage.removeItem('bos_user');
+    localStorage.removeItem('bos-auth'); // Zustand persist key — prevents stale auth on reload
   }
 }
 
-export { getAccessToken, setAccessToken, clearAuth };
+function forceLogout(): void {
+  clearAuth();
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('bos:logout'));
+    window.location.href = '/login';
+  }
+}
+
+export { getAccessToken, setAccessToken, clearAuth, forceLogout };
 export default api;
