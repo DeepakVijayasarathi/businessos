@@ -67,6 +67,17 @@ router.post('/roles', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get('/roles/:id', async (req, res, next) => {
+  try {
+    const role = await prisma.role.findFirst({
+      where: { id: req.params.id, companyId: req.companyId },
+      include: { _count: { select: { userRoles: true } } },
+    });
+    if (!role) return notFound(res, 'Role not found');
+    return success(res, role);
+  } catch (err) { next(err); }
+});
+
 router.put('/roles/:id', async (req, res, next) => {
   try {
     const existing = await prisma.role.findFirst({ where: { id: req.params.id, companyId: req.companyId, isSystem: false } });
