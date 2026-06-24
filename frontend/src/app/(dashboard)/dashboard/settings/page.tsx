@@ -570,7 +570,7 @@ function RolesEditor({ roles }: { roles: any[] }) {
         .map(m => `module.${m.key}`);
       // keep settings.* if settings module enabled (needed for backend guard)
       const settingsPerms = moduleToggles['settings'] ? ['settings.*'] : [];
-      const finalPerms = [...new Set([...existingPerms, ...modulePerms, ...settingsPerms])];
+      const finalPerms = Array.from(new Set([...existingPerms, ...modulePerms, ...settingsPerms]));
       return api.put(`/settings/roles/${selected.id}`, { permissions: finalPerms });
     },
     onSuccess: () => {
