@@ -116,82 +116,86 @@ export default function SettingsPage() {
       )}
 
       {tab === 'ai' && companyForm && (
-        <div className="space-y-6">
-          {/* Active status */}
-          <div className="glass-card rounded-2xl p-5 flex items-center gap-4">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${aiStatus?.activeKeyConfigured ? 'bg-green-100 dark:bg-green-950/30' : 'bg-red-100 dark:bg-red-950/30'}`}>
-              {aiStatus?.activeKeyConfigured ? <CheckCircle className="w-5 h-5 text-green-600" /> : <XCircle className="w-5 h-5 text-red-500" />}
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                {aiStatus?.activeKeyConfigured ? `AI Active — ${aiStatus.provider === 'openai' ? 'ChatGPT' : 'Claude'} (${aiStatus.model})` : 'No API key configured'}
+        <div className="glass-card rounded-2xl p-6 space-y-6">
+          {/* Status banner */}
+          <div className={`flex items-center gap-3 p-4 rounded-xl ${aiStatus?.activeKeyConfigured ? 'bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800' : 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800'}`}>
+            {aiStatus?.activeKeyConfigured
+              ? <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+              : <XCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />}
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-semibold ${aiStatus?.activeKeyConfigured ? 'text-green-800 dark:text-green-200' : 'text-amber-800 dark:text-amber-200'}`}>
+                {aiStatus?.activeKeyConfigured
+                  ? `AI active · ${aiStatus.provider === 'openai' ? 'ChatGPT (OpenAI)' : 'Claude (Anthropic)'} · ${aiStatus.model}`
+                  : 'No API key configured — AI features are disabled'}
               </p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {aiStatus?.source === 'company' ? 'Using company-level override' : 'Using global server configuration'}
+              <p className={`text-xs mt-0.5 ${aiStatus?.activeKeyConfigured ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                {aiStatus?.source === 'company' ? 'Using your company key' : 'Using server default key'}
               </p>
             </div>
-            <span className={`text-xs px-3 py-1 rounded-full font-medium capitalize ${aiStatus?.activeKeyConfigured ? 'bg-green-50 dark:bg-green-950/30 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
-              {aiStatus?.provider || 'not set'}
-            </span>
           </div>
 
-          {/* Provider selector */}
-          <div className="glass-card rounded-2xl p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2"><Bot className="w-4 h-4" /> AI Provider</h2>
-            <p className="text-xs text-gray-500">Select which AI model powers your assistant, lead qualification, and email drafting.</p>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { value: 'claude', label: 'Claude (Anthropic)', desc: 'claude-sonnet-4-6 · Best for business tasks', color: 'from-orange-400 to-red-500' },
-                { value: 'openai', label: 'ChatGPT (OpenAI)', desc: 'gpt-4o · Broad capability', color: 'from-green-400 to-teal-500' },
-              ].map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => setCompanyForm({ ...companyForm, aiProvider: opt.value })}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    (companyForm.aiProvider || '') === opt.value
-                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${opt.color} mb-2 flex items-center justify-center`}>
-                    <Zap className="w-4 h-4 text-white" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{opt.label}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{opt.desc}</p>
-                </button>
-              ))}
+          {/* Provider + key — all in one */}
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">AI Provider</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'claude', label: 'Claude', sub: 'Anthropic · claude-sonnet-4-6', grad: 'from-orange-400 to-rose-500' },
+                  { value: 'openai', label: 'ChatGPT', sub: 'OpenAI · gpt-4o', grad: 'from-emerald-400 to-teal-500' },
+                ].map(opt => {
+                  const active = (companyForm.aiProvider || 'claude') === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => setCompanyForm({ ...companyForm, aiProvider: opt.value })}
+                      className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${active ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${opt.grad} flex items-center justify-center flex-shrink-0`}>
+                        <Bot className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <p className={`text-sm font-semibold ${active ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-700 dark:text-gray-300'}`}>{opt.label}</p>
+                        <p className="text-xs text-gray-400">{opt.sub}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <p className="text-xs text-gray-400">Leave unset to use the server-level <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">AI_PROVIDER</code> env variable.</p>
-            <button onClick={() => setCompanyForm({ ...companyForm, aiProvider: null })} className="text-xs text-red-500 hover:underline">Reset to server default</button>
-          </div>
 
-          {/* Claude key */}
-          <div className="glass-card rounded-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900 dark:text-white">Claude (Anthropic) Key</h2>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${aiStatus?.claudeEnabled ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-                {aiStatus?.claudeEnabled ? '✓ Configured' : 'Not set'}
-              </span>
+            <div>
+              <label htmlFor="ai-apikey" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
+                API Key
+                {(companyForm.aiProvider === 'openai' ? aiStatus?.openaiEnabled : aiStatus?.claudeEnabled) && (
+                  <span className="ml-2 text-[10px] font-normal text-green-600 normal-case">✓ configured</span>
+                )}
+              </label>
+              <input
+                id="ai-apikey"
+                type="password"
+                autoComplete="new-password"
+                value={(companyForm.aiProvider === 'openai' ? companyForm.openaiKey : companyForm.anthropicKey) || ''}
+                onChange={e => {
+                  const key = companyForm.aiProvider === 'openai' ? 'openaiKey' : 'anthropicKey';
+                  setCompanyForm({ ...companyForm, [key]: e.target.value });
+                }}
+                placeholder={companyForm.aiProvider === 'openai' ? 'sk-proj-...' : 'sk-ant-api03-...'}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+              />
+              <p className="text-xs text-gray-400 mt-1.5">
+                {(companyForm.aiProvider || 'claude') === 'openai'
+                  ? 'Get your key at platform.openai.com → API Keys'
+                  : 'Get your key at console.anthropic.com → API Keys'}
+              </p>
             </div>
-            <p className="text-xs text-gray-500">Get your key at <strong>console.anthropic.com</strong> → API Keys</p>
-            <input type="password" value={companyForm.anthropicKey || ''} onChange={e => setCompanyForm({ ...companyForm, anthropicKey: e.target.value })} placeholder="sk-ant-api03-..." className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
-            <p className="text-xs text-gray-400">This overrides the server <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">ANTHROPIC_API_KEY</code> for your company.</p>
           </div>
 
-          {/* OpenAI key */}
-          <div className="glass-card rounded-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900 dark:text-white">ChatGPT (OpenAI) Key</h2>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${aiStatus?.openaiEnabled ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-                {aiStatus?.openaiEnabled ? '✓ Configured' : 'Not set'}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500">Get your key at <strong>platform.openai.com</strong> → API Keys</p>
-            <input type="password" value={companyForm.openaiKey || ''} onChange={e => setCompanyForm({ ...companyForm, openaiKey: e.target.value })} placeholder="sk-proj-..." className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
-            <p className="text-xs text-gray-400">This overrides the server <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">OPENAI_API_KEY</code> for your company.</p>
-          </div>
-
-          <button onClick={() => saveMutation.mutate(companyForm)} disabled={saveMutation.isPending} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+          <button
+            onClick={() => saveMutation.mutate(companyForm)}
+            disabled={saveMutation.isPending}
+            className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <Zap className="w-4 h-4" />
             {saveMutation.isPending ? 'Saving...' : 'Save AI Settings'}
           </button>
         </div>
