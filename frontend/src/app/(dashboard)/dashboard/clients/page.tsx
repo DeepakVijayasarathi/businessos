@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate, statusColor } from '@/lib/utils';
-import { Users, Mail, Phone, Building2, Search, ExternalLink, FileText, TicketIcon } from 'lucide-react';
+import { Users, Mail, Phone, Building2, Search, ExternalLink, FileText, TicketIcon, Link2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function ClientsPage() {
@@ -115,7 +115,25 @@ export default function ClientsPage() {
                       {selectedClient.crmCompany && <span className="flex items-center gap-1 text-xs text-gray-500"><Building2 className="w-3 h-3" />{selectedClient.crmCompany.name}</span>}
                     </div>
                   </div>
-                  <p className="text-xs text-gray-400">Client since {formatDate(selectedClient.createdAt)}</p>
+                  <div className="flex flex-col items-end gap-2">
+                    <p className="text-xs text-gray-400">Client since {formatDate(selectedClient.createdAt)}</p>
+                    {selectedClient.email && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const { data } = await api.post('/portal/token', { clientEmail: selectedClient.email });
+                            await navigator.clipboard.writeText(data.data.url);
+                            toast.success('Portal link copied to clipboard!');
+                          } catch {
+                            toast.error('Failed to generate portal link');
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-950/50 rounded-lg transition-colors"
+                      >
+                        <Link2 className="w-3.5 h-3.5" /> Copy Portal Link
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 

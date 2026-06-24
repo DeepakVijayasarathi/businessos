@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import { Plus, Search, Mail, Phone, Building2, User, Trash2, Edit } from 'lucide-react';
+import { Plus, Search, Mail, Phone, Building2, User, Trash2, Edit, Upload } from 'lucide-react';
+import { useRef } from 'react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, TextAreaField } from '@/components/ui/FormField';
@@ -15,6 +16,22 @@ export default function ContactsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editContact, setEditContact] = useState<any>(null);
   const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    e.target.value = '';
+    try {
+      const { data } = await api.post('/crm/contacts/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      qc.invalidateQueries({ queryKey: ['contacts'] });
+      toast.success(`${data.data?.created || 0} contacts imported`);
+    } catch {
+      toast.error('Import failed — check CSV format');
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -44,9 +61,15 @@ export default function ContactsPage() {
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Contacts</h1>
           <p className="text-sm text-gray-500 mt-0.5">{data?.meta?.total || 0} contacts</p>
         </div>
-        <button onClick={() => { setEditContact(null); setShowModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
-          <Plus className="w-4 h-4" /> Add Contact
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800">
+            <Upload className="w-4 h-4" /> Import CSV
+          </button>
+          <input ref={fileInputRef} type="file" accept=".csv" onChange={handleImport} className="hidden" />
+          <button onClick={() => { setEditContact(null); setShowModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
+            <Plus className="w-4 h-4" /> Add Contact
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 max-w-sm">

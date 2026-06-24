@@ -1,9 +1,11 @@
 const router = require('express').Router();
 const prisma = require('../../../config/prisma');
 const { authenticate, sameCompany } = require('../../../middleware/auth');
-const { success, created, paginated, notFound } = require('../../../utils/response');
+const { success, created, paginated, notFound, error } = require('../../../utils/response');
 const { paginate, paginateMeta } = require('../../../utils/helpers');
 const { auditLog } = require('../../../middleware/audit');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 router.use(authenticate, sameCompany);
 
@@ -70,6 +72,48 @@ router.delete('/:id', auditLog('crm.contacts', 'contact'), async (req, res, next
     if (!existing) return notFound(res, 'Contact not found');
     await prisma.contact.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Contact deleted');
+  } catch (err) { next(err); }
+});
+
+// POST /crm/contacts/import — CSV import
+router.post('/import', upload.single('file'), async (req, res, next) => {
+  try {
+    if (!req.file) return error(res, 'No file uploaded', 400);
+    const text = req.file.buffer.toString('utf8');
+    const lines = text.split('\n').filter(Boolean);
+    if (lines.length < 2) return error(res, 'CSV must have headers + data rows', 400);
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const rows = lines.slice(1).map(line => {
+      const vals = line.match(/(".*?"|[^,]+)(?=,|$)/g) || [];
+      return headers.reduce((obj, h, i) => {
+        obj[h] = (vals[i] || '').replace(/^"|"$/g, '').trim();
+        return obj;
+      }, {});
+    });
+
+    const importable = rows.filter(row => row.email || row.firstName || row.first_name);
+    const CHUNK = 25;
+    let createdCount = 0, skipped = 0;
+    for (let i = 0; i < importable.length; i += CHUNK) {
+      const chunk = importable.slice(i, i + CHUNK);
+      const results = await Promise.allSettled(chunk.map(row =>
+        prisma.contact.create({
+          data: {
+            companyId: req.companyId,
+            firstName: row.firstName || row.first_name || 'Unknown',
+            lastName: row.lastName || row.last_name || '',
+            email: row.email || null,
+            phone: row.phone || null,
+            jobTitle: row.jobTitle || row.job_title || row.title || null,
+            department: row.department || null,
+            linkedIn: row.linkedIn || row.linkedin || null,
+          },
+        })
+      ));
+      results.forEach(r => r.status === 'fulfilled' ? createdCount++ : skipped++);
+    }
+    return success(res, { created: createdCount, skipped }, `${createdCount} contacts imported`);
   } catch (err) { next(err); }
 });
 

@@ -5,6 +5,10 @@ const { success, created, paginated, notFound, error } = require('../../../utils
 const { paginate, paginateMeta, pick } = require('../../../utils/helpers');
 const { auditLog } = require('../../../middleware/audit');
 const { sendCsv } = require('../../../utils/csv');
+const multer = require('multer');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 router.use(authenticate, sameCompany);
 
@@ -126,6 +130,69 @@ router.put('/:id', auditLog('hr.employees', 'employee'), async (req, res, next) 
     if (!existing) return notFound(res, 'Employee not found');
     const employee = await prisma.employee.update({ where: { id: req.params.id }, data: coerceEmployeeDates(pick(req.body, EMPLOYEE_WRITABLE_FIELDS)) });
     return success(res, employee, 'Employee updated');
+  } catch (err) { next(err); }
+});
+
+// POST /hr/employees/import — CSV import (creates User + Employee per row)
+router.post('/import', upload.single('file'), async (req, res, next) => {
+  try {
+    if (!req.file) return error(res, 'No file uploaded', 400);
+    const text = req.file.buffer.toString('utf8');
+    const lines = text.split('\n').filter(Boolean);
+    if (lines.length < 2) return error(res, 'CSV must have headers + data rows', 400);
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const rows = lines.slice(1).map(line => {
+      const vals = line.match(/(".*?"|[^,]+)(?=,|$)/g) || [];
+      return headers.reduce((obj, h, i) => {
+        obj[h] = (vals[i] || '').replace(/^"|"$/g, '').trim();
+        return obj;
+      }, {});
+    });
+
+    let createdCount = 0, skipped = 0;
+    for (const row of rows) {
+      const email = row.email;
+      const firstName = row.firstName || row.first_name;
+      if (!email || !firstName) { skipped++; continue; }
+      try {
+        // Find or create the user
+        let user = await prisma.user.findFirst({ where: { email, companyId: req.companyId } });
+        if (!user) {
+          const tempPw = crypto.randomBytes(10).toString('base64url');
+          const hashed = await bcrypt.hash(tempPw, 12);
+          user = await prisma.user.create({
+            data: {
+              firstName,
+              lastName: row.lastName || row.last_name || '',
+              email,
+              password: hashed,
+              companyId: req.companyId,
+            },
+          });
+        }
+        // Skip if already an employee
+        const existingEmp = await prisma.employee.findFirst({ where: { userId: user.id } });
+        if (existingEmp) { skipped++; continue; }
+
+        const code = row.employeeCode || row.employee_code || `EMP-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+        await prisma.employee.create({
+          data: {
+            companyId: req.companyId,
+            userId: user.id,
+            employeeCode: code,
+            jobTitle: row.jobTitle || row.job_title || row.title || null,
+            salary: row.salary ? parseFloat(row.salary) : null,
+            startDate: row.startDate || row.start_date ? new Date(row.startDate || row.start_date) : new Date(),
+            status: 'active',
+          },
+        });
+        createdCount++;
+      } catch {
+        skipped++;
+      }
+    }
+    return success(res, { created: createdCount, skipped }, `${createdCount} employees imported`);
   } catch (err) { next(err); }
 });
 

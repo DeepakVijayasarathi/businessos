@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate, statusColor } from '@/lib/utils';
-import { Plus, Search, Mail, Phone, Building2, UserSquare, Users, UserPlus } from 'lucide-react';
+import { Plus, Search, Mail, Phone, Building2, UserSquare, Users, UserPlus, Upload } from 'lucide-react';
+import { useRef } from 'react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
@@ -16,6 +17,22 @@ export default function EmployeesPage() {
   const [showModal, setShowModal] = useState(false);
   const [showDeptModal, setShowDeptModal] = useState(false);
   const qc = useQueryClient();
+  const importRef = useRef<HTMLInputElement>(null);
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    e.target.value = '';
+    try {
+      const { data } = await api.post('/hr/employees/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      qc.invalidateQueries({ queryKey: ['employees'] });
+      toast.success(`${data.data?.created || 0} employees imported`);
+    } catch {
+      toast.error('Import failed — CSV needs: firstName, email columns');
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -46,6 +63,10 @@ export default function EmployeesPage() {
         {tab === 'employees' ? (
           <div className="flex items-center gap-2">
             <ExportButton endpoint="/hr/employees/export" filename="employees.csv" params={{ search: debouncedSearch }} />
+            <button onClick={() => importRef.current?.click()} className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800">
+              <Upload className="w-4 h-4" /> Import CSV
+            </button>
+            <input ref={importRef} type="file" accept=".csv" onChange={handleImport} className="hidden" />
             <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
               <Plus className="w-4 h-4" /> Add Employee
             </button>
