@@ -102,9 +102,10 @@ function requireRole(...roles) {
  * Ensure user belongs to the same company as the resource
  */
 function sameCompany(req, res, next) {
-  if (req.user?.isSuperAdmin) return next();
   if (!req.user?.companyId) {
-    return forbidden(res, 'No company assigned');
+    return forbidden(res, req.user?.isSuperAdmin
+      ? 'Super admin has no company — use /admin endpoints or log in to a company account'
+      : 'No company assigned to this account');
   }
   next();
 }

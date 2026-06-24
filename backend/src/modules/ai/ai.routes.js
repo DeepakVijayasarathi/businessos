@@ -290,10 +290,10 @@ router.get('/intelligence', async (req, res, next) => {
 // GET /ai/status — current provider & model info (includes per-company override)
 router.get('/status', async (req, res, next) => {
   try {
-    const company = await prisma.company.findUnique({
+    const company = req.companyId ? await prisma.company.findUnique({
       where: { id: req.companyId },
       select: { anthropicKey: true, openaiKey: true, aiProvider: true },
-    });
+    }) : null;
     const provider = company?.aiProvider || config.ai.provider;
     const hasClaudeKey = !!(company?.anthropicKey || config.ai.anthropicKey);
     const hasOpenAIKey = !!(company?.openaiKey || config.ai.openaiKey);

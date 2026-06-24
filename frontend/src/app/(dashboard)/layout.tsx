@@ -18,8 +18,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setMounted(true);
     fetchMe()
       .then(() => {
-        if (!useAuthStore.getState().isAuthenticated) {
+        const { isAuthenticated, user } = useAuthStore.getState();
+        if (!isAuthenticated) {
           router.push('/login');
+        } else if (user?.isSuperAdmin && !user?.companyId) {
+          // Super admins with no company context belong in the admin panel
+          router.push('/admin');
         }
       })
       .catch(() => {
