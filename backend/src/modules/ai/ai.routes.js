@@ -481,12 +481,12 @@ const AGENT_TOOLS = [
     input_schema: {
       type: 'object',
       properties: {
-        name: { type: 'string', description: 'Deal name or title' },
+        title: { type: 'string', description: 'Deal title or name' },
         value: { type: 'number', description: 'Estimated deal value in USD' },
         probability: { type: 'number', description: 'Win probability 0-100' },
         notes: { type: 'string' },
       },
-      required: ['name'],
+      required: ['title'],
     },
   },
   {
@@ -587,6 +587,76 @@ const AGENT_TOOLS = [
       required: ['query'],
     },
   },
+  {
+    name: 'send_payment_reminder',
+    description: 'Send payment reminder email(s) for overdue or unpaid invoices. Can target a specific client or all overdue clients.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        clientName: { type: 'string', description: 'Filter by client name (optional — omit to send to all overdue clients with email)' },
+        invoiceNo: { type: 'string', description: 'Target a specific invoice number (optional)' },
+      },
+    },
+  },
+  {
+    name: 'send_invoice',
+    description: 'Send an invoice to the client via email and mark it as sent',
+    input_schema: {
+      type: 'object',
+      properties: {
+        invoiceNo: { type: 'string', description: 'Invoice number (e.g. INV-00001)' },
+        clientName: { type: 'string', description: 'Client name to find the invoice if invoice number is unknown' },
+      },
+    },
+  },
+  {
+    name: 'convert_lead',
+    description: 'Convert a CRM lead into a contact and automatically create a deal in the pipeline',
+    input_schema: {
+      type: 'object',
+      properties: {
+        leadId: { type: 'string', description: 'Lead ID to convert' },
+        leadName: { type: 'string', description: 'Lead first name (to search if leadId is unknown)' },
+        dealValue: { type: 'number', description: 'Optional deal value for the created deal' },
+      },
+    },
+  },
+  {
+    name: 'update_deal',
+    description: 'Update a deal — change its stage, value, or mark it as won/lost',
+    input_schema: {
+      type: 'object',
+      properties: {
+        dealTitle: { type: 'string', description: 'Deal title to find and update' },
+        stageName: { type: 'string', description: 'New stage name to move the deal to' },
+        value: { type: 'number', description: 'New deal value' },
+        status: { type: 'string', enum: ['open', 'won', 'lost'], description: 'Update win/loss status' },
+        notes: { type: 'string', description: 'Add or update notes' },
+      },
+      required: ['dealTitle'],
+    },
+  },
+  {
+    name: 'get_revenue_report',
+    description: 'Get a monthly revenue breakdown for the last N months',
+    input_schema: {
+      type: 'object',
+      properties: {
+        months: { type: 'number', description: 'Number of months to include (default 6, max 12)' },
+      },
+    },
+  },
+  {
+    name: 'list_employees',
+    description: 'List HR employees with their job titles and status',
+    input_schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['active', 'inactive', 'terminated', 'on_leave'], description: 'Filter by status (default: active)' },
+        limit: { type: 'number', description: 'Max results (default 10)' },
+      },
+    },
+  },
 ];
 
 async function executeAgentTool(name, input, req) {
@@ -633,7 +703,7 @@ async function executeAgentTool(name, input, req) {
       if (!pipeline?.stages?.length) return { error: 'No pipeline found. Set up your CRM pipeline in Settings first.' };
       const deal = await prisma.deal.create({
         data: {
-          name: input.name,
+          title: input.title,
           value: input.value || null,
           probability: input.probability || 50,
           notes: input.notes || null,
@@ -643,7 +713,7 @@ async function executeAgentTool(name, input, req) {
           status: 'open',
         },
       });
-      return { success: true, id: deal.id, message: `Deal created: ${deal.name}` };
+      return { success: true, id: deal.id, message: `Deal created: ${deal.title}` };
     }
     case 'create_task': {
       const task = await prisma.task.create({
@@ -765,10 +835,124 @@ async function executeAgentTool(name, input, req) {
           ? prisma.contact.findMany({ where: { companyId: cid, OR: [{ firstName: { contains: q, mode } }, { lastName: { contains: q, mode } }, { email: { contains: q, mode } }] }, take: 4, select: { id: true, firstName: true, lastName: true, email: true } })
           : Promise.resolve([]),
         all || input.type === 'deals'
-          ? prisma.deal.findMany({ where: { companyId: cid, name: { contains: q, mode } }, take: 4, select: { id: true, name: true, value: true, status: true } })
+          ? prisma.deal.findMany({ where: { companyId: cid, title: { contains: q, mode } }, take: 4, select: { id: true, title: true, value: true, status: true } })
           : Promise.resolve([]),
       ]);
       return { leads, contacts, deals: deals.map(d => ({ ...d, value: d.value ? Number(d.value) : null })) };
+    }
+    case 'send_payment_reminder': {
+      const emailService = require('../../services/email.service');
+      const company = await prisma.company.findUnique({ where: { id: cid }, select: { name: true, smtpHost: true } });
+      const now = new Date();
+      const where = {
+        companyId: cid,
+        status: { in: ['sent', 'overdue'] },
+        dueDate: { lt: now },
+        clientEmail: { not: null },
+        ...(input.clientName && { clientName: { contains: input.clientName, mode: 'insensitive' } }),
+        ...(input.invoiceNo && { invoiceNo: input.invoiceNo }),
+      };
+      const invoices = await prisma.invoice.findMany({
+        where,
+        select: { id: true, invoiceNo: true, clientName: true, clientEmail: true, total: true, dueDate: true },
+        take: 20,
+      });
+      if (!invoices.length) return { message: 'No overdue invoices with email addresses found.' };
+      let sent = 0;
+      const results = [];
+      for (const inv of invoices) {
+        try {
+          await emailService.send({
+            to: inv.clientEmail,
+            subject: `Payment Reminder: Invoice ${inv.invoiceNo} is overdue`,
+            html: `<h2>Payment Reminder</h2><p>Dear ${inv.clientName},</p><p>This is a friendly reminder that invoice <strong>${inv.invoiceNo}</strong> for <strong>$${Number(inv.total).toFixed(2)}</strong> was due on <strong>${new Date(inv.dueDate).toLocaleDateString()}</strong> and remains unpaid.</p><p>Please arrange payment at your earliest convenience.</p><p>Thank you,<br>${company?.name || 'The Team'}</p>`,
+            companyId: cid,
+          });
+          await prisma.invoice.update({ where: { id: inv.id }, data: { status: 'overdue' } });
+          sent++;
+          results.push({ invoiceNo: inv.invoiceNo, client: inv.clientName, email: inv.clientEmail });
+        } catch {}
+      }
+      return { sent, total: invoices.length, results, message: `Payment reminder sent to ${sent} client(s)` };
+    }
+    case 'send_invoice': {
+      const emailService = require('../../services/email.service');
+      const mode = 'insensitive';
+      const inv = await prisma.invoice.findFirst({
+        where: {
+          companyId: cid,
+          ...(input.invoiceNo ? { invoiceNo: input.invoiceNo } : { clientName: { contains: input.clientName || '', mode } }),
+        },
+        select: { id: true, invoiceNo: true, clientName: true, clientEmail: true, total: true, status: true },
+      });
+      if (!inv) return { error: 'Invoice not found.' };
+      if (!inv.clientEmail) return { error: `Invoice ${inv.invoiceNo} has no client email on file.` };
+      await prisma.invoice.update({ where: { id: inv.id }, data: { status: 'sent' } });
+      try {
+        await emailService.sendInvoice({ to: inv.clientEmail, invoiceNo: inv.invoiceNo, companyId: cid });
+      } catch {}
+      return { success: true, message: `Invoice ${inv.invoiceNo} sent to ${inv.clientEmail}` };
+    }
+    case 'convert_lead': {
+      const mode = 'insensitive';
+      const lead = input.leadId
+        ? await prisma.lead.findFirst({ where: { id: input.leadId, companyId: cid } })
+        : await prisma.lead.findFirst({ where: { companyId: cid, firstName: { contains: input.leadName || '', mode } } });
+      if (!lead) return { error: 'Lead not found.' };
+      if (lead.status === 'converted') return { error: `${lead.firstName} ${lead.lastName || ''} is already converted.` };
+      const contact = await prisma.contact.create({
+        data: { firstName: lead.firstName, lastName: lead.lastName || null, email: lead.email || null, phone: lead.phone || null, company: lead.company || null, jobTitle: lead.jobTitle || null, notes: lead.notes || null, companyId: cid },
+      });
+      const pipeline = await prisma.pipeline.findFirst({ where: { companyId: cid }, include: { stages: { orderBy: { order: 'asc' }, take: 1 } } });
+      let deal = null;
+      if (pipeline?.stages?.length) {
+        deal = await prisma.deal.create({
+          data: { title: `${lead.firstName} ${lead.lastName || ''} — ${lead.company || 'Deal'}`.trim(), value: input.dealValue || null, probability: 50, pipelineId: pipeline.id, stageId: pipeline.stages[0].id, companyId: cid, status: 'open', notes: lead.notes || null },
+        });
+      }
+      await prisma.lead.update({ where: { id: lead.id }, data: { status: 'converted' } });
+      return { success: true, contact: { id: contact.id, name: `${contact.firstName} ${contact.lastName || ''}`.trim() }, deal: deal ? { id: deal.id, title: deal.title } : null, message: `Lead converted: contact created${deal ? ` and deal "${deal.title}" added to pipeline` : ''}` };
+    }
+    case 'update_deal': {
+      const mode = 'insensitive';
+      const deal = await prisma.deal.findFirst({ where: { companyId: cid, title: { contains: input.dealTitle, mode } } });
+      if (!deal) return { error: `Deal matching "${input.dealTitle}" not found.` };
+      const updateData = {};
+      if (input.value !== undefined) updateData.value = input.value;
+      if (input.status) updateData.status = input.status;
+      if (input.notes) updateData.notes = input.notes;
+      if (input.stageName) {
+        const stage = await prisma.pipelineStage.findFirst({ where: { pipelineId: deal.pipelineId, name: { contains: input.stageName, mode } } });
+        if (!stage) return { error: `Stage "${input.stageName}" not found in this pipeline.` };
+        updateData.stageId = stage.id;
+      }
+      const updated = await prisma.deal.update({ where: { id: deal.id }, data: updateData });
+      const changes = Object.keys(updateData).map(k => k === 'stageId' ? `stage → ${input.stageName}` : `${k} → ${updateData[k]}`);
+      return { success: true, id: updated.id, message: `Deal "${deal.title}" updated: ${changes.join(', ')}` };
+    }
+    case 'get_revenue_report': {
+      const numMonths = Math.min(input.months || 6, 12);
+      const months = [];
+      for (let i = numMonths - 1; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() - i);
+        const start = new Date(d.getFullYear(), d.getMonth(), 1);
+        const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+        const agg = await prisma.invoice.aggregate({ where: { companyId: cid, status: 'paid', paidAt: { gte: start, lt: end } }, _sum: { total: true }, _count: true });
+        months.push({ month: start.toLocaleString('default', { month: 'short', year: 'numeric' }), revenue: Number(agg._sum.total || 0), invoices: agg._count });
+      }
+      const total = months.reduce((s, m) => s + m.revenue, 0);
+      return { months, total, message: `Revenue report for last ${numMonths} months — total: $${total.toFixed(2)}` };
+    }
+    case 'list_employees': {
+      const employees = await prisma.employee.findMany({
+        where: { companyId: cid, status: input.status || 'active' },
+        take: input.limit || 10,
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, employeeCode: true, jobTitle: true, jobType: true, status: true, startDate: true, user: { select: { firstName: true, lastName: true, email: true } } },
+      });
+      return { employees: employees.map(e => ({ id: e.id, code: e.employeeCode, name: `${e.user?.firstName || ''} ${e.user?.lastName || ''}`.trim(), email: e.user?.email, jobTitle: e.jobTitle, jobType: e.jobType, status: e.status })), count: employees.length };
     }
     default:
       return { error: `Unknown tool: ${name}` };
@@ -792,9 +976,14 @@ router.post('/agent', async (req, res, next) => {
     const anthropic = new Anthropic({ apiKey: rawKey });
     const today = new Date().toISOString().slice(0, 10);
 
-    const systemPrompt = `You are an AI business assistant for ${company?.name || 'this company'}. You have tools to create and query data across CRM, Finance, Helpdesk, Projects, and Marketing.
+    const systemPrompt = `You are an AI business assistant for ${company?.name || 'this company'}. You have tools to take real actions across CRM, Finance, Helpdesk, Projects, HR, and Marketing.
 
-Be concise and action-oriented. When asked to create something, call the tool immediately — don't ask for confirmation unless critical info is missing. After each action, briefly confirm what was done. Format lists with bullet points. Today: ${today}.`;
+Rules:
+- Act immediately — call tools without asking for confirmation unless critical info is genuinely missing.
+- After actions, confirm what was done with the key details (name, number, amount).
+- For lists/reports, format with bullet points or short tables using **bold** for emphasis.
+- When converting leads or sending emails, summarize each item acted on.
+- Today: ${today}.`;
 
     const messages = [...history, { role: 'user', content: message }];
     const actions = [];

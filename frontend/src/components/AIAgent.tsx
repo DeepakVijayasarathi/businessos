@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Sparkles, X, Send, Loader2, User, ChevronDown } from 'lucide-react';
+import { Sparkles, Send, Loader2, User, ChevronDown } from 'lucide-react';
 import api from '@/lib/api';
 
 interface ChatMessage {
@@ -11,9 +11,9 @@ interface ChatMessage {
 
 const STARTERS = [
   "Show me today's business stats",
-  'Create a lead for John Smith at Apple',
-  'List my overdue invoices',
-  'Create a high-priority ticket: Login is broken',
+  'Send payment reminders to all overdue clients',
+  'Convert my latest lead to a contact and deal',
+  'Revenue report for last 6 months',
 ];
 
 const TOOL_LABELS: Record<string, string> = {
@@ -29,7 +29,47 @@ const TOOL_LABELS: Record<string, string> = {
   get_stats: '📊 Stats loaded',
   create_campaign: '✓ Campaign created',
   search: '🔍 Search complete',
+  send_payment_reminder: '📧 Reminders sent',
+  send_invoice: '📧 Invoice sent',
+  convert_lead: '🔄 Lead converted',
+  update_deal: '✏️ Deal updated',
+  get_revenue_report: '📈 Revenue report',
+  list_employees: '👥 Employees fetched',
 };
+
+function renderMarkdown(text: string) {
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.startsWith('### ')) {
+      elements.push(<p key={i} className="font-semibold text-sm mt-2 mb-0.5">{inline(line.slice(4))}</p>);
+    } else if (line.startsWith('## ')) {
+      elements.push(<p key={i} className="font-bold text-sm mt-2 mb-0.5">{inline(line.slice(3))}</p>);
+    } else if (/^[-*] /.test(line)) {
+      elements.push(<div key={i} className="flex gap-1.5 pl-1"><span className="text-indigo-400 mt-0.5 flex-shrink-0">•</span><span>{inline(line.slice(2))}</span></div>);
+    } else if (/^\d+\. /.test(line)) {
+      const m = line.match(/^(\d+)\. (.*)/)!;
+      elements.push(<div key={i} className="flex gap-1.5 pl-1"><span className="text-indigo-400 flex-shrink-0 w-4">{m[1]}.</span><span>{inline(m[2])}</span></div>);
+    } else if (line.trim() === '') {
+      elements.push(<div key={i} className="h-1.5" />);
+    } else {
+      elements.push(<p key={i}>{inline(line)}</p>);
+    }
+    i++;
+  }
+  return <div className="space-y-0.5 text-sm leading-relaxed">{elements}</div>;
+}
+
+function inline(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((p, i) => {
+    if (p.startsWith('**') && p.endsWith('**')) return <strong key={i} className="font-semibold">{p.slice(2, -2)}</strong>;
+    if (p.startsWith('`') && p.endsWith('`')) return <code key={i} className="bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded text-xs font-mono">{p.slice(1, -1)}</code>;
+    return p;
+  });
+}
 
 export function AIAgent() {
   const [open, setOpen] = useState(false);
@@ -156,13 +196,13 @@ export function AIAgent() {
                   </div>
                 )}
                 <div
-                  className={`px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                  className={`px-3.5 py-2.5 rounded-2xl ${
                     msg.role === 'user'
-                      ? 'bg-indigo-600 text-white rounded-tr-sm'
+                      ? 'bg-indigo-600 text-white rounded-tr-sm text-sm leading-relaxed'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-sm'
                   }`}
                 >
-                  {msg.content}
+                  {msg.role === 'user' ? msg.content : renderMarkdown(msg.content)}
                 </div>
               </div>
               {msg.role === 'user' && (
