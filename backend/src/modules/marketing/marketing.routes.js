@@ -274,4 +274,112 @@ router.delete('/activities/:id', authenticate, sameCompany, async (req, res, nex
   } catch (err) { next(err); }
 });
 
+// ── Campaigns ────────────────────────────────────────────────
+const CAMPAIGN_WRITABLE = ['name', 'type', 'status', 'channel', 'budget', 'spent', 'startDate', 'endDate', 'description', 'targetUrl', 'impressions', 'clicks', 'conversions', 'leads', 'revenue'];
+
+router.get('/campaigns', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { status, type } = req.query;
+    const where = {
+      companyId: req.companyId,
+      ...(status && { status }),
+      ...(type && { type }),
+    };
+    const campaigns = await prisma.campaign.findMany({
+      where,
+      include: { _count: { select: { posts: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return success(res, campaigns);
+  } catch (err) { next(err); }
+});
+
+router.post('/campaigns', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    if (!req.body.name) return error(res, 'Campaign name is required', 400);
+    const data = pick(req.body, CAMPAIGN_WRITABLE);
+    if (data.startDate) data.startDate = new Date(data.startDate);
+    if (data.endDate) data.endDate = new Date(data.endDate);
+    const campaign = await prisma.campaign.create({ data: { ...data, companyId: req.companyId } });
+    return created(res, campaign, 'Campaign created');
+  } catch (err) { next(err); }
+});
+
+router.put('/campaigns/:id', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const existing = await prisma.campaign.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Campaign not found');
+    const data = pick(req.body, CAMPAIGN_WRITABLE);
+    if (data.startDate) data.startDate = new Date(data.startDate);
+    if (data.endDate) data.endDate = new Date(data.endDate);
+    const campaign = await prisma.campaign.update({ where: { id: req.params.id }, data });
+    return success(res, campaign, 'Campaign updated');
+  } catch (err) { next(err); }
+});
+
+router.delete('/campaigns/:id', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const existing = await prisma.campaign.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Campaign not found');
+    await prisma.campaign.delete({ where: { id: req.params.id } });
+    return success(res, {}, 'Campaign deleted');
+  } catch (err) { next(err); }
+});
+
+// ── Social Posts ─────────────────────────────────────────────
+const SOCIAL_POST_WRITABLE = ['campaignId', 'platform', 'content', 'mediaUrl', 'hashtags', 'scheduledAt', 'publishedAt', 'status', 'likes', 'shares', 'comments', 'reach'];
+
+router.get('/social-posts', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { platform, status, campaignId } = req.query;
+    const where = {
+      companyId: req.companyId,
+      ...(platform && { platform }),
+      ...(status && { status }),
+      ...(campaignId && { campaignId }),
+    };
+    const posts = await prisma.socialPost.findMany({
+      where,
+      include: { campaign: { select: { id: true, name: true } } },
+      orderBy: { scheduledAt: 'desc' },
+    });
+    return success(res, posts);
+  } catch (err) { next(err); }
+});
+
+router.post('/social-posts', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    if (!req.body.content) return error(res, 'Post content is required', 400);
+    if (!req.body.platform) return error(res, 'Platform is required', 400);
+    const data = pick(req.body, SOCIAL_POST_WRITABLE);
+    if (data.scheduledAt) data.scheduledAt = new Date(data.scheduledAt);
+    if (data.publishedAt) data.publishedAt = new Date(data.publishedAt);
+    if (!data.campaignId) delete data.campaignId;
+    const post = await prisma.socialPost.create({ data: { ...data, companyId: req.companyId } });
+    return created(res, post, 'Post created');
+  } catch (err) { next(err); }
+});
+
+router.put('/social-posts/:id', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const existing = await prisma.socialPost.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Post not found');
+    const data = pick(req.body, SOCIAL_POST_WRITABLE);
+    if (data.scheduledAt) data.scheduledAt = new Date(data.scheduledAt);
+    if (data.publishedAt) data.publishedAt = new Date(data.publishedAt);
+    if (data.campaignId === '') data.campaignId = null;
+    const post = await prisma.socialPost.update({ where: { id: req.params.id }, data });
+    return success(res, post, 'Post updated');
+  } catch (err) { next(err); }
+});
+
+router.delete('/social-posts/:id', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const existing = await prisma.socialPost.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Post not found');
+    await prisma.socialPost.delete({ where: { id: req.params.id } });
+    return success(res, {}, 'Post deleted');
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

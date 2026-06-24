@@ -104,6 +104,8 @@ model Company {
   conversations     Conversation[]
   posters           Poster[]
   marketingActivities MarketingActivity[]
+  campaigns         Campaign[]
+  socialPosts       SocialPost[]
 
   @@map("companies")
 }
@@ -1297,6 +1299,59 @@ model MarketingActivity {
 
   @@index([companyId])
   @@map("marketing_activities")
+}
+
+model Campaign {
+  id          String    @id @default(uuid())
+  companyId   String
+  name        String
+  type        String    @default("other") // google_ads, meta_ads, seo, content, email, influencer, whatsapp, event, other
+  status      String    @default("draft") // draft, active, paused, completed
+  channel     String?   // google, facebook, instagram, linkedin, email, tiktok, youtube, twitter
+  budget      Float?
+  spent       Float     @default(0)
+  startDate   DateTime?
+  endDate     DateTime?
+  description String?
+  targetUrl   String?
+  impressions Int       @default(0)
+  clicks      Int       @default(0)
+  conversions Int       @default(0)
+  leads       Int       @default(0)
+  revenue     Float     @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  posts       SocialPost[]
+
+  @@index([companyId])
+  @@map("campaigns")
+}
+
+model SocialPost {
+  id          String    @id @default(uuid())
+  companyId   String
+  campaignId  String?
+  platform    String    // instagram, facebook, twitter, linkedin, tiktok, youtube
+  content     String    @db.Text
+  mediaUrl    String?
+  hashtags    String?
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  status      String    @default("draft") // draft, scheduled, published, failed
+  likes       Int       @default(0)
+  shares      Int       @default(0)
+  comments    Int       @default(0)
+  reach       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@map("social_posts")
 }
 
 // ============================================================

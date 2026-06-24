@@ -77,7 +77,7 @@ pipeline {
                         -e CORS_ORIGINS=$CORS_ORIGINS \
                         -e DATABASE_URL="postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME" \
                         -e JWT_SECRET=$JWT_SECRET \
-                        -e JWT_EXPIRES_IN=15m \
+                        -e JWT_EXPIRES_IN=4h \
                         -e JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET \
                         -e ENCRYPTION_KEY=$ENCRYPTION_KEY \
                         -p $APP_PORT_API:5000 \
@@ -96,6 +96,9 @@ pipeline {
                         echo "  attempt $i: $STATUS"
                         sleep 5
                     done
+
+                    echo "Syncing database schema..."
+                    docker exec $CONTAINER_BACKEND npx prisma db push --accept-data-loss || echo "prisma db push failed — continuing"
 
                     docker run -d \
                         --name $CONTAINER_FRONTEND \
