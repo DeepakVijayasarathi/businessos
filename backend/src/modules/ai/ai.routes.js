@@ -4,7 +4,7 @@ const OpenAI = require('openai');
 const prisma = require('../../config/prisma');
 const { authenticate, sameCompany } = require('../../middleware/auth');
 const { success, created, error, notFound } = require('../../utils/response');
-const { decrypt } = require('../../utils/helpers');
+const { decrypt, generateNumber } = require('../../utils/helpers');
 const config = require('../../config');
 
 router.use(authenticate, sameCompany);
@@ -422,6 +422,426 @@ router.delete('/agents/:id', async (req, res, next) => {
     if (!existing) return notFound(res, 'AI agent not found');
     await prisma.aiAgent.delete({ where: { id: req.params.id } });
     return success(res, {}, 'AI agent deleted');
+  } catch (err) { next(err); }
+});
+
+// ─── AI Agent: agentic tool-use endpoint ───────────────────────────────────
+
+const AGENT_TOOLS = [
+  {
+    name: 'create_lead',
+    description: 'Create a new CRM lead',
+    input_schema: {
+      type: 'object',
+      properties: {
+        firstName: { type: 'string' },
+        lastName: { type: 'string' },
+        email: { type: 'string' },
+        phone: { type: 'string' },
+        company: { type: 'string' },
+        source: { type: 'string', enum: ['website', 'referral', 'linkedin', 'email', 'phone', 'whatsapp', 'event', 'other'] },
+        status: { type: 'string', enum: ['new', 'contacted', 'qualified', 'unqualified', 'converted'] },
+        notes: { type: 'string' },
+      },
+      required: ['firstName'],
+    },
+  },
+  {
+    name: 'list_leads',
+    description: 'List CRM leads with optional filters',
+    input_schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', description: 'Filter by status: new, contacted, qualified, unqualified, converted' },
+        search: { type: 'string', description: 'Search by name, email, or company' },
+        limit: { type: 'number', description: 'Max results (default 5, max 20)' },
+      },
+    },
+  },
+  {
+    name: 'create_contact',
+    description: 'Create a new CRM contact',
+    input_schema: {
+      type: 'object',
+      properties: {
+        firstName: { type: 'string' },
+        lastName: { type: 'string' },
+        email: { type: 'string' },
+        phone: { type: 'string' },
+        company: { type: 'string' },
+        jobTitle: { type: 'string' },
+        notes: { type: 'string' },
+      },
+      required: ['firstName'],
+    },
+  },
+  {
+    name: 'create_deal',
+    description: 'Create a new deal in the CRM sales pipeline',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Deal name or title' },
+        value: { type: 'number', description: 'Estimated deal value in USD' },
+        probability: { type: 'number', description: 'Win probability 0-100' },
+        notes: { type: 'string' },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'create_task',
+    description: 'Create a new task',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        description: { type: 'string' },
+        priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
+        dueDate: { type: 'string', description: 'ISO date string YYYY-MM-DD' },
+      },
+      required: ['title'],
+    },
+  },
+  {
+    name: 'create_invoice',
+    description: 'Create a new invoice',
+    input_schema: {
+      type: 'object',
+      properties: {
+        clientName: { type: 'string' },
+        clientEmail: { type: 'string' },
+        amount: { type: 'number', description: 'Total invoice amount in USD' },
+        dueDate: { type: 'string', description: 'Due date YYYY-MM-DD' },
+        notes: { type: 'string' },
+        description: { type: 'string', description: 'Line item description (defaults to "Services")' },
+      },
+      required: ['clientName', 'amount'],
+    },
+  },
+  {
+    name: 'list_invoices',
+    description: 'List invoices with optional status filter',
+    input_schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['draft', 'sent', 'paid', 'overdue', 'cancelled'] },
+        limit: { type: 'number', description: 'Max results (default 5)' },
+      },
+    },
+  },
+  {
+    name: 'create_ticket',
+    description: 'Create a new helpdesk support ticket',
+    input_schema: {
+      type: 'object',
+      properties: {
+        subject: { type: 'string' },
+        description: { type: 'string' },
+        priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
+      },
+      required: ['subject'],
+    },
+  },
+  {
+    name: 'list_tickets',
+    description: 'List helpdesk tickets',
+    input_schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['open', 'in_progress', 'pending', 'resolved', 'closed'] },
+        priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
+        limit: { type: 'number', description: 'Max results (default 5)' },
+      },
+    },
+  },
+  {
+    name: 'get_stats',
+    description: 'Get key business dashboard statistics and KPIs',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'create_campaign',
+    description: 'Create a new marketing campaign',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        type: { type: 'string', enum: ['google_ads', 'meta_ads', 'seo', 'content', 'email', 'influencer', 'whatsapp', 'event', 'other'] },
+        channel: { type: 'string', description: 'Platform or channel name' },
+        budget: { type: 'number', description: 'Budget in USD' },
+        description: { type: 'string' },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'search',
+    description: 'Search across CRM leads, contacts, and deals',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string' },
+        type: { type: 'string', enum: ['leads', 'contacts', 'deals', 'all'], description: 'What to search (default: all)' },
+      },
+      required: ['query'],
+    },
+  },
+];
+
+async function executeAgentTool(name, input, req) {
+  const cid = req.companyId;
+  const uid = req.userId;
+
+  switch (name) {
+    case 'create_lead': {
+      const lead = await prisma.lead.create({
+        data: { ...input, companyId: cid, status: input.status || 'new', source: input.source || 'other' },
+      });
+      return { success: true, id: lead.id, message: `Lead created: ${lead.firstName} ${lead.lastName || ''}`.trim() };
+    }
+    case 'list_leads': {
+      const mode = 'insensitive';
+      const leads = await prisma.lead.findMany({
+        where: {
+          companyId: cid,
+          ...(input.status && { status: input.status }),
+          ...(input.search && { OR: [
+            { firstName: { contains: input.search, mode } },
+            { lastName: { contains: input.search, mode } },
+            { email: { contains: input.search, mode } },
+            { company: { contains: input.search, mode } },
+          ] }),
+        },
+        take: Math.min(input.limit || 5, 20),
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, firstName: true, lastName: true, email: true, company: true, status: true, createdAt: true },
+      });
+      return { leads, count: leads.length };
+    }
+    case 'create_contact': {
+      const contact = await prisma.contact.create({
+        data: { ...input, companyId: cid },
+      });
+      return { success: true, id: contact.id, message: `Contact created: ${contact.firstName} ${contact.lastName || ''}`.trim() };
+    }
+    case 'create_deal': {
+      const pipeline = await prisma.pipeline.findFirst({
+        where: { companyId: cid },
+        include: { stages: { orderBy: { order: 'asc' }, take: 1 } },
+      });
+      if (!pipeline?.stages?.length) return { error: 'No pipeline found. Set up your CRM pipeline in Settings first.' };
+      const deal = await prisma.deal.create({
+        data: {
+          name: input.name,
+          value: input.value || null,
+          probability: input.probability || 50,
+          notes: input.notes || null,
+          pipelineId: pipeline.id,
+          stageId: pipeline.stages[0].id,
+          companyId: cid,
+          status: 'open',
+        },
+      });
+      return { success: true, id: deal.id, message: `Deal created: ${deal.name}` };
+    }
+    case 'create_task': {
+      const task = await prisma.task.create({
+        data: {
+          title: input.title,
+          description: input.description || null,
+          priority: input.priority || 'medium',
+          dueDate: input.dueDate ? new Date(input.dueDate) : null,
+          status: 'todo',
+          companyId: cid,
+          assigneeId: uid,
+          creatorId: uid,
+        },
+      });
+      return { success: true, id: task.id, message: `Task created: ${task.title}` };
+    }
+    case 'create_invoice': {
+      const count = await prisma.invoice.count({ where: { companyId: cid } });
+      const invoiceNo = generateNumber('INV', count + 1);
+      const amt = Number(input.amount);
+      const invoice = await prisma.invoice.create({
+        data: {
+          invoiceNo,
+          clientName: input.clientName,
+          clientEmail: input.clientEmail || null,
+          subtotal: amt,
+          taxAmount: 0,
+          discountAmount: 0,
+          total: amt,
+          dueDate: input.dueDate ? new Date(input.dueDate) : null,
+          notes: input.notes || null,
+          status: 'draft',
+          companyId: cid,
+          items: [{ description: input.description || 'Services', qty: 1, rate: amt, amount: amt }],
+        },
+      });
+      return { success: true, id: invoice.id, invoiceNo, message: `Invoice ${invoiceNo} created for ${input.clientName} — $${amt}` };
+    }
+    case 'list_invoices': {
+      const invoices = await prisma.invoice.findMany({
+        where: { companyId: cid, ...(input.status && { status: input.status }) },
+        take: input.limit || 5,
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, invoiceNo: true, clientName: true, total: true, status: true, dueDate: true },
+      });
+      return { invoices: invoices.map(i => ({ ...i, total: Number(i.total) })), count: invoices.length };
+    }
+    case 'create_ticket': {
+      const count = await prisma.ticket.count({ where: { companyId: cid } });
+      const ticketNo = generateNumber('TKT', count + 1);
+      const ticket = await prisma.ticket.create({
+        data: {
+          ticketNo,
+          subject: input.subject,
+          description: input.description || null,
+          priority: input.priority || 'medium',
+          status: 'open',
+          companyId: cid,
+          reporterId: uid,
+        },
+      });
+      return { success: true, id: ticket.id, ticketNo, message: `Ticket ${ticketNo} created: ${ticket.subject}` };
+    }
+    case 'list_tickets': {
+      const tickets = await prisma.ticket.findMany({
+        where: {
+          companyId: cid,
+          ...(input.status && { status: input.status }),
+          ...(input.priority && { priority: input.priority }),
+        },
+        take: input.limit || 5,
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, ticketNo: true, subject: true, status: true, priority: true, createdAt: true },
+      });
+      return { tickets, count: tickets.length };
+    }
+    case 'get_stats': {
+      const now = new Date();
+      const [totalLeads, newLeads, openDeals, paidInv, openTickets, overdueInv] = await Promise.all([
+        prisma.lead.count({ where: { companyId: cid } }),
+        prisma.lead.count({ where: { companyId: cid, status: 'new' } }),
+        prisma.deal.count({ where: { companyId: cid, status: { in: ['open', 'negotiation'] } } }),
+        prisma.invoice.aggregate({ where: { companyId: cid, status: 'paid' }, _sum: { total: true } }),
+        prisma.ticket.count({ where: { companyId: cid, status: { in: ['open', 'pending'] } } }),
+        prisma.invoice.count({ where: { companyId: cid, status: { in: ['sent', 'overdue'] }, dueDate: { lt: now } } }),
+      ]);
+      return {
+        totalLeads,
+        newLeads,
+        openDeals,
+        totalRevenue: Number(paidInv._sum.total || 0),
+        openTickets,
+        overdueInvoices: overdueInv,
+      };
+    }
+    case 'create_campaign': {
+      const campaign = await prisma.campaign.create({
+        data: {
+          name: input.name,
+          type: input.type || 'other',
+          channel: input.channel || null,
+          budget: input.budget || null,
+          description: input.description || null,
+          status: 'draft',
+          companyId: cid,
+        },
+      });
+      return { success: true, id: campaign.id, message: `Campaign created: ${campaign.name}` };
+    }
+    case 'search': {
+      const q = input.query;
+      const mode = 'insensitive';
+      const all = !input.type || input.type === 'all';
+      const [leads, contacts, deals] = await Promise.all([
+        all || input.type === 'leads'
+          ? prisma.lead.findMany({ where: { companyId: cid, OR: [{ firstName: { contains: q, mode } }, { lastName: { contains: q, mode } }, { email: { contains: q, mode } }, { company: { contains: q, mode } }] }, take: 4, select: { id: true, firstName: true, lastName: true, email: true, status: true } })
+          : Promise.resolve([]),
+        all || input.type === 'contacts'
+          ? prisma.contact.findMany({ where: { companyId: cid, OR: [{ firstName: { contains: q, mode } }, { lastName: { contains: q, mode } }, { email: { contains: q, mode } }] }, take: 4, select: { id: true, firstName: true, lastName: true, email: true } })
+          : Promise.resolve([]),
+        all || input.type === 'deals'
+          ? prisma.deal.findMany({ where: { companyId: cid, name: { contains: q, mode } }, take: 4, select: { id: true, name: true, value: true, status: true } })
+          : Promise.resolve([]),
+      ]);
+      return { leads, contacts, deals: deals.map(d => ({ ...d, value: d.value ? Number(d.value) : null })) };
+    }
+    default:
+      return { error: `Unknown tool: ${name}` };
+  }
+}
+
+// POST /ai/agent — Agentic AI with tool use
+router.post('/agent', async (req, res, next) => {
+  try {
+    const { message, history = [] } = req.body;
+    if (!message?.trim()) return error(res, 'Message is required', 400);
+
+    const company = await prisma.company.findUnique({
+      where: { id: req.companyId },
+      select: { name: true, anthropicKey: true, openaiKey: true, aiProvider: true },
+    });
+
+    const rawKey = (company?.anthropicKey ? decrypt(company.anthropicKey) : null) || config.ai.anthropicKey;
+    if (!rawKey) return error(res, 'Anthropic API key not configured. Add it in Settings → AI Config.', 400);
+
+    const anthropic = new Anthropic({ apiKey: rawKey });
+    const today = new Date().toISOString().slice(0, 10);
+
+    const systemPrompt = `You are an AI business assistant for ${company?.name || 'this company'}. You have tools to create and query data across CRM, Finance, Helpdesk, Projects, and Marketing.
+
+Be concise and action-oriented. When asked to create something, call the tool immediately — don't ask for confirmation unless critical info is missing. After each action, briefly confirm what was done. Format lists with bullet points. Today: ${today}.`;
+
+    const messages = [...history, { role: 'user', content: message }];
+    const actions = [];
+
+    let response = await anthropic.messages.create({
+      model: config.ai.claudeModel,
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages,
+      tools: AGENT_TOOLS,
+    });
+
+    let iterations = 0;
+    while (response.stop_reason === 'tool_use' && iterations < 6) {
+      iterations++;
+      const toolResults = [];
+
+      for (const block of response.content) {
+        if (block.type === 'tool_use') {
+          const result = await executeAgentTool(block.name, block.input, req);
+          actions.push({ tool: block.name, input: block.input, result });
+          toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(result) });
+        }
+      }
+
+      messages.push({ role: 'assistant', content: response.content });
+      messages.push({ role: 'user', content: toolResults });
+
+      response = await anthropic.messages.create({
+        model: config.ai.claudeModel,
+        max_tokens: 2048,
+        system: systemPrompt,
+        messages,
+        tools: AGENT_TOOLS,
+      });
+    }
+
+    const assistantText = response.content.find(b => b.type === 'text')?.text || 'Done.';
+
+    // Build slim history for next turn (keep last 10 turns max)
+    const nextHistory = [
+      ...history,
+      { role: 'user', content: message },
+      { role: 'assistant', content: assistantText },
+    ].slice(-20);
+
+    return success(res, { message: assistantText, actions, history: nextHistory });
   } catch (err) { next(err); }
 });
 
