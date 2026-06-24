@@ -11,7 +11,7 @@ const { slugify, paginate, paginateMeta, pick } = require('../../utils/helpers')
 
 const PAGE_WRITABLE_FIELDS = ['name', 'content', 'seoTitle', 'seoDesc', 'isPublished'];
 const FORM_WRITABLE_FIELDS = ['landingPageId', 'name', 'fields', 'successMessage', 'redirectUrl', 'isActive'];
-const { generateImage } = require('../../services/ai.service');
+const { generateImage, callAI } = require('../../services/ai.service');
 const logger = require('../../config/logger');
 
 const uploadDir = process.env.UPLOAD_PATH || './uploads';
@@ -470,6 +470,88 @@ router.delete('/keywords/:id', authenticate, sameCompany, async (req, res, next)
     if (!existing) return notFound(res, 'Keyword not found');
     await prisma.keywordResearch.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Keyword deleted');
+  } catch (err) { next(err); }
+});
+
+// ── AI Marketing Endpoints ────────────────────────────────────────────────────
+
+async function getCompanyAI(companyId) {
+  return prisma.company.findUnique({ where: { id: companyId }, select: { anthropicKey: true, openaiKey: true, aiProvider: true } });
+}
+
+function parseAIJson(text) {
+  return JSON.parse(text.replace(/```json\n?|\n?```/g, '').trim());
+}
+
+router.post('/ai/social-post', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { topic, platform } = req.body;
+    if (!topic?.trim()) return error(res, 'Topic is required', 400);
+    const company = await getCompanyAI(req.companyId);
+    const hints = { instagram: 'casual and visual', linkedin: 'professional and insightful', twitter: 'punchy under 280 chars', facebook: 'conversational and shareable', youtube: 'descriptive and keyword-rich', tiktok: 'trendy and energetic' };
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Write a ${platform || 'social media'} post about: ${topic}\n\nTone: ${hints[platform] || 'engaging'}\n\nReturn JSON only: { "content": "...", "hashtags": "..." }` }],
+      system: 'You are a social media expert. Return only valid JSON with "content" and "hashtags" keys. Hashtags should be space-separated.',
+      companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider, maxTokens: 1024,
+    });
+    return success(res, parseAIJson(result.text));
+  } catch (err) { next(err); }
+});
+
+router.post('/ai/campaign', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { goal, type, channel } = req.body;
+    if (!goal?.trim()) return error(res, 'Campaign goal is required', 400);
+    const company = await getCompanyAI(req.companyId);
+    const today = new Date().toISOString().slice(0, 10);
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Create a marketing campaign plan.\nGoal: ${goal}\nType: ${type || 'any'}, Channel: ${channel || 'any'}\nToday: ${today}\n\nReturn JSON only: { "name": "...", "description": "...", "budget": 5000, "startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD" }` }],
+      system: 'You are a marketing strategist. Return only valid JSON. Budget is a realistic USD number. Dates must be YYYY-MM-DD format, starting from today, typically 30-90 day campaigns.',
+      companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider, maxTokens: 1024,
+    });
+    return success(res, parseAIJson(result.text));
+  } catch (err) { next(err); }
+});
+
+router.post('/ai/page-copy', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { description, cta } = req.body;
+    if (!description?.trim()) return error(res, 'Page description is required', 400);
+    const company = await getCompanyAI(req.companyId);
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Write landing page HTML content.\nOffer: ${description}\nCTA: ${cta || 'Get Started'}\n\nReturn JSON only: { "content": "<html body content>" }` }],
+      system: 'You are a conversion copywriter. Write clean semantic HTML5 for a landing page body with hero, benefits, social proof, and CTA sections. Return only valid JSON.',
+      companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider, maxTokens: 2048,
+    });
+    return success(res, parseAIJson(result.text));
+  } catch (err) { next(err); }
+});
+
+router.post('/ai/keywords', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { topic, count = 10 } = req.body;
+    if (!topic?.trim()) return error(res, 'Topic is required', 400);
+    const company = await getCompanyAI(req.companyId);
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Suggest ${count} SEO keywords for: ${topic}\n\nReturn a JSON array only: [{ "keyword": "...", "searchVolume": 0, "difficulty": 0, "intent": "informational|commercial|transactional|navigational", "cpc": 0.00 }]` }],
+      system: 'You are an SEO expert. Return only a valid JSON array. searchVolume is estimated monthly US searches. difficulty is 0-100. cpc is in USD.',
+      companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider, maxTokens: 2048,
+    });
+    return success(res, parseAIJson(result.text));
+  } catch (err) { next(err); }
+});
+
+router.post('/ai/competitor', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { name, website, industry } = req.body;
+    if (!name?.trim()) return error(res, 'Competitor name is required', 400);
+    const company = await getCompanyAI(req.companyId);
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Analyze competitor: ${name} (website: ${website || 'unknown'}, industry: ${industry || 'unknown'})\n\nReturn JSON only: { "description": "...", "strengths": "...", "weaknesses": "...", "topKeywords": ["kw1", "kw2", "kw3"], "adPlatforms": ["google", "facebook"] }` }],
+      system: 'You are a competitive intelligence analyst. Return only valid JSON with realistic analysis. topKeywords and adPlatforms must be arrays of strings.',
+      companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider, maxTokens: 1024,
+    });
+    return success(res, parseAIJson(result.text));
   } catch (err) { next(err); }
 });
 

@@ -11,7 +11,7 @@ import {
   TrendingDown, DollarSign, MousePointer2, Users, CheckCircle2,
   Instagram, Twitter, Linkedin, Facebook, Youtube, Edit2, Pause,
   Play, ChevronDown, Search, BarChart3, Building, Link, Tag,
-  ArrowUp, ArrowDown, Minus, Star, AlertTriangle,
+  ArrowUp, ArrowDown, Minus, Star, AlertTriangle, Loader2, X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
@@ -97,6 +97,7 @@ function MarketingPageInner() {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [showCompetitorModal, setShowCompetitorModal] = useState(false);
   const [showKeywordModal, setShowKeywordModal] = useState(false);
+  const [showBulkKeywordModal, setShowBulkKeywordModal] = useState(false);
   const [editCompetitor, setEditCompetitor] = useState<any>(null);
   const [editKeyword, setEditKeyword] = useState<any>(null);
   const [editCampaign, setEditCampaign] = useState<any>(null);
@@ -222,21 +223,28 @@ function MarketingPageInner() {
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Marketing</h1>
           <p className="text-sm text-gray-500 mt-0.5">Campaigns, social posts, landing pages & more</p>
         </div>
-        <button
-          onClick={() => {
-            if (tab === 'campaigns') setShowCampaignModal(true);
-            else if (tab === 'social') setShowPostModal(true);
-            else if (tab === 'pages') setShowPageModal(true);
-            else if (tab === 'forms') setShowFormModal(true);
-            else if (tab === 'activity') setShowActivityModal(true);
-            else if (tab === 'competitors') { setEditCompetitor(null); setShowCompetitorModal(true); }
-            else if (tab === 'keywords') { setEditKeyword(null); setShowKeywordModal(true); }
-          }}
-          className={`flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 ${tab === 'posters' ? 'hidden' : ''}`}
-        >
-          <Plus className="w-4 h-4" />
-          {tab === 'campaigns' ? 'New Campaign' : tab === 'social' ? 'New Post' : tab === 'pages' ? 'New Page' : tab === 'forms' ? 'New Form' : tab === 'competitors' ? 'Add Competitor' : tab === 'keywords' ? 'Add Keyword' : 'Log Activity'}
-        </button>
+        <div className="flex items-center gap-2">
+          {tab === 'keywords' && (
+            <button onClick={() => setShowBulkKeywordModal(true)} className="flex items-center gap-2 px-4 py-2 border border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 rounded-xl text-sm font-medium hover:bg-indigo-50 dark:hover:bg-indigo-900/20">
+              <Sparkles className="w-4 h-4" /> AI Suggest
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (tab === 'campaigns') setShowCampaignModal(true);
+              else if (tab === 'social') setShowPostModal(true);
+              else if (tab === 'pages') setShowPageModal(true);
+              else if (tab === 'forms') setShowFormModal(true);
+              else if (tab === 'activity') setShowActivityModal(true);
+              else if (tab === 'competitors') { setEditCompetitor(null); setShowCompetitorModal(true); }
+              else if (tab === 'keywords') { setEditKeyword(null); setShowKeywordModal(true); }
+            }}
+            className={`flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 ${tab === 'posters' ? 'hidden' : ''}`}
+          >
+            <Plus className="w-4 h-4" />
+            {tab === 'campaigns' ? 'New Campaign' : tab === 'social' ? 'New Post' : tab === 'pages' ? 'New Page' : tab === 'forms' ? 'New Form' : tab === 'competitors' ? 'Add Competitor' : tab === 'keywords' ? 'Add Keyword' : 'Log Activity'}
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -747,6 +755,7 @@ function MarketingPageInner() {
       {showActivityModal && <ActivityModal onClose={() => setShowActivityModal(false)} />}
       {(showCompetitorModal || editCompetitor) && <CompetitorModal competitor={editCompetitor} onClose={() => { setShowCompetitorModal(false); setEditCompetitor(null); }} />}
       {(showKeywordModal || editKeyword) && <KeywordModal keyword={editKeyword} onClose={() => { setShowKeywordModal(false); setEditKeyword(null); }} />}
+      {showBulkKeywordModal && <KeywordBulkModal onClose={() => setShowBulkKeywordModal(false)} />}
     </div>
   );
 }
@@ -756,6 +765,33 @@ export default function MarketingPage() {
     <Suspense fallback={<div className="h-8 w-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mt-20" />}>
       <MarketingPageInner />
     </Suspense>
+  );
+}
+
+// ── AI Assist Widget ──────────────────────────────────────────────────────────
+
+function AIAssist({ placeholder, onGenerate, loading }: { placeholder: string; onGenerate: (text: string) => void; loading: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  if (!open) return (
+    <button type="button" onClick={() => setOpen(true)} className="flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:text-indigo-700 dark:hover:text-indigo-300">
+      <Sparkles className="w-3.5 h-3.5" /> Generate with AI
+    </button>
+  );
+  return (
+    <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 space-y-2">
+      <div className="flex items-center gap-2">
+        <Sparkles className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+        <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300">Generate with AI</span>
+        <button type="button" onClick={() => setOpen(false)} className="ml-auto text-indigo-400 hover:text-indigo-600"><X className="w-3.5 h-3.5" /></button>
+      </div>
+      <textarea value={text} onChange={e => setText(e.target.value)} rows={2} placeholder={placeholder}
+        className="w-full px-3 py-2 rounded-lg border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-gray-800 text-xs outline-none focus:ring-1 focus:ring-indigo-400 resize-none" />
+      <button type="button" disabled={!text.trim() || loading} onClick={() => onGenerate(text)}
+        className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium disabled:opacity-50">
+        {loading ? <><Loader2 className="w-3 h-3 animate-spin" /> Generating…</> : <><Sparkles className="w-3 h-3" /> Generate</>}
+      </button>
+    </div>
   );
 }
 
@@ -782,6 +818,8 @@ function CampaignModal({ campaign, onClose }: { campaign?: any; onClose: () => v
     revenue: campaign?.revenue ?? '',
   });
 
+  const [aiLoading, setAiLoading] = useState(false);
+
   const mutation = useMutation({
     mutationFn: (data: any) => isEdit ? api.put(`/marketing/campaigns/${campaign.id}`, data) : api.post('/marketing/campaigns', data),
     onSuccess: () => {
@@ -798,6 +836,7 @@ function CampaignModal({ campaign, onClose }: { campaign?: any; onClose: () => v
     <Modal onClose={onClose} title={isEdit ? 'Edit Campaign' : 'New Campaign'} subtitle="Track budget, performance, and ROI" icon={Megaphone} iconColor="indigo" size="xl">
       <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="flex flex-col">
         <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
+          {!isEdit && <AIAssist placeholder="Describe your campaign goal, e.g. 'Drive leads for our new SaaS product via Google Ads in Q3'" loading={aiLoading} onGenerate={async (text) => { setAiLoading(true); try { const { data } = await api.post('/marketing/ai/campaign', { goal: text, type: form.type, channel: form.channel }); const d = data.data; setForm(prev => ({ ...prev, name: d.name||prev.name, description: d.description||prev.description, budget: d.budget?String(d.budget):prev.budget, startDate: d.startDate||prev.startDate, endDate: d.endDate||prev.endDate })); toast.success('Campaign plan generated!'); } catch { toast.error('AI generation failed'); } finally { setAiLoading(false); } }} />}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <TextField id="c-name" label="Campaign Name" required name="name" value={form.name} onChange={f} placeholder="Summer Sale 2026" />
@@ -873,6 +912,8 @@ function SocialPostModal({ post, campaigns, onClose }: { post?: any; campaigns: 
     reach: post?.reach ?? '',
   });
 
+  const [aiLoading, setAiLoading] = useState(false);
+
   const mutation = useMutation({
     mutationFn: (data: any) => isEdit ? api.put(`/marketing/social-posts/${post.id}`, data) : api.post('/marketing/social-posts', data),
     onSuccess: () => {
@@ -899,6 +940,8 @@ function SocialPostModal({ post, campaigns, onClose }: { post?: any; campaigns: 
               {POST_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </SelectField>
           </div>
+
+          {!isEdit && <AIAssist placeholder="What's this post about? e.g. 'Announcing our new AI analytics dashboard — faster insights for small teams'" loading={aiLoading} onGenerate={async (text) => { setAiLoading(true); try { const { data } = await api.post('/marketing/ai/social-post', { topic: text, platform: form.platform }); const d = data.data; setForm(prev => ({ ...prev, content: d.content||prev.content, hashtags: d.hashtags||prev.hashtags })); toast.success('Post content generated!'); } catch { toast.error('AI generation failed'); } finally { setAiLoading(false); } }} />}
 
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
@@ -968,6 +1011,7 @@ function SocialPostModal({ post, campaigns, onClose }: { post?: any; campaigns: 
 function PageModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const [form, setForm] = useState({ name: '', slug: '', content: '', isPublished: false });
+  const [aiLoading, setAiLoading] = useState(false);
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/marketing/pages', data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['landing-pages'] }); toast.success('Page created'); onClose(); },
@@ -979,6 +1023,7 @@ function PageModal({ onClose }: { onClose: () => void }) {
         <div className="p-6 space-y-4">
           <TextField id="landing-name" label="Name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') })} />
           <TextField id="landing-slug" label="URL Slug" required value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} placeholder="my-landing-page" />
+          <AIAssist placeholder="Describe your offer, e.g. 'SaaS CRM for small businesses — free 14-day trial, no credit card required'" loading={aiLoading} onGenerate={async (text) => { setAiLoading(true); try { const { data } = await api.post('/marketing/ai/page-copy', { description: text }); const d = data.data; setForm(prev => ({ ...prev, content: d.content||prev.content })); toast.success('Landing page copy generated!'); } catch { toast.error('AI generation failed'); } finally { setAiLoading(false); } }} />
           <TextAreaField id="landing-content" label="Content (HTML/Markdown)" rows={6} value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} className="font-mono text-xs" />
           <label htmlFor="landing-published" className="flex items-center gap-2 cursor-pointer"><input id="landing-published" type="checkbox" checked={form.isPublished} onChange={e => setForm({ ...form, isPublished: e.target.checked })} className="rounded" /><span className="text-sm text-gray-700 dark:text-gray-300">Publish immediately</span></label>
         </div>
@@ -1294,12 +1339,20 @@ function CompetitorModal({ competitor, onClose }: { competitor?: any; onClose: (
     });
   };
 
+  const [aiLoading, setAiLoading] = useState(false);
   const f = (k: string) => ({ value: form[k as keyof typeof form] as string, onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value }) });
 
   return (
     <Modal onClose={onClose} title={competitor ? 'Edit Competitor' : 'Add Competitor'} subtitle="Track a competitor's online presence and metrics" icon={Building} iconColor="indigo" size="2xl">
       <form onSubmit={handleSubmit}>
         <div className="p-6 space-y-4">
+          {!competitor && form.name && (
+            <div className="flex justify-end">
+              <button type="button" disabled={aiLoading} onClick={async () => { setAiLoading(true); try { const { data } = await api.post('/marketing/ai/competitor', { name: form.name, website: form.website, industry: form.industry }); const d = data.data; setForm(prev => ({ ...prev, description: d.description||prev.description, strengths: d.strengths||prev.strengths, weaknesses: d.weaknesses||prev.weaknesses, topKeywords: d.topKeywords?.join(', ')||prev.topKeywords, adPlatforms: d.adPlatforms?.join(', ')||prev.adPlatforms })); toast.success('AI competitor analysis ready!'); } catch { toast.error('AI analysis failed'); } finally { setAiLoading(false); } }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 disabled:opacity-50">
+                {aiLoading ? <><Loader2 className="w-3 h-3 animate-spin" /> Analyzing…</> : <><Sparkles className="w-3 h-3" /> AI Analyze</>}
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <TextField id="comp-name" label="Company Name" required {...f('name')} />
             <TextField id="comp-website" label="Website URL" placeholder="https://competitor.com" {...f('website')} />
@@ -1363,6 +1416,7 @@ function KeywordModal({ keyword, onClose }: { keyword?: any; onClose: () => void
     });
   };
 
+  const [aiLoading, setAiLoading] = useState(false);
   const f = (k: string) => ({ value: form[k as keyof typeof form] as string, onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value }) });
 
   return (
@@ -1370,6 +1424,11 @@ function KeywordModal({ keyword, onClose }: { keyword?: any; onClose: () => void
       <form onSubmit={handleSubmit}>
         <div className="p-6 space-y-4">
           <TextField id="kw-keyword" label="Keyword" required placeholder="e.g. crm software for small business" {...f('keyword')} />
+          {!keyword && form.keyword && (
+            <button type="button" disabled={aiLoading} onClick={async () => { setAiLoading(true); try { const { data } = await api.post('/marketing/ai/keywords', { topic: form.keyword, count: 1 }); const arr = data.data; if (arr?.length) { const d = arr[0]; setForm(prev => ({ ...prev, searchVolume: d.searchVolume?String(d.searchVolume):prev.searchVolume, difficulty: d.difficulty?String(d.difficulty):prev.difficulty, intent: d.intent||prev.intent, cpc: d.cpc?String(d.cpc):prev.cpc })); toast.success('Keyword enriched with AI data!'); } } catch { toast.error('AI enrichment failed'); } finally { setAiLoading(false); } }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-700 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-950/30 disabled:opacity-50">
+              {aiLoading ? <><Loader2 className="w-3 h-3 animate-spin" /> Enriching…</> : <><Sparkles className="w-3 h-3" /> AI Enrich</>}
+            </button>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <TextField id="kw-volume" label="Search Volume / mo" type="number" placeholder="12000" {...f('searchVolume')} />
             <TextField id="kw-difficulty" label="SEO Difficulty (0-100)" type="number" min="0" max="100" placeholder="45" {...f('difficulty')} />
@@ -1400,6 +1459,99 @@ function KeywordModal({ keyword, onClose }: { keyword?: any; onClose: () => void
           </button>
         </ModalFooter>
       </form>
+    </Modal>
+  );
+}
+
+// ── Keyword Bulk AI Modal ─────────────────────────────────────────────────────
+
+function KeywordBulkModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [topic, setTopic] = useState('');
+  const [count, setCount] = useState('10');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const generate = async () => {
+    if (!topic.trim()) return;
+    setGenerating(true);
+    try {
+      const { data } = await api.post('/marketing/ai/keywords', { topic, count: parseInt(count) || 10 });
+      setSuggestions(data.data || []);
+      setSelected(new Set((data.data || []).map((_: any, i: number) => i)));
+    } catch { toast.error('AI generation failed'); }
+    finally { setGenerating(false); }
+  };
+
+  const save = async () => {
+    const toSave = suggestions.filter((_, i) => selected.has(i));
+    if (!toSave.length) return;
+    setSaving(true);
+    try {
+      await Promise.all(toSave.map(kw => api.post('/marketing/keywords', {
+        keyword: kw.keyword, searchVolume: kw.searchVolume || null, difficulty: kw.difficulty || null,
+        cpc: kw.cpc || null, intent: kw.intent || 'informational', status: 'tracking',
+      })));
+      qc.invalidateQueries({ queryKey: ['keywords'] });
+      toast.success(`${toSave.length} keywords added!`);
+      onClose();
+    } catch { toast.error('Failed to save keywords'); }
+    finally { setSaving(false); }
+  };
+
+  const toggleAll = () => {
+    if (selected.size === suggestions.length) setSelected(new Set());
+    else setSelected(new Set(suggestions.map((_, i) => i)));
+  };
+
+  return (
+    <Modal onClose={onClose} title="AI Keyword Suggestions" subtitle="Generate a list of SEO keywords from a topic" icon={Sparkles} iconColor="teal" size="xl">
+      <div className="p-6 space-y-4">
+        <div className="flex gap-3">
+          <input value={topic} onChange={e => setTopic(e.target.value)} onKeyDown={e => e.key === 'Enter' && generate()} placeholder="Topic or niche, e.g. 'project management software for freelancers'" className="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+          <select value={count} onChange={e => setCount(e.target.value)} className="px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none">
+            {['5', '10', '15', '20'].map(n => <option key={n} value={n}>{n} keywords</option>)}
+          </select>
+          <button type="button" disabled={!topic.trim() || generating} onClick={generate} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium disabled:opacity-50">
+            {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</> : <><Sparkles className="w-4 h-4" /> Generate</>}
+          </button>
+        </div>
+
+        {suggestions.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{suggestions.length} suggestions — {selected.size} selected</p>
+              <button type="button" onClick={toggleAll} className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">{selected.size === suggestions.length ? 'Deselect all' : 'Select all'}</button>
+            </div>
+            <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
+              {suggestions.map((kw, i) => (
+                <label key={i} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${selected.has(i) ? 'border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/30'}`}>
+                  <input type="checkbox" checked={selected.has(i)} onChange={() => { const s = new Set(selected); s.has(i) ? s.delete(i) : s.add(i); setSelected(s); }} className="rounded" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{kw.keyword}</p>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
+                      {kw.searchVolume && <span>{kw.searchVolume.toLocaleString()} / mo</span>}
+                      {kw.difficulty != null && <span className={`font-medium ${kw.difficulty >= 70 ? 'text-red-500' : kw.difficulty >= 40 ? 'text-yellow-600' : 'text-green-600'}`}>KD {kw.difficulty}</span>}
+                      {kw.cpc && <span>${Number(kw.cpc).toFixed(2)} CPC</span>}
+                      {kw.intent && <span className="capitalize px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700">{kw.intent}</span>}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      <ModalFooter>
+        <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm">Cancel</button>
+        {suggestions.length > 0 && (
+          <button type="button" disabled={!selected.size || saving} onClick={save} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
+            {saving ? 'Adding…' : `Add ${selected.size} Keyword${selected.size !== 1 ? 's' : ''}`}
+          </button>
+        )}
+      </ModalFooter>
     </Modal>
   );
 }
