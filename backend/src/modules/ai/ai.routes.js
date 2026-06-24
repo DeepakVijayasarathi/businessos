@@ -657,6 +657,96 @@ const AGENT_TOOLS = [
       },
     },
   },
+  {
+    name: 'bulk_update_leads',
+    description: 'Bulk update status for multiple leads at once — e.g. mark all new leads as contacted, or archive all unqualified leads',
+    input_schema: {
+      type: 'object',
+      properties: {
+        fromStatus: { type: 'string', enum: ['new', 'contacted', 'qualified', 'unqualified'], description: 'Only update leads with this current status' },
+        toStatus: { type: 'string', enum: ['new', 'contacted', 'qualified', 'unqualified', 'converted'], description: 'New status to set' },
+        search: { type: 'string', description: 'Optional: only update leads matching this search term (name or company)' },
+        limit: { type: 'number', description: 'Max leads to update (default 100)' },
+      },
+      required: ['toStatus'],
+    },
+  },
+  {
+    name: 'mark_invoice_paid',
+    description: 'Mark one or more invoices as paid',
+    input_schema: {
+      type: 'object',
+      properties: {
+        invoiceNo: { type: 'string', description: 'Specific invoice number to mark paid' },
+        clientName: { type: 'string', description: 'Mark all unpaid invoices for this client as paid' },
+        all_overdue: { type: 'boolean', description: 'If true, mark ALL overdue invoices as paid' },
+      },
+    },
+  },
+  {
+    name: 'get_overdue_summary',
+    description: 'Get a summary of everything overdue across all modules: invoices, support tickets, and tasks',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_pipeline_summary',
+    description: 'Get a breakdown of deals by pipeline stage with counts and total values',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'create_followup',
+    description: 'Schedule a follow-up task linked to a lead, deal, or contact',
+    input_schema: {
+      type: 'object',
+      properties: {
+        note: { type: 'string', description: 'What the follow-up is about' },
+        dueDate: { type: 'string', description: 'Due date YYYY-MM-DD (default: tomorrow)' },
+        leadName: { type: 'string', description: 'Lead name to link the follow-up to' },
+        dealTitle: { type: 'string', description: 'Deal title to link the follow-up to' },
+        priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'], description: 'Priority (default: medium)' },
+      },
+      required: ['note'],
+    },
+  },
+  {
+    name: 'list_tasks',
+    description: 'List tasks with optional filters',
+    input_schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['todo', 'in_progress', 'review', 'done', 'cancelled'] },
+        priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
+        limit: { type: 'number', description: 'Max results (default 5)' },
+      },
+    },
+  },
+  {
+    name: 'resolve_ticket',
+    description: 'Resolve or close a support ticket',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ticketNo: { type: 'string', description: 'Ticket number e.g. TKT-00001' },
+        subject: { type: 'string', description: 'Ticket subject to find and resolve (if ticketNo unknown)' },
+        status: { type: 'string', enum: ['resolved', 'closed'], description: 'New status (default: resolved)' },
+      },
+    },
+  },
+  {
+    name: 'add_note',
+    description: 'Add a note or activity log entry to a lead, contact, or deal',
+    input_schema: {
+      type: 'object',
+      properties: {
+        note: { type: 'string', description: 'Note content' },
+        type: { type: 'string', enum: ['note', 'call', 'email', 'meeting', 'whatsapp'], description: 'Activity type (default: note)' },
+        leadName: { type: 'string', description: 'Lead name to attach note to' },
+        dealTitle: { type: 'string', description: 'Deal title to attach note to' },
+        contactName: { type: 'string', description: 'Contact name to attach note to' },
+      },
+      required: ['note'],
+    },
+  },
 ];
 
 async function executeAgentTool(name, input, req) {
@@ -954,9 +1044,154 @@ async function executeAgentTool(name, input, req) {
       });
       return { employees: employees.map(e => ({ id: e.id, code: e.employeeCode, name: `${e.user?.firstName || ''} ${e.user?.lastName || ''}`.trim(), email: e.user?.email, jobTitle: e.jobTitle, jobType: e.jobType, status: e.status })), count: employees.length };
     }
+    case 'bulk_update_leads': {
+      const mode = 'insensitive';
+      const where = {
+        companyId: cid,
+        ...(input.fromStatus && { status: input.fromStatus }),
+        ...(input.search && { OR: [{ firstName: { contains: input.search, mode } }, { lastName: { contains: input.search, mode } }, { company: { contains: input.search, mode } }] }),
+      };
+      const leads = await prisma.lead.findMany({ where, take: input.limit || 100, select: { id: true } });
+      if (!leads.length) return { message: 'No leads matched the criteria.', updated: 0 };
+      await prisma.lead.updateMany({ where: { id: { in: leads.map(l => l.id) } }, data: { status: input.toStatus } });
+      return { success: true, updated: leads.length, message: `${leads.length} lead(s) updated to status: ${input.toStatus}` };
+    }
+    case 'mark_invoice_paid': {
+      const now = new Date();
+      let where = { companyId: cid, status: { in: ['sent', 'overdue', 'draft'] } };
+      if (input.invoiceNo) where = { ...where, invoiceNo: input.invoiceNo };
+      else if (input.clientName) where = { ...where, clientName: { contains: input.clientName, mode: 'insensitive' } };
+      else if (!input.all_overdue) return { error: 'Specify invoiceNo, clientName, or set all_overdue: true.' };
+      const invoices = await prisma.invoice.findMany({ where, select: { id: true, invoiceNo: true, clientName: true, total: true } });
+      if (!invoices.length) return { message: 'No matching unpaid invoices found.' };
+      await prisma.invoice.updateMany({ where: { id: { in: invoices.map(i => i.id) } }, data: { status: 'paid', paidAt: now } });
+      return { success: true, marked: invoices.length, invoices: invoices.map(i => ({ invoiceNo: i.invoiceNo, client: i.clientName, amount: Number(i.total) })), message: `${invoices.length} invoice(s) marked as paid` };
+    }
+    case 'get_overdue_summary': {
+      const now = new Date();
+      const [overdueInvoices, openTickets, overdueTasks] = await Promise.all([
+        prisma.invoice.findMany({ where: { companyId: cid, status: { in: ['sent', 'overdue'] }, dueDate: { lt: now } }, select: { invoiceNo: true, clientName: true, total: true, dueDate: true }, take: 10, orderBy: { dueDate: 'asc' } }),
+        prisma.ticket.findMany({ where: { companyId: cid, status: { in: ['open', 'pending'] }, priority: 'urgent' }, select: { ticketNo: true, subject: true, createdAt: true }, take: 10 }),
+        prisma.task.findMany({ where: { companyId: cid, status: { in: ['todo', 'in_progress'] }, dueDate: { lt: now } }, select: { title: true, priority: true, dueDate: true }, take: 10 }),
+      ]);
+      const totalOverdue = overdueInvoices.reduce((s, i) => s + Number(i.total), 0);
+      return {
+        overdueInvoices: overdueInvoices.map(i => ({ invoiceNo: i.invoiceNo, client: i.clientName, amount: Number(i.total), daysOverdue: Math.floor((now.getTime() - new Date(i.dueDate).getTime()) / 86400000) })),
+        urgentTickets: openTickets.map(t => ({ ticketNo: t.ticketNo, subject: t.subject })),
+        overdueTasks: overdueTasks.map(t => ({ title: t.title, priority: t.priority, daysOverdue: Math.floor((now.getTime() - new Date(t.dueDate).getTime()) / 86400000) })),
+        totalOverdueAmount: totalOverdue,
+        summary: { overdueInvoices: overdueInvoices.length, urgentTickets: openTickets.length, overdueTasks: overdueTasks.length },
+      };
+    }
+    case 'get_pipeline_summary': {
+      const pipeline = await prisma.pipeline.findFirst({
+        where: { companyId: cid },
+        include: { stages: { orderBy: { order: 'asc' }, include: { deals: { where: { status: 'open' }, select: { value: true } } } } },
+      });
+      if (!pipeline) return { error: 'No pipeline configured.' };
+      const stages = pipeline.stages.map(s => ({
+        name: s.name,
+        deals: s.deals.length,
+        value: s.deals.reduce((sum, d) => sum + Number(d.value || 0), 0),
+      }));
+      const totalDeals = stages.reduce((s, st) => s + st.deals, 0);
+      const totalValue = stages.reduce((s, st) => s + st.value, 0);
+      return { pipelineName: pipeline.name, stages, totalDeals, totalValue };
+    }
+    case 'create_followup': {
+      const mode = 'insensitive';
+      const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+      const dueDate = input.dueDate ? new Date(input.dueDate) : tomorrow;
+      let leadId = null, dealId = null;
+      if (input.leadName) {
+        const lead = await prisma.lead.findFirst({ where: { companyId: cid, OR: [{ firstName: { contains: input.leadName, mode } }, { lastName: { contains: input.leadName, mode } }] }, select: { id: true } });
+        leadId = lead?.id || null;
+      }
+      if (input.dealTitle) {
+        const deal = await prisma.deal.findFirst({ where: { companyId: cid, title: { contains: input.dealTitle, mode } }, select: { id: true } });
+        dealId = deal?.id || null;
+      }
+      const task = await prisma.task.create({
+        data: { title: `Follow-up: ${input.note}`, description: input.note, priority: input.priority || 'medium', dueDate, status: 'todo', companyId: cid, assigneeId: uid, creatorId: uid, leadId, dealId },
+      });
+      if (leadId || dealId) {
+        await prisma.activity.create({
+          data: { companyId: cid, type: 'note', subject: `Follow-up scheduled`, description: input.note, userId: uid, leadId, dealId, scheduledAt: dueDate },
+        });
+      }
+      return { success: true, id: task.id, message: `Follow-up task created for ${new Date(dueDate).toLocaleDateString()}${leadId ? ' (linked to lead)' : ''}${dealId ? ' (linked to deal)' : ''}` };
+    }
+    case 'list_tasks': {
+      const tasks = await prisma.task.findMany({
+        where: { companyId: cid, ...(input.status && { status: input.status }), ...(input.priority && { priority: input.priority }) },
+        take: input.limit || 5,
+        orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }],
+        select: { id: true, title: true, status: true, priority: true, dueDate: true },
+      });
+      return { tasks, count: tasks.length };
+    }
+    case 'resolve_ticket': {
+      const mode = 'insensitive';
+      const ticket = await prisma.ticket.findFirst({
+        where: { companyId: cid, ...(input.ticketNo ? { ticketNo: input.ticketNo } : { subject: { contains: input.subject || '', mode } }), status: { notIn: ['resolved', 'closed'] } },
+        select: { id: true, ticketNo: true, subject: true },
+      });
+      if (!ticket) return { error: 'Ticket not found or already resolved.' };
+      const newStatus = input.status || 'resolved';
+      await prisma.ticket.update({ where: { id: ticket.id }, data: { status: newStatus, resolvedAt: new Date() } });
+      return { success: true, ticketNo: ticket.ticketNo, message: `Ticket ${ticket.ticketNo} marked as ${newStatus}: "${ticket.subject}"` };
+    }
+    case 'add_note': {
+      const mode = 'insensitive';
+      let leadId = null, dealId = null, contactId = null;
+      if (input.leadName) {
+        const lead = await prisma.lead.findFirst({ where: { companyId: cid, OR: [{ firstName: { contains: input.leadName, mode } }, { lastName: { contains: input.leadName, mode } }] }, select: { id: true } });
+        leadId = lead?.id || null;
+      }
+      if (input.dealTitle) {
+        const deal = await prisma.deal.findFirst({ where: { companyId: cid, title: { contains: input.dealTitle, mode } }, select: { id: true } });
+        dealId = deal?.id || null;
+      }
+      if (input.contactName) {
+        const contact = await prisma.contact.findFirst({ where: { companyId: cid, OR: [{ firstName: { contains: input.contactName, mode } }, { lastName: { contains: input.contactName, mode } }] }, select: { id: true } });
+        contactId = contact?.id || null;
+      }
+      if (!leadId && !dealId && !contactId) return { error: 'Could not find the specified lead, deal, or contact. Please check the name.' };
+      const activity = await prisma.activity.create({
+        data: { companyId: cid, type: input.type || 'note', subject: input.note.slice(0, 100), description: input.note, userId: uid, leadId, dealId, contactId, completedAt: new Date() },
+      });
+      return { success: true, id: activity.id, message: `Note added${leadId ? ' to lead' : ''}${dealId ? ' to deal' : ''}${contactId ? ' to contact' : ''}` };
+    }
     default:
       return { error: `Unknown tool: ${name}` };
   }
+}
+
+function getAgentSuggestions(actions) {
+  const used = new Set(actions.map(a => a.tool));
+  const s = [];
+  if (used.has('get_stats') || used.has('get_overdue_summary')) {
+    s.push('Show my pipeline summary', 'Send payment reminders to all overdue clients', 'List urgent tickets');
+  }
+  if (used.has('list_leads') || used.has('create_lead')) {
+    s.push('Convert this lead to a contact and deal', 'Add a follow-up task for this lead', 'Bulk mark all new leads as contacted');
+  }
+  if (used.has('list_invoices') || used.has('create_invoice')) {
+    s.push('Send payment reminders', 'Show revenue report last 6 months', 'Mark overdue invoices as paid');
+  }
+  if (used.has('get_pipeline_summary') || used.has('create_deal') || used.has('update_deal')) {
+    s.push("Show all won deals this month", 'Create a follow-up for the top deal', 'List leads to convert to deals');
+  }
+  if (used.has('create_ticket') || used.has('list_tickets')) {
+    s.push('Resolve all urgent tickets', 'Show overdue summary', 'List open helpdesk tickets');
+  }
+  if (used.has('get_revenue_report')) {
+    s.push("Show today's stats", 'List unpaid invoices', 'Get overdue summary');
+  }
+  if (used.has('convert_lead')) {
+    s.push('Add a note to the new contact', 'Schedule a follow-up for the new deal', 'Create an invoice for this client');
+  }
+  return [...new Set(s)].slice(0, 3);
 }
 
 // POST /ai/agent — Agentic AI with tool use
@@ -1030,7 +1265,8 @@ Rules:
       { role: 'assistant', content: assistantText },
     ].slice(-20);
 
-    return success(res, { message: assistantText, actions, history: nextHistory });
+    const suggestions = getAgentSuggestions(actions);
+    return success(res, { message: assistantText, actions, history: nextHistory, suggestions });
   } catch (err) { next(err); }
 });
 
