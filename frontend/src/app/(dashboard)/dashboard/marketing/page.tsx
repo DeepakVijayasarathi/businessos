@@ -10,7 +10,8 @@ import {
   Mail, Calendar, MoreHorizontal, Sparkles, Target, TrendingUp,
   TrendingDown, DollarSign, MousePointer2, Users, CheckCircle2,
   Instagram, Twitter, Linkedin, Facebook, Youtube, Edit2, Pause,
-  Play, ChevronDown,
+  Play, ChevronDown, Search, BarChart3, Building, Link, Tag,
+  ArrowUp, ArrowDown, Minus, Star, AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
@@ -19,7 +20,7 @@ import { POSTER_TEMPLATES, PosterPreview, type PosterData } from '@/components/m
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const TABS = ['campaigns', 'social', 'pages', 'forms', 'posters', 'activity'] as const;
+const TABS = ['campaigns', 'social', 'competitors', 'keywords', 'pages', 'forms', 'posters', 'activity'] as const;
 type Tab = typeof TABS[number];
 
 const CAMPAIGN_TYPES = [
@@ -94,6 +95,10 @@ function MarketingPageInner() {
   const [showPageModal, setShowPageModal] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showCompetitorModal, setShowCompetitorModal] = useState(false);
+  const [showKeywordModal, setShowKeywordModal] = useState(false);
+  const [editCompetitor, setEditCompetitor] = useState<any>(null);
+  const [editKeyword, setEditKeyword] = useState<any>(null);
   const [editCampaign, setEditCampaign] = useState<any>(null);
   const [editPost, setEditPost] = useState<any>(null);
   const [selectedForm, setSelectedForm] = useState<any>(null);
@@ -144,6 +149,28 @@ function MarketingPageInner() {
     queryKey: ['marketing-activities'],
     enabled: tab === 'activity',
     queryFn: async () => { const { data } = await api.get('/marketing/activities'); return data.data; },
+  });
+
+  const { data: competitors, isLoading: competitorsLoading } = useQuery({
+    queryKey: ['competitors'],
+    enabled: tab === 'competitors',
+    queryFn: async () => { const { data } = await api.get('/marketing/competitors'); return data.data as any[]; },
+  });
+
+  const { data: keywords, isLoading: keywordsLoading } = useQuery({
+    queryKey: ['keywords'],
+    enabled: tab === 'keywords',
+    queryFn: async () => { const { data } = await api.get('/marketing/keywords'); return data.data as any[]; },
+  });
+
+  const deleteCompetitor = useMutation({
+    mutationFn: (id: string) => api.delete(`/marketing/competitors/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competitors'] }); toast.success('Competitor removed'); },
+  });
+
+  const deleteKeyword = useMutation({
+    mutationFn: (id: string) => api.delete(`/marketing/keywords/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['keywords'] }); toast.success('Keyword removed'); },
   });
 
   const deleteCampaign = useMutation({
@@ -202,11 +229,13 @@ function MarketingPageInner() {
             else if (tab === 'pages') setShowPageModal(true);
             else if (tab === 'forms') setShowFormModal(true);
             else if (tab === 'activity') setShowActivityModal(true);
+            else if (tab === 'competitors') { setEditCompetitor(null); setShowCompetitorModal(true); }
+            else if (tab === 'keywords') { setEditKeyword(null); setShowKeywordModal(true); }
           }}
           className={`flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 ${tab === 'posters' ? 'hidden' : ''}`}
         >
           <Plus className="w-4 h-4" />
-          {tab === 'campaigns' ? 'New Campaign' : tab === 'social' ? 'New Post' : tab === 'pages' ? 'New Page' : tab === 'forms' ? 'New Form' : 'Log Activity'}
+          {tab === 'campaigns' ? 'New Campaign' : tab === 'social' ? 'New Post' : tab === 'pages' ? 'New Page' : tab === 'forms' ? 'New Form' : tab === 'competitors' ? 'Add Competitor' : tab === 'keywords' ? 'Add Keyword' : 'Log Activity'}
         </button>
       </div>
 
@@ -218,7 +247,7 @@ function MarketingPageInner() {
             onClick={() => switchTab(t)}
             className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all ${tab === t ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
           >
-            {t === 'social' ? 'Social Posts' : t === 'activity' ? 'Activity' : t.charAt(0).toUpperCase() + t.slice(1)}
+            {t === 'social' ? 'Social Posts' : t === 'activity' ? 'Activity' : t === 'competitors' ? 'Competitors' : t === 'keywords' ? 'Keywords' : t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
@@ -388,6 +417,175 @@ function MarketingPageInner() {
         </div>
       )}
 
+      {/* ── Competitors ───────────────────────────────────────── */}
+      {tab === 'competitors' && (
+        <div className="space-y-4">
+          {/* Summary */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Tracked', value: competitors?.length || 0, icon: Building, color: 'text-indigo-500' },
+              { label: 'Active', value: competitors?.filter((c: any) => c.status === 'active').length || 0, icon: CheckCircle2, color: 'text-green-500' },
+              { label: 'Avg DA', value: competitors?.length ? Math.round((competitors as any[]).reduce((s: number, c: any) => s + (c.domainAuthority || 0), 0) / competitors.length) : '—', icon: Star, color: 'text-yellow-500' },
+              { label: 'Avg Traffic', value: competitors?.length ? Math.round((competitors as any[]).reduce((s: number, c: any) => s + (c.monthlyTraffic || 0), 0) / competitors.length).toLocaleString() : '—', icon: Users, color: 'text-blue-500' },
+            ].map(k => (
+              <div key={k.label} className="glass-card rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-gray-500">{k.label}</p>
+                  <k.icon className={`w-4 h-4 ${k.color}`} />
+                </div>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">{k.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {competitorsLoading ? (
+            <div className="grid md:grid-cols-2 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-52 glass-card rounded-2xl animate-pulse" />)}
+            </div>
+          ) : !competitors?.length ? (
+            <div className="glass-card rounded-2xl p-14 text-center text-gray-400">
+              <Building className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-medium mb-1">No competitors tracked yet</p>
+              <p className="text-xs">Add competitors to monitor their traffic, keywords, and social presence</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              {(competitors as any[]).map((c: any) => (
+                <div key={c.id} className="glass-card rounded-2xl p-5 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{c.name}</h3>
+                      {c.website && <a href={c.website} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-500 hover:underline flex items-center gap-0.5 mt-0.5"><Link className="w-3 h-3" />{c.website.replace(/https?:\/\//, '')}</a>}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => { setEditCompetitor(c); setShowCompetitorModal(true); }} className="p-1.5 text-gray-400 hover:text-indigo-500 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"><Edit2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => { if (confirm('Remove competitor?')) deleteCompetitor.mutate(c.id); }} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2">
+                      <p className="text-xs text-gray-400">Traffic/mo</p>
+                      <p className="font-semibold text-sm text-gray-900 dark:text-white">{c.monthlyTraffic ? c.monthlyTraffic.toLocaleString() : '—'}</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2">
+                      <p className="text-xs text-gray-400">Domain Auth</p>
+                      <p className="font-semibold text-sm text-gray-900 dark:text-white">{c.domainAuthority ?? '—'}</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2">
+                      <p className="text-xs text-gray-400">Industry</p>
+                      <p className="font-semibold text-xs text-gray-900 dark:text-white truncate">{c.industry || '—'}</p>
+                    </div>
+                  </div>
+
+                  {c.topKeywords?.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {c.topKeywords.slice(0, 5).map((kw: string) => (
+                        <span key={kw} className="text-xs px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-full">{kw}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  {c.strengths && <p className="text-xs text-green-600 dark:text-green-400"><span className="font-medium">Strengths:</span> {c.strengths}</p>}
+                  {c.weaknesses && <p className="text-xs text-red-500"><span className="font-medium">Weaknesses:</span> {c.weaknesses}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Keyword Research ───────────────────────────────────── */}
+      {tab === 'keywords' && (
+        <div className="space-y-4">
+          {/* KPI summary */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Total Keywords', value: keywords?.length || 0, icon: Search, color: 'text-indigo-500' },
+              { label: 'Ranking', value: keywords?.filter((k: any) => k.status === 'ranking').length || 0, icon: ArrowUp, color: 'text-green-500' },
+              { label: 'Optimizing', value: keywords?.filter((k: any) => k.status === 'optimizing').length || 0, icon: TrendingUp, color: 'text-yellow-500' },
+              { label: 'Not Ranking', value: keywords?.filter((k: any) => k.status === 'not_ranking').length || 0, icon: ArrowDown, color: 'text-red-500' },
+            ].map(k => (
+              <div key={k.label} className="glass-card rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-gray-500">{k.label}</p>
+                  <k.icon className={`w-4 h-4 ${k.color}`} />
+                </div>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">{k.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {keywordsLoading ? (
+            <div className="glass-card rounded-2xl p-6 space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-10 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />)}
+            </div>
+          ) : !keywords?.length ? (
+            <div className="glass-card rounded-2xl p-14 text-center text-gray-400">
+              <Search className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-medium mb-1">No keywords tracked yet</p>
+              <p className="text-xs">Add keywords to track rankings, search volume, and SEO difficulty</p>
+            </div>
+          ) : (
+            <div className="glass-card rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                    <tr>
+                      {['Keyword', 'Volume', 'Difficulty', 'CPC', 'Rank', 'Intent', 'Status', ''].map(h => (
+                        <th key={h} className="text-left text-xs font-medium text-gray-500 px-4 py-3">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {(keywords as any[]).map((kw: any) => (
+                      <tr key={kw.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900 dark:text-white">{kw.keyword}</p>
+                          {kw.targetUrl && <a href={kw.targetUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-400 hover:underline truncate block max-w-[180px]">{kw.targetUrl}</a>}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{kw.searchVolume ? kw.searchVolume.toLocaleString() : '—'}</td>
+                        <td className="px-4 py-3">
+                          {kw.difficulty != null ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${kw.difficulty >= 70 ? 'bg-red-500' : kw.difficulty >= 40 ? 'bg-yellow-500' : 'bg-green-500'}`} style={{ width: `${kw.difficulty}%` }} />
+                              </div>
+                              <span className="text-xs">{kw.difficulty}</span>
+                            </div>
+                          ) : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{kw.cpc ? `$${Number(kw.cpc).toFixed(2)}` : '—'}</td>
+                        <td className="px-4 py-3">
+                          {kw.currentRank ? (
+                            <div className="flex items-center gap-1">
+                              <span className={`font-semibold ${kw.currentRank <= 10 ? 'text-green-600' : kw.currentRank <= 30 ? 'text-yellow-600' : 'text-red-500'}`}>#{kw.currentRank}</span>
+                              {kw.targetRank && <span className="text-xs text-gray-400">→ #{kw.targetRank}</span>}
+                            </div>
+                          ) : <span className="text-gray-400 text-xs">Not ranked</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${kw.intent === 'transactional' ? 'bg-green-100 text-green-700' : kw.intent === 'commercial' ? 'bg-blue-100 text-blue-700' : kw.intent === 'navigational' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>{kw.intent}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${kw.status === 'ranking' ? 'bg-green-100 text-green-700' : kw.status === 'optimizing' ? 'bg-yellow-100 text-yellow-700' : kw.status === 'not_ranking' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>{kw.status?.replace('_', ' ')}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => { setEditKeyword(kw); setShowKeywordModal(true); }} className="p-1.5 text-gray-400 hover:text-indigo-500 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"><Edit2 className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => { if (confirm('Remove keyword?')) deleteKeyword.mutate(kw.id); }} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Landing Pages ─────────────────────────────────────── */}
       {tab === 'pages' && (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -547,6 +745,8 @@ function MarketingPageInner() {
       {showPageModal && <PageModal onClose={() => setShowPageModal(false)} />}
       {showFormModal && <FormModal onClose={() => setShowFormModal(false)} />}
       {showActivityModal && <ActivityModal onClose={() => setShowActivityModal(false)} />}
+      {(showCompetitorModal || editCompetitor) && <CompetitorModal competitor={editCompetitor} onClose={() => { setShowCompetitorModal(false); setEditCompetitor(null); }} />}
+      {(showKeywordModal || editKeyword) && <KeywordModal keyword={editKeyword} onClose={() => { setShowKeywordModal(false); setEditKeyword(null); }} />}
     </div>
   );
 }
@@ -1053,6 +1253,153 @@ function PosterDesigner({ onClose }: { onClose: () => void }) {
           {saveMutation.isPending ? 'Saving…' : 'Save Poster'}
         </button>
       </ModalFooter>
+    </Modal>
+  );
+}
+
+// ── CompetitorModal ───────────────────────────────────────────────────────────
+
+function CompetitorModal({ competitor, onClose }: { competitor?: any; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    name: competitor?.name || '',
+    website: competitor?.website || '',
+    industry: competitor?.industry || '',
+    description: competitor?.description || '',
+    monthlyTraffic: competitor?.monthlyTraffic || '',
+    domainAuthority: competitor?.domainAuthority || '',
+    topKeywords: competitor?.topKeywords?.join(', ') || '',
+    adPlatforms: competitor?.adPlatforms?.join(', ') || '',
+    strengths: competitor?.strengths || '',
+    weaknesses: competitor?.weaknesses || '',
+    notes: competitor?.notes || '',
+  });
+
+  const mutation = useMutation({
+    mutationFn: (data: any) => competitor
+      ? api.put(`/marketing/competitors/${competitor.id}`, data)
+      : api.post('/marketing/competitors', data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['competitors'] }); toast.success(competitor ? 'Competitor updated' : 'Competitor added'); onClose(); },
+    onError: () => toast.error('Failed to save competitor'),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({
+      ...form,
+      monthlyTraffic: form.monthlyTraffic ? parseInt(String(form.monthlyTraffic)) : null,
+      domainAuthority: form.domainAuthority ? parseInt(String(form.domainAuthority)) : null,
+      topKeywords: form.topKeywords ? form.topKeywords.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+      adPlatforms: form.adPlatforms ? form.adPlatforms.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+    });
+  };
+
+  const f = (k: string) => ({ value: form[k as keyof typeof form] as string, onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value }) });
+
+  return (
+    <Modal onClose={onClose} title={competitor ? 'Edit Competitor' : 'Add Competitor'} subtitle="Track a competitor's online presence and metrics" icon={Building} iconColor="indigo" size="2xl">
+      <form onSubmit={handleSubmit}>
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <TextField id="comp-name" label="Company Name" required {...f('name')} />
+            <TextField id="comp-website" label="Website URL" placeholder="https://competitor.com" {...f('website')} />
+            <TextField id="comp-industry" label="Industry" placeholder="SaaS, E-commerce..." {...f('industry')} />
+            <TextField id="comp-traffic" label="Monthly Traffic (est.)" type="number" placeholder="50000" {...f('monthlyTraffic')} />
+            <TextField id="comp-da" label="Domain Authority (0-100)" type="number" min="0" max="100" placeholder="45" {...f('domainAuthority')} />
+            <TextField id="comp-adplatforms" label="Ad Platforms (comma-separated)" placeholder="google, facebook, tiktok" {...f('adPlatforms')} />
+          </div>
+          <TextField id="comp-keywords" label="Top Keywords (comma-separated)" placeholder="crm software, sales tool, leads management" {...f('topKeywords')} />
+          <TextAreaField id="comp-strengths" label="Strengths" rows={2} {...f('strengths')} />
+          <TextAreaField id="comp-weaknesses" label="Weaknesses / Gaps" rows={2} {...f('weaknesses')} />
+          <TextAreaField id="comp-notes" label="Notes" rows={2} {...f('notes')} />
+        </div>
+        <ModalFooter>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm">Cancel</button>
+          <button type="submit" disabled={!form.name || mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
+            {mutation.isPending ? 'Saving...' : competitor ? 'Update' : 'Add Competitor'}
+          </button>
+        </ModalFooter>
+      </form>
+    </Modal>
+  );
+}
+
+// ── KeywordModal ──────────────────────────────────────────────────────────────
+
+function KeywordModal({ keyword, onClose }: { keyword?: any; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    keyword: keyword?.keyword || '',
+    searchVolume: keyword?.searchVolume || '',
+    difficulty: keyword?.difficulty || '',
+    cpc: keyword?.cpc || '',
+    currentRank: keyword?.currentRank || '',
+    targetRank: keyword?.targetRank || '',
+    targetUrl: keyword?.targetUrl || '',
+    intent: keyword?.intent || 'informational',
+    status: keyword?.status || 'tracking',
+    tags: keyword?.tags?.join(', ') || '',
+    notes: keyword?.notes || '',
+  });
+
+  const mutation = useMutation({
+    mutationFn: (data: any) => keyword
+      ? api.put(`/marketing/keywords/${keyword.id}`, data)
+      : api.post('/marketing/keywords', data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['keywords'] }); toast.success(keyword ? 'Keyword updated' : 'Keyword added'); onClose(); },
+    onError: () => toast.error('Failed to save keyword'),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({
+      ...form,
+      searchVolume: form.searchVolume ? parseInt(String(form.searchVolume)) : null,
+      difficulty: form.difficulty ? parseInt(String(form.difficulty)) : null,
+      cpc: form.cpc ? parseFloat(String(form.cpc)) : null,
+      currentRank: form.currentRank ? parseInt(String(form.currentRank)) : null,
+      targetRank: form.targetRank ? parseInt(String(form.targetRank)) : null,
+      tags: form.tags ? form.tags.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+    });
+  };
+
+  const f = (k: string) => ({ value: form[k as keyof typeof form] as string, onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value }) });
+
+  return (
+    <Modal onClose={onClose} title={keyword ? 'Edit Keyword' : 'Add Keyword'} subtitle="Track a keyword's ranking and SEO metrics" icon={Search} iconColor="teal" size="xl">
+      <form onSubmit={handleSubmit}>
+        <div className="p-6 space-y-4">
+          <TextField id="kw-keyword" label="Keyword" required placeholder="e.g. crm software for small business" {...f('keyword')} />
+          <div className="grid grid-cols-2 gap-4">
+            <TextField id="kw-volume" label="Search Volume / mo" type="number" placeholder="12000" {...f('searchVolume')} />
+            <TextField id="kw-difficulty" label="SEO Difficulty (0-100)" type="number" min="0" max="100" placeholder="45" {...f('difficulty')} />
+            <TextField id="kw-cpc" label="CPC ($)" type="number" step="0.01" placeholder="2.50" {...f('cpc')} />
+            <TextField id="kw-currentRank" label="Current Rank" type="number" placeholder="18" {...f('currentRank')} />
+            <TextField id="kw-targetRank" label="Target Rank" type="number" placeholder="3" {...f('targetRank')} />
+            <SelectField id="kw-intent" label="Search Intent" {...f('intent')}>
+              <option value="informational">Informational</option>
+              <option value="navigational">Navigational</option>
+              <option value="commercial">Commercial</option>
+              <option value="transactional">Transactional</option>
+            </SelectField>
+            <SelectField id="kw-status" label="Status" {...f('status')}>
+              <option value="tracking">Tracking</option>
+              <option value="optimizing">Optimizing</option>
+              <option value="ranking">Ranking (Top 10)</option>
+              <option value="not_ranking">Not Ranking</option>
+            </SelectField>
+            <TextField id="kw-tags" label="Tags (comma-separated)" placeholder="seo, product, blog" {...f('tags')} />
+          </div>
+          <TextField id="kw-targetUrl" label="Target URL" placeholder="https://yoursite.com/page" {...f('targetUrl')} />
+          <TextAreaField id="kw-notes" label="Notes / Content Ideas" rows={2} {...f('notes')} />
+        </div>
+        <ModalFooter>
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm">Cancel</button>
+          <button type="submit" disabled={!form.keyword || mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
+            {mutation.isPending ? 'Saving...' : keyword ? 'Update' : 'Add Keyword'}
+          </button>
+        </ModalFooter>
+      </form>
     </Modal>
   );
 }

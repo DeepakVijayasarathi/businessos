@@ -382,4 +382,95 @@ router.delete('/social-posts/:id', authenticate, sameCompany, async (req, res, n
   } catch (err) { next(err); }
 });
 
+// ── COMPETITOR ANALYSIS ──────────────────────────────────────
+
+router.get('/competitors', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const competitors = await prisma.competitor.findMany({
+      where: { companyId: req.companyId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return success(res, competitors);
+  } catch (err) { next(err); }
+});
+
+router.post('/competitors', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const FIELDS = ['name', 'website', 'industry', 'description', 'monthlyTraffic', 'domainAuthority', 'socialFollowers', 'adPlatforms', 'topKeywords', 'strengths', 'weaknesses', 'notes', 'status'];
+    const competitor = await prisma.competitor.create({
+      data: { ...pick(req.body, FIELDS), companyId: req.companyId, lastUpdated: new Date() },
+    });
+    return created(res, competitor, 'Competitor added');
+  } catch (err) { next(err); }
+});
+
+router.put('/competitors/:id', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const existing = await prisma.competitor.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Competitor not found');
+    const FIELDS = ['name', 'website', 'industry', 'description', 'monthlyTraffic', 'domainAuthority', 'socialFollowers', 'adPlatforms', 'topKeywords', 'strengths', 'weaknesses', 'notes', 'status'];
+    const competitor = await prisma.competitor.update({
+      where: { id: req.params.id },
+      data: { ...pick(req.body, FIELDS), lastUpdated: new Date() },
+    });
+    return success(res, competitor, 'Competitor updated');
+  } catch (err) { next(err); }
+});
+
+router.delete('/competitors/:id', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const existing = await prisma.competitor.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Competitor not found');
+    await prisma.competitor.delete({ where: { id: req.params.id } });
+    return success(res, {}, 'Competitor deleted');
+  } catch (err) { next(err); }
+});
+
+// ── KEYWORD RESEARCH ─────────────────────────────────────────
+
+router.get('/keywords', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { status, intent, tag } = req.query;
+    const keywords = await prisma.keywordResearch.findMany({
+      where: {
+        companyId: req.companyId,
+        ...(status && { status }),
+        ...(intent && { intent }),
+        ...(tag && { tags: { has: tag } }),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return success(res, keywords);
+  } catch (err) { next(err); }
+});
+
+router.post('/keywords', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const FIELDS = ['keyword', 'searchVolume', 'difficulty', 'cpc', 'currentRank', 'targetRank', 'targetUrl', 'intent', 'status', 'tags', 'notes'];
+    const kw = await prisma.keywordResearch.create({
+      data: { ...pick(req.body, FIELDS), companyId: req.companyId },
+    });
+    return created(res, kw, 'Keyword added');
+  } catch (err) { next(err); }
+});
+
+router.put('/keywords/:id', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const existing = await prisma.keywordResearch.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Keyword not found');
+    const FIELDS = ['keyword', 'searchVolume', 'difficulty', 'cpc', 'currentRank', 'targetRank', 'targetUrl', 'intent', 'status', 'tags', 'notes', 'lastChecked'];
+    const kw = await prisma.keywordResearch.update({ where: { id: req.params.id }, data: pick(req.body, FIELDS) });
+    return success(res, kw, 'Keyword updated');
+  } catch (err) { next(err); }
+});
+
+router.delete('/keywords/:id', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const existing = await prisma.keywordResearch.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Keyword not found');
+    await prisma.keywordResearch.delete({ where: { id: req.params.id } });
+    return success(res, {}, 'Keyword deleted');
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

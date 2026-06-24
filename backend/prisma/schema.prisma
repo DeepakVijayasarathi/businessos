@@ -106,6 +106,8 @@ model Company {
   marketingActivities MarketingActivity[]
   campaigns         Campaign[]
   socialPosts       SocialPost[]
+  competitors       Competitor[]
+  keywordResearch   KeywordResearch[]
 
   @@map("companies")
 }
@@ -1352,6 +1354,57 @@ model SocialPost {
 
   @@index([companyId])
   @@map("social_posts")
+}
+
+model Competitor {
+  id              String   @id @default(uuid())
+  companyId       String
+  name            String
+  website         String?
+  industry        String?
+  description     String?  @db.Text
+  monthlyTraffic  Int?
+  domainAuthority Int?
+  socialFollowers Json     @default("{}")  // { instagram: 0, facebook: 0, twitter: 0, linkedin: 0 }
+  adPlatforms     String[] @default([])    // google, facebook, instagram, tiktok ...
+  topKeywords     String[] @default([])
+  strengths       String?  @db.Text
+  weaknesses      String?  @db.Text
+  notes           String?  @db.Text
+  status          String   @default("active") // active, inactive
+  lastUpdated     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  companyRel      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("competitors")
+}
+
+model KeywordResearch {
+  id              String   @id @default(uuid())
+  companyId       String
+  keyword         String
+  searchVolume    Int?
+  difficulty      Int?     // 0-100 SEO difficulty
+  cpc             Decimal? @db.Decimal(10, 2)  // cost per click
+  currentRank     Int?
+  targetRank      Int?
+  targetUrl       String?
+  intent          String   @default("informational") // informational, navigational, transactional, commercial
+  status          String   @default("tracking") // tracking, optimizing, ranking, not_ranking
+  tags            String[] @default([])
+  notes           String?  @db.Text
+  lastChecked     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  companyRel      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, keyword])
+  @@index([companyId])
+  @@map("keyword_research")
 }
 
 // ============================================================
