@@ -702,7 +702,7 @@ function RolesEditor({ roles }: { roles: any[] }) {
             <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
               {ALL_MODULES.map(m => {
                 const on = moduleToggles[m.key] ?? false;
-                const alwaysOn = m.key === 'dashboard';
+                const alwaysOn = (m.key as string) === 'dashboard';
                 return (
                   <button
                     key={m.key}
