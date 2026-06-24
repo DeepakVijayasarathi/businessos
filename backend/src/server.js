@@ -69,6 +69,12 @@ const searchRoutes = require('./modules/search/search.routes');
 const messagingRoutes = require('./modules/messaging/messaging.routes');
 const activityRoutes = require('./modules/activity/activity.routes');
 const portalRoutes = require('./modules/portal/portal.routes');
+const timesheetsRoutes = require('./modules/timesheets/timesheets.routes');
+const recruitmentRoutes = require('./modules/recruitment/recruitment.routes');
+const okrRoutes = require('./modules/okr/okr.routes');
+const procurementRoutes = require('./modules/procurement/procurement.routes');
+const contractsRoutes = require('./modules/contracts/contracts.routes');
+const apiKeysRoutes = require('./modules/apikeys/apikeys.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -222,6 +228,12 @@ app.use(`${v1}/search`, searchRoutes);
 app.use(`${v1}/messaging`, messagingRoutes);
 app.use(`${v1}/activity`, activityRoutes);
 app.use(`${v1}/portal`, portalRoutes);
+app.use(`${v1}/timesheets`, timesheetsRoutes);
+app.use(`${v1}/recruitment`, recruitmentRoutes);
+app.use(`${v1}/okr`, okrRoutes);
+app.use(`${v1}/procurement`, procurementRoutes);
+app.use(`${v1}/contracts`, contractsRoutes);
+app.use(`${v1}/api-keys`, apiKeysRoutes);
 
 // WhatsApp webhook verification (GET)
 app.get(`${v1}/whatsapp/webhook`, (req, res) => {

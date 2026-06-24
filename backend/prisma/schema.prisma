@@ -108,6 +108,15 @@ model Company {
   socialPosts       SocialPost[]
   competitors       Competitor[]
   keywordResearch   KeywordResearch[]
+  timeEntries       TimeEntry[]
+  jobs              Job[]
+  candidates        Candidate[]
+  interviews        Interview[]
+  okrs              OKR[]
+  purchaseOrders    PurchaseOrder[]
+  contracts         Contract[]
+  onboardingTemplates OnboardingTemplate[]
+  onboardingInstances OnboardingInstance[]
 
   @@map("companies")
 }
@@ -226,6 +235,8 @@ model User {
   conversations     ConversationParticipant[]
   sentMessages      Message[]
   marketingActivities MarketingActivity[]
+  timeEntries         TimeEntry[]   @relation("TimeEntryUser")
+  ownedOKRs           OKR[]         @relation("OKROwner")
 
   @@index([companyId])
   @@map("users")
@@ -475,6 +486,7 @@ model Project {
   tasks        Task[]       @relation("ProjectTasks")
   members      ProjectMember[]
   files        Document[]
+  timeEntries  TimeEntry[]
 
   @@index([companyId])
   @@map("projects")
@@ -622,6 +634,7 @@ model Employee {
   leaveRequests    LeaveRequest[]
   payslips         Payslip[]
   performanceReviews PerformanceReview[]
+  onboardingInstances OnboardingInstance[]
 
   @@index([companyId])
   @@map("employees")
@@ -1523,4 +1536,319 @@ model Message {
 
   @@index([conversationId, createdAt])
   @@map("messages")
+}
+
+// ============================================================
+// TIME TRACKING
+// ============================================================
+
+model TimeEntry {
+  id          String   @id @default(uuid())
+  companyId   String
+  userId      String
+  projectId   String?
+  taskId      String?
+  description String?
+  hours       Decimal  @db.Decimal(6, 2)
+  date        DateTime @db.Date
+  billable    Boolean  @default(true)
+  startTime   String?  // "09:00"
+  endTime     String?  // "17:30"
+  invoiceId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  companyRel  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User     @relation("TimeEntryUser", fields: [userId], references: [id], onDelete: Cascade)
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, date])
+  @@index([companyId, userId])
+  @@map("time_entries")
+}
+
+// ============================================================
+// RECRUITMENT / ATS
+// ============================================================
+
+model Job {
+  id           String    @id @default(uuid())
+  companyId    String
+  title        String
+  department   String?
+  location     String?
+  type         String    @default("full_time") // full_time, part_time, contract, intern
+  description  String?   @db.Text
+  requirements String?   @db.Text
+  salaryMin    Decimal?  @db.Decimal(12, 2)
+  salaryMax    Decimal?  @db.Decimal(12, 2)
+  status       String    @default("open")     // open, closed, draft, paused
+  deadline     DateTime?
+  openings     Int       @default(1)
+  hiringManagerId String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  companyRel   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  candidates   Candidate[]
+
+  @@index([companyId])
+  @@map("jobs")
+}
+
+model Candidate {
+  id          String    @id @default(uuid())
+  companyId   String
+  jobId       String
+  firstName   String
+  lastName    String
+  email       String
+  phone       String?
+  resumeUrl   String?
+  linkedIn    String?
+  stage       String    @default("applied")   // applied, screening, interview, offer, hired, rejected
+  rating      Int?
+  notes       String?   @db.Text
+  source      String?   // linkedin, referral, job_board, website
+  expectedSalary Decimal? @db.Decimal(12, 2)
+  appliedAt   DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  companyRel  Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  job         Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  interviews  Interview[]
+
+  @@index([companyId, jobId])
+  @@index([companyId, stage])
+  @@map("candidates")
+}
+
+model Interview {
+  id           String   @id @default(uuid())
+  companyId    String
+  candidateId  String
+  jobId        String
+  scheduledAt  DateTime
+  duration     Int      @default(60)     // minutes
+  type         String   @default("video") // video, phone, in_person, technical
+  interviewers String[] @default([])
+  feedback     String?  @db.Text
+  rating       Int?
+  status       String   @default("scheduled") // scheduled, completed, cancelled, no_show
+  meetingUrl   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  companyRel   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  candidate    Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([candidateId])
+  @@map("interviews")
+}
+
+// ============================================================
+// OKR / GOALS
+// ============================================================
+
+model OKR {
+  id          String   @id @default(uuid())
+  companyId   String
+  ownerId     String
+  title       String
+  description String?  @db.Text
+  period      String   // "Q1 2026", "H1 2026", "FY 2026"
+  type        String   @default("company") // company, team, individual
+  status      String   @default("on_track") // on_track, at_risk, behind, completed
+  progress    Int      @default(0)  // 0-100
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  companyRel  Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  owner       User       @relation("OKROwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  keyResults  KeyResult[]
+
+  @@index([companyId])
+  @@index([companyId, period])
+  @@map("okrs")
+}
+
+model KeyResult {
+  id        String   @id @default(uuid())
+  okrId     String
+  title     String
+  type      String   @default("numeric") // numeric, percentage, boolean, milestone
+  current   Decimal  @db.Decimal(12, 2) @default(0)
+  target    Decimal  @db.Decimal(12, 2)
+  unit      String?  // $, %, users, etc.
+  progress  Int      @default(0)
+  status    String   @default("on_track") // on_track, at_risk, behind, completed
+  updatedAt DateTime @updatedAt
+
+  okr       OKR @relation(fields: [okrId], references: [id], onDelete: Cascade)
+
+  @@index([okrId])
+  @@map("key_results")
+}
+
+// ============================================================
+// PURCHASE ORDERS
+// ============================================================
+
+model PurchaseOrder {
+  id           String    @id @default(uuid())
+  companyId    String
+  poNumber     String
+  vendorName   String
+  vendorEmail  String?
+  vendorPhone  String?
+  vendorAddress String?
+  status       String    @default("draft")  // draft, sent, approved, received, cancelled
+  issueDate    DateTime  @default(now())
+  expectedDate DateTime?
+  receivedDate DateTime?
+  subtotal     Decimal   @db.Decimal(12, 2) @default(0)
+  tax          Decimal   @db.Decimal(12, 2) @default(0)
+  total        Decimal   @db.Decimal(12, 2) @default(0)
+  notes        String?   @db.Text
+  approvedById String?
+  approvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  companyRel   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items        PurchaseOrderItem[]
+
+  @@unique([companyId, poNumber])
+  @@index([companyId])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String   @id @default(uuid())
+  purchaseOrderId String
+  description     String
+  quantity        Decimal  @db.Decimal(10, 2)
+  unitPrice       Decimal  @db.Decimal(12, 2)
+  total           Decimal  @db.Decimal(12, 2)
+  unit            String?
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_order_items")
+}
+
+// ============================================================
+// CONTRACT MANAGEMENT
+// ============================================================
+
+model Contract {
+  id           String    @id @default(uuid())
+  companyId    String
+  title        String
+  contractNo   String
+  type         String    @default("client")  // client, vendor, employment, nda, partnership
+  partyName    String
+  partyEmail   String?
+  value        Decimal?  @db.Decimal(12, 2)
+  currency     String    @default("USD")
+  startDate    DateTime?
+  endDate      DateTime?
+  status       String    @default("draft")  // draft, sent, signed, active, expired, terminated
+  signedAt     DateTime?
+  autoRenew    Boolean   @default(false)
+  renewalNotice Int?     // days before expiry to notify
+  description  String?   @db.Text
+  fileUrl      String?
+  tags         String[]  @default([])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  companyRel   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, contractNo])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@map("contracts")
+}
+
+// ============================================================
+// EMPLOYEE ONBOARDING
+// ============================================================
+
+model OnboardingTemplate {
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String
+  description String?
+  department  String?
+  role        String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  companyRel  Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tasks       OnboardingTemplateTask[]
+  instances   OnboardingInstance[]
+
+  @@index([companyId])
+  @@map("onboarding_templates")
+}
+
+model OnboardingTemplateTask {
+  id          String   @id @default(uuid())
+  templateId  String
+  title       String
+  description String?
+  category    String   @default("general") // general, it, hr, finance, legal
+  dueInDays   Int      @default(1)         // due X days after start date
+  assignedTo  String   @default("hr")      // hr, manager, it, employee
+  order       Int      @default(0)
+
+  template    OnboardingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("onboarding_template_tasks")
+}
+
+model OnboardingInstance {
+  id           String    @id @default(uuid())
+  companyId    String
+  employeeId   String
+  templateId   String
+  startDate    DateTime
+  completedAt  DateTime?
+  status       String    @default("in_progress") // in_progress, completed, cancelled
+  progress     Int       @default(0)  // 0-100
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  companyRel   Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee     Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  template     OnboardingTemplate @relation(fields: [templateId], references: [id])
+  tasks        OnboardingTask[]
+
+  @@index([companyId])
+  @@map("onboarding_instances")
+}
+
+model OnboardingTask {
+  id           String    @id @default(uuid())
+  instanceId   String
+  title        String
+  description  String?
+  category     String    @default("general")
+  dueDate      DateTime?
+  assignedTo   String    @default("hr")
+  isCompleted  Boolean   @default(false)
+  completedAt  DateTime?
+  order        Int       @default(0)
+
+  instance     OnboardingInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId])
+  @@map("onboarding_tasks")
 }
