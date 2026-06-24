@@ -233,7 +233,7 @@ export default function PurchaseOrdersPage() {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{editing ? 'Edit PO' : 'Create Purchase Order'}</h2>
-            {!editing && <div className="mb-4"><SmartFill type="purchase_order" onFill={d => setForm(f => ({ ...f, vendorName: d.vendorName || f.vendorName, vendorEmail: d.vendorEmail || f.vendorEmail, notes: d.notes || f.notes, items: d.items?.length ? d.items.map((it: any) => ({ description: it.description || '', qty: Number(it.qty) || 1, unitPrice: Number(it.unitPrice) || 0 })) : f.items }))} label="Fill from vendor quote" /></div>}
+            {!editing && <div className="mb-4"><SmartFill type="purchase_order" onFill={d => { setForm(f => ({ ...f, vendorName: d.vendorName || f.vendorName, vendorEmail: d.vendorEmail || f.vendorEmail, notes: d.notes || f.notes })); if (d.items?.length) setItems(d.items.map((it: any) => ({ description: it.description || '', quantity: String(Number(it.qty) || 1), unitPrice: String(Number(it.unitPrice) || 0), unit: '' }))); }} label="Fill from vendor quote" /></div>}
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
