@@ -1194,7 +1194,13 @@ function getAgentSuggestions(actions) {
   return [...new Set(s)].slice(0, 3);
 }
 
-// POST /ai/agent — Agentic AI with tool use
+// OpenAI tool format (converted from Anthropic input_schema format)
+const OPENAI_TOOLS = AGENT_TOOLS.map(t => ({
+  type: 'function',
+  function: { name: t.name, description: t.description, parameters: t.input_schema },
+}));
+
+// POST /ai/agent — Agentic AI with tool use (supports both Anthropic and OpenAI)
 router.post('/agent', async (req, res, next) => {
   try {
     const { message, history = [] } = req.body;
@@ -1205,12 +1211,8 @@ router.post('/agent', async (req, res, next) => {
       select: { name: true, anthropicKey: true, openaiKey: true, aiProvider: true },
     });
 
-    const rawKey = (company?.anthropicKey ? decrypt(company.anthropicKey) : null) || config.ai.anthropicKey;
-    if (!rawKey) return error(res, 'Anthropic API key not configured. Add it in Settings → AI Config.', 400);
-
-    const anthropic = new Anthropic({ apiKey: rawKey });
+    const provider = company?.aiProvider || config.ai.provider || 'anthropic';
     const today = new Date().toISOString().slice(0, 10);
-
     const systemPrompt = `You are an AI business assistant for ${company?.name || 'this company'}. You have tools to take real actions across CRM, Finance, Helpdesk, Projects, HR, and Marketing.
 
 Rules:
@@ -1220,45 +1222,102 @@ Rules:
 - When converting leads or sending emails, summarize each item acted on.
 - Today: ${today}.`;
 
-    const messages = [...history, { role: 'user', content: message }];
     const actions = [];
+    let assistantText = 'Done.';
 
-    let response = await anthropic.messages.create({
-      model: config.ai.claudeModel,
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages,
-      tools: AGENT_TOOLS,
-    });
+    if (provider === 'openai') {
+      // ── OpenAI path ──────────────────────────────────────────────────────────
+      const rawKey = (company?.openaiKey ? decrypt(company.openaiKey) : null) || config.ai.openaiKey;
+      if (!rawKey) return error(res, 'OpenAI API key not configured. Add it in Settings → AI Config.', 400);
 
-    let iterations = 0;
-    while (response.stop_reason === 'tool_use' && iterations < 6) {
-      iterations++;
-      const toolResults = [];
+      const openai = new OpenAI({ apiKey: rawKey });
+      const oaiMessages = [
+        { role: 'system', content: systemPrompt },
+        ...history,
+        { role: 'user', content: message },
+      ];
 
-      for (const block of response.content) {
-        if (block.type === 'tool_use') {
-          const result = await executeAgentTool(block.name, block.input, req);
-          actions.push({ tool: block.name, input: block.input, result });
-          toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(result) });
+      let oaiRes = await openai.chat.completions.create({
+        model: config.ai.openaiModel,
+        max_tokens: 2048,
+        messages: oaiMessages,
+        tools: OPENAI_TOOLS,
+        tool_choice: 'auto',
+      });
+
+      let iterations = 0;
+      while (oaiRes.choices[0].finish_reason === 'tool_calls' && iterations < 6) {
+        iterations++;
+        const assistantMsg = oaiRes.choices[0].message;
+        oaiMessages.push(assistantMsg);
+
+        for (const toolCall of (assistantMsg.tool_calls || [])) {
+          let input = {};
+          try { input = JSON.parse(toolCall.function.arguments); } catch {}
+          let result;
+          try { result = await executeAgentTool(toolCall.function.name, input, req); }
+          catch (e) { result = { error: e.message }; }
+          actions.push({ tool: toolCall.function.name, input, result });
+          oaiMessages.push({ role: 'tool', tool_call_id: toolCall.id, content: JSON.stringify(result) });
         }
+
+        oaiRes = await openai.chat.completions.create({
+          model: config.ai.openaiModel,
+          max_tokens: 2048,
+          messages: oaiMessages,
+          tools: OPENAI_TOOLS,
+          tool_choice: 'auto',
+        });
       }
 
-      messages.push({ role: 'assistant', content: response.content });
-      messages.push({ role: 'user', content: toolResults });
+      assistantText = oaiRes.choices[0].message.content || 'Done.';
 
-      response = await anthropic.messages.create({
+    } else {
+      // ── Anthropic path ───────────────────────────────────────────────────────
+      const rawKey = (company?.anthropicKey ? decrypt(company.anthropicKey) : null) || config.ai.anthropicKey;
+      if (!rawKey) return error(res, 'Anthropic API key not configured. Add it in Settings → AI Config.', 400);
+
+      const anthropic = new Anthropic({ apiKey: rawKey });
+      const claudeMessages = [...history, { role: 'user', content: message }];
+
+      let claudeRes = await anthropic.messages.create({
         model: config.ai.claudeModel,
         max_tokens: 2048,
         system: systemPrompt,
-        messages,
+        messages: claudeMessages,
         tools: AGENT_TOOLS,
       });
+
+      let iterations = 0;
+      while (claudeRes.stop_reason === 'tool_use' && iterations < 6) {
+        iterations++;
+        const toolResults = [];
+
+        for (const block of claudeRes.content) {
+          if (block.type === 'tool_use') {
+            let result;
+            try { result = await executeAgentTool(block.name, block.input, req); }
+            catch (e) { result = { error: e.message }; }
+            actions.push({ tool: block.name, input: block.input, result });
+            toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(result) });
+          }
+        }
+
+        claudeMessages.push({ role: 'assistant', content: claudeRes.content });
+        claudeMessages.push({ role: 'user', content: toolResults });
+
+        claudeRes = await anthropic.messages.create({
+          model: config.ai.claudeModel,
+          max_tokens: 2048,
+          system: systemPrompt,
+          messages: claudeMessages,
+          tools: AGENT_TOOLS,
+        });
+      }
+
+      assistantText = claudeRes.content.find(b => b.type === 'text')?.text || 'Done.';
     }
 
-    const assistantText = response.content.find(b => b.type === 'text')?.text || 'Done.';
-
-    // Build slim history for next turn (keep last 10 turns max)
     const nextHistory = [
       ...history,
       { role: 'user', content: message },
@@ -1267,7 +1326,15 @@ Rules:
 
     const suggestions = getAgentSuggestions(actions);
     return success(res, { message: assistantText, actions, history: nextHistory, suggestions });
-  } catch (err) { next(err); }
+  } catch (err) {
+    // Surface the real error message so the client can show it (not just "Internal server error")
+    const logger = require('../../config/logger');
+    logger.error('AI agent error:', err?.message || err);
+    const clientMsg = err?.message?.includes('API key') || err?.status
+      ? err.message
+      : 'AI agent failed. Check your API key and model in Settings → AI Config.';
+    return error(res, clientMsg, err?.status || 500);
+  }
 });
 
 module.exports = router;
