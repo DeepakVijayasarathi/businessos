@@ -79,6 +79,15 @@ router.get('/invoices/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+function normalizeInvoiceBody(body) {
+  const data = pick(body, INVOICE_WRITABLE_FIELDS);
+  // <input type="date"> sends "YYYY-MM-DD"; PostgreSQL DateTime needs a full ISO string
+  if (data.dueDate && /^\d{4}-\d{2}-\d{2}$/.test(data.dueDate)) {
+    data.dueDate = new Date(data.dueDate + 'T00:00:00.000Z');
+  }
+  return data;
+}
+
 router.post('/invoices', auditLog('finance.invoices', 'invoice'), async (req, res, next) => {
   try {
     if (!req.body.clientName) return error(res, 'Client name is required', 400);
@@ -86,7 +95,7 @@ router.post('/invoices', auditLog('finance.invoices', 'invoice'), async (req, re
     const count = await prisma.invoice.count({ where: { companyId: req.companyId } });
     const invoiceNo = generateNumber('INV', count + 1);
     const invoice = await prisma.invoice.create({
-      data: { ...pick(req.body, INVOICE_WRITABLE_FIELDS), companyId: req.companyId, invoiceNo },
+      data: { ...normalizeInvoiceBody(req.body), companyId: req.companyId, invoiceNo },
     });
     return created(res, invoice, 'Invoice created');
   } catch (err) { next(err); }
@@ -96,7 +105,7 @@ router.put('/invoices/:id', auditLog('finance.invoices', 'invoice'), async (req,
   try {
     const existing = await prisma.invoice.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Invoice not found');
-    const invoice = await prisma.invoice.update({ where: { id: req.params.id }, data: pick(req.body, INVOICE_WRITABLE_FIELDS) });
+    const invoice = await prisma.invoice.update({ where: { id: req.params.id }, data: normalizeInvoiceBody(req.body) });
     return success(res, invoice, 'Invoice updated');
   } catch (err) { next(err); }
 });
@@ -265,11 +274,14 @@ router.get('/invoices/:id/pdf', async (req, res, next) => {
     let y = 254;
     items.forEach((item, i) => {
       if (i % 2 === 1) doc.fillColor('#f9fafb').rect(50, y - 5, 495, 22).fill();
+      const qty = Number(item.quantity ?? item.qty ?? 1);
+      const price = Number(item.unitPrice ?? item.price ?? item.rate ?? 0);
+      const lineTotal = Number(item.total ?? item.amount ?? (qty * price));
       doc.fillColor('#111827').font('Helvetica').fontSize(9)
         .text(item.description || item.name || '', 58, y, { width: 270 })
-        .text(String(item.quantity || 1), 340, y, { width: 50, align: 'right' })
-        .text(`$${Number(item.unitPrice ?? item.price ?? 0).toFixed(2)}`, 390, y, { width: 80, align: 'right' })
-        .text(`$${Number(item.total ?? (item.quantity * (item.unitPrice ?? item.price ?? 0))).toFixed(2)}`, 470, y, { width: 75, align: 'right' });
+        .text(String(qty), 340, y, { width: 50, align: 'right' })
+        .text(`$${price.toFixed(2)}`, 390, y, { width: 80, align: 'right' })
+        .text(`$${lineTotal.toFixed(2)}`, 470, y, { width: 75, align: 'right' });
       y += 22;
     });
 
@@ -279,10 +291,10 @@ router.get('/invoices/:id/pdf', async (req, res, next) => {
     y += 10;
     const totals = [
       ['Subtotal', invoice.subtotal],
-      ['Tax', invoice.tax],
-      ['Discount', invoice.discount],
+      ['Tax', invoice.taxAmount],
+      ['Discount', invoice.discountAmount],
       ['Total', invoice.total],
-    ].filter(([, v]) => v != null && v !== 0);
+    ].filter(([, v]) => v != null && Number(v) !== 0);
 
     totals.forEach(([label, val], i) => {
       const isLast = i === totals.length - 1;
