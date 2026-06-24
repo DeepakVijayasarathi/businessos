@@ -603,7 +603,7 @@ function RolesEditor({ roles }: { roles: any[] }) {
       toast.success('Role deleted');
       setSelected(null);
     },
-    onError: () => toast.error('Cannot delete system roles'),
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Cannot delete this role'),
   });
 
   const toggleAll = (on: boolean) => {

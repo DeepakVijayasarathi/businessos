@@ -80,17 +80,23 @@ router.get('/roles/:id', async (req, res, next) => {
 
 router.put('/roles/:id', async (req, res, next) => {
   try {
-    const existing = await prisma.role.findFirst({ where: { id: req.params.id, companyId: req.companyId, isSystem: false } });
+    const existing = await prisma.role.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Role not found');
-    const role = await prisma.role.update({ where: { id: req.params.id }, data: req.body });
+    const { name, permissions } = req.body;
+    // System roles: only permissions can be updated (protect name/slug/isSystem)
+    const data = existing.isSystem
+      ? { permissions }
+      : { ...(name && { name, slug: name.toLowerCase().replace(/\s+/g, '-') }), permissions };
+    const role = await prisma.role.update({ where: { id: req.params.id }, data });
     return success(res, role, 'Role updated');
   } catch (err) { next(err); }
 });
 
 router.delete('/roles/:id', async (req, res, next) => {
   try {
-    const existing = await prisma.role.findFirst({ where: { id: req.params.id, companyId: req.companyId, isSystem: false } });
+    const existing = await prisma.role.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Role not found');
+    if (existing.isSystem) return require('../../utils/response').error(res, 'System roles cannot be deleted', 403);
     await prisma.role.delete({ where: { id: req.params.id } });
     return success(res, {}, 'Role deleted');
   } catch (err) { next(err); }
