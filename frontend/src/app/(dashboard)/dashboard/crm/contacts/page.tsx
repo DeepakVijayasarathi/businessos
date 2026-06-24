@@ -8,6 +8,7 @@ import { useRef } from 'react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, TextAreaField } from '@/components/ui/FormField';
+import { SmartFill } from '@/components/ui/SmartFill';
 
 export default function ContactsPage() {
   const [search, setSearch] = useState('');
@@ -158,6 +159,7 @@ function ContactModal({ contact, onClose }: { contact: any; onClose: () => void 
     <Modal onClose={onClose} title={contact ? 'Edit Contact' : 'New Contact'} subtitle={contact ? 'Update contact details' : 'Add a new contact to your CRM'} icon={User} iconColor="blue">
       <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }}>
         <div className="p-6 space-y-4">
+          {!contact && <SmartFill type="contact" onFill={d => setForm(f => ({ ...f, ...d }))} />}
           <div className="grid grid-cols-2 gap-4">
             <TextField id="contact-firstName" label="First Name" required {...f('firstName')} />
             <TextField id="contact-lastName" label="Last Name" {...f('lastName')} />

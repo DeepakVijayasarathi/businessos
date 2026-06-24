@@ -287,6 +287,67 @@ router.get('/intelligence', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /ai/extract — parse raw text and extract structured form fields
+router.post('/extract', async (req, res, next) => {
+  try {
+    const { text, type } = req.body;
+    if (!text || !type) return error(res, 'text and type are required', 400);
+
+    const company = await prisma.company.findUnique({
+      where: { id: req.companyId },
+      select: { anthropicKey: true, openaiKey: true, aiProvider: true },
+    });
+
+    const schemas = {
+      lead: `{ "firstName": "", "lastName": "", "email": "", "phone": "", "company": "", "jobTitle": "", "source": "website|referral|social|email|phone|whatsapp|event|other", "notes": "" }`,
+      contact: `{ "firstName": "", "lastName": "", "email": "", "phone": "", "jobTitle": "", "notes": "" }`,
+      deal: `{ "name": "", "value": 0, "probability": 50, "notes": "" }`,
+      ticket: `{ "subject": "", "description": "", "priority": "low|medium|high|urgent" }`,
+      invoice: `{ "clientName": "", "clientEmail": "", "items": [{ "description": "", "qty": 1, "rate": 0 }], "notes": "" }`,
+      employee: `{ "jobTitle": "", "salary": 0, "jobType": "full_time|part_time|contract|intern" }`,
+      task: `{ "title": "", "description": "", "priority": "low|medium|high|urgent" }`,
+      contract: `{ "title": "", "partyName": "", "partyEmail": "", "value": 0, "type": "client|vendor|nda|employment|other", "description": "" }`,
+      purchase_order: `{ "vendorName": "", "vendorEmail": "", "notes": "", "items": [{ "description": "", "qty": 1, "unitPrice": 0 }] }`,
+    };
+
+    const schema = schemas[type];
+    if (!schema) return error(res, `Unknown type "${type}"`, 400);
+
+    const prompt = `Extract structured data from the following text and return ONLY a valid JSON object matching this schema. Use null for missing fields, never invent data.
+
+Schema: ${schema}
+
+Text:
+${text}
+
+Return only the JSON object, no explanation.`;
+
+    const aiResult = await callAI({
+      messages: [{ role: 'user', content: prompt }],
+      companyAnthropicKey: company?.anthropicKey,
+      companyOpenaiKey: company?.openaiKey,
+      companyProvider: company?.aiProvider,
+      maxTokens: 1024,
+      system: 'You are a data extraction assistant. Extract structured information from text and return valid JSON only.',
+    });
+
+    let extracted;
+    try {
+      const jsonMatch = aiResult.text.match(/\{[\s\S]*\}/);
+      extracted = JSON.parse(jsonMatch ? jsonMatch[0] : aiResult.text);
+    } catch {
+      return error(res, 'AI could not parse the text into structured data', 422);
+    }
+
+    // Strip null/empty values so the frontend can merge cleanly
+    Object.keys(extracted).forEach(k => {
+      if (extracted[k] === null || extracted[k] === '') delete extracted[k];
+    });
+
+    return success(res, extracted);
+  } catch (err) { next(err); }
+});
+
 // GET /ai/status — current provider & model info (includes per-company override)
 router.get('/status', async (req, res, next) => {
   try {

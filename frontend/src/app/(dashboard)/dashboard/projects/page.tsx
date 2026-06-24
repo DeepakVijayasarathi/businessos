@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate, statusColor } from '@/lib/utils';
 import { Plus, FolderKanban, Calendar, Users, CheckCircle2, Clock, AlertCircle, Circle, Edit, Trash2 } from 'lucide-react';
+import { SmartFill } from '@/components/ui/SmartFill';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
@@ -289,6 +290,7 @@ function TaskModal({ projectId, status, onClose, onCreated }: { projectId: strin
     <Modal onClose={onClose} title="New Task" subtitle={`Adding to ${KANBAN_COLUMNS.find(c => c.key === status)?.label}`} icon={FolderKanban} iconColor="indigo">
       <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }}>
         <div className="p-6 space-y-4">
+          <SmartFill type="task" onFill={d => setForm(f => ({ ...f, ...d }))} label="Describe task with AI" />
           <TextField id="task-title" label="Task Title" required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
           <TextAreaField id="task-description" label="Description" rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
           <SelectField id="task-priority" label="Priority" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>

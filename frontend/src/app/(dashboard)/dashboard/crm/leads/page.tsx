@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
 import { CustomFieldsEditor } from '@/components/ui/CustomFieldsEditor';
+import { SmartFill } from '@/components/ui/SmartFill';
 
 const STATUSES = ['new', 'contacted', 'qualified', 'lost', 'converted'];
 const SOURCES = ['website', 'whatsapp', 'email', 'referral', 'social', 'manual'];
@@ -340,6 +341,9 @@ function LeadModal({ lead, onClose }: { lead: any; onClose: () => void }) {
     <Modal onClose={onClose} title={lead ? 'Edit Lead' : 'Add New Lead'} subtitle={lead ? 'Update lead details' : 'Add a new lead to your pipeline'} icon={UserPlus} iconColor="indigo">
       <form onSubmit={handleSubmit}>
         <div className="p-6 space-y-4">
+          {!lead && (
+            <SmartFill type="lead" onFill={d => setForm(f => ({ ...f, ...d }))} />
+          )}
           <div className="grid grid-cols-2 gap-4">
             <TextField id="lead-firstName" label="First Name" required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} />
             <TextField id="lead-lastName" label="Last Name" value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} />

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { FileSignature, Plus, Trash2, Edit2, Search, AlertCircle, CheckCircle2, Clock, X } from 'lucide-react';
+import { SmartFill } from '@/components/ui/SmartFill';
 import toast from 'react-hot-toast';
 
 const STATUS_COLOR: Record<string, string> = {
@@ -197,7 +198,8 @@ export default function ContractsPage() {
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-5">{editing ? 'Edit Contract' : 'New Contract'}</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{editing ? 'Edit Contract' : 'New Contract'}</h2>
+            {!editing && <div className="mb-4"><SmartFill type="contract" onFill={d => setForm(f => ({ ...f, title: d.title || f.title, partyName: d.partyName || f.partyName, partyEmail: d.partyEmail || f.partyEmail, value: d.value ? String(d.value) : f.value, type: d.type || f.type, description: d.description || f.description }))} /></div>}
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Contract Title *</label>

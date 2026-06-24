@@ -17,6 +17,7 @@ function slaStatus(ticket: any) {
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
+import { SmartFill } from '@/components/ui/SmartFill';
 
 export default function HelpdeskPage() {
   const [search, setSearch] = useState('');
@@ -274,6 +275,7 @@ function NewTicketModal({ onClose }: { onClose: () => void }) {
     <Modal onClose={onClose} title="New Support Ticket" subtitle="Log a new issue for the support team to triage" icon={Ticket} iconColor="red">
       <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }}>
         <div className="p-6 space-y-4">
+          <SmartFill type="ticket" onFill={d => setForm(f => ({ ...f, ...d }))} label="Fill from customer message" />
           <TextField id="ticket-subject" label="Subject" required value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="Brief description of the issue" />
           <TextAreaField id="ticket-description" label="Description" rows={4} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Detailed description..." />
           <div className="grid grid-cols-2 gap-4">

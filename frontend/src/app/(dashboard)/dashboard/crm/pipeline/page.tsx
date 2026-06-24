@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { Plus, ChevronDown, DollarSign, User, TrendingUp, BarChart2 } from 'lucide-react';
+import { SmartFill } from '@/components/ui/SmartFill';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
@@ -209,6 +210,7 @@ function DealModal({ pipelineId, stageId, stages, onClose }: { pipelineId: strin
     <Modal onClose={onClose} title="New Deal" subtitle="Add a new deal to your pipeline" icon={DollarSign} iconColor="green">
       <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }}>
         <div className="p-6 space-y-4">
+          <SmartFill type="deal" onFill={d => setForm(f => ({ ...f, name: d.name || f.name, value: d.value ? String(d.value) : f.value, probability: d.probability ? String(d.probability) : f.probability, notes: d.notes || f.notes }))} />
           <TextField id="deal-name" label="Deal Name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
           <div className="grid grid-cols-2 gap-4">
             <TextField id="deal-value" label="Value" type="number" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} placeholder="0.00" />

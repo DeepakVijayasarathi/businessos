@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField } from '@/components/ui/FormField';
 import { ExportButton } from '@/components/ui/ExportButton';
+import { SmartFill } from '@/components/ui/SmartFill';
 
 export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState('');
@@ -201,6 +202,17 @@ function InvoiceModal({ onClose }: { onClose: () => void }) {
         }}
       >
         <div className="p-6 space-y-5">
+          <SmartFill
+            type="invoice"
+            onFill={d => setForm(f => ({
+              ...f,
+              clientName: d.clientName || f.clientName,
+              clientEmail: d.clientEmail || f.clientEmail,
+              notes: d.notes || f.notes,
+              items: d.items?.length ? d.items.map((it: any) => ({ description: it.description || '', qty: Number(it.qty) || 1, rate: Number(it.rate) || 0, amount: (Number(it.qty) || 1) * (Number(it.rate) || 0) })) : f.items,
+            }))}
+            label="Fill from work description"
+          />
           <div className="grid grid-cols-2 gap-4">
             <TextField id="invoice-clientName" label="Client Name" required value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} />
             <TextField id="invoice-clientEmail" label="Client Email" type="email" value={form.clientEmail} onChange={e => setForm({ ...form, clientEmail: e.target.value })} />
