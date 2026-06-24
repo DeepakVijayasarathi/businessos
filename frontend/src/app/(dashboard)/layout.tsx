@@ -9,8 +9,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { isAuthenticated, fetchMe } = useAuthStore();
   const router = useRouter();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  // Guard against hydration mismatch: zustand-persist restores isAuthenticated=true
+  // from localStorage on the client, but SSR always sees false → different trees crash.
+  // Render the spinner until after first client paint (safe neutral state both sides).
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     fetchMe()
       .then(() => {
         if (!useAuthStore.getState().isAuthenticated) {
@@ -22,7 +27,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       });
   }, [fetchMe, router]);
 
-  if (!isAuthenticated) {
+  if (!mounted || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
