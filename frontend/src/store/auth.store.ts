@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import api, { setAccessToken, clearAuth } from '@/lib/api';
+import api, { setAccessToken, setRefreshToken, clearAuth } from '@/lib/api';
 
 interface User {
   id: string;
@@ -36,6 +36,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { data } = await api.post('/auth/login', { email, password });
           setAccessToken(data.data.accessToken);
+          if (data.data.refreshToken) setRefreshToken(data.data.refreshToken);
           set({ user: data.data.user, isAuthenticated: true, isLoading: false });
         } catch (err) {
           set({ isLoading: false });

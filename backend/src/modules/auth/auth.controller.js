@@ -41,7 +41,7 @@ async function register(req, res, next) {
     });
     // Set access token as httpOnly cookie
     setAccessTokenCookie(res, result.accessToken);
-    return res.status(201).json({ success: true, message: 'Registration successful', data: result });
+    return res.status(201).json({ success: true, message: 'Registration successful', data: { ...result } });
   } catch (err) {
     next(err);
   }
@@ -60,7 +60,7 @@ async function login(req, res, next) {
     });
     // Set access token as httpOnly cookie
     setAccessTokenCookie(res, result.accessToken);
-    return success(res, { user: result.user, accessToken: result.accessToken }, 'Login successful');
+    return success(res, { user: result.user, accessToken: result.accessToken, refreshToken: result.refreshToken }, 'Login successful');
   } catch (err) {
     if (err.statusCode === 401) logger.warn(`Login failed: ${req.body.email} from ${req.ip} — ${err.message}`);
     next(err);
@@ -80,7 +80,7 @@ async function refreshToken(req, res, next) {
     });
     // Set access token as httpOnly cookie
     setAccessTokenCookie(res, tokens.accessToken);
-    return success(res, { accessToken: tokens.accessToken }, 'Token refreshed');
+    return success(res, { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }, 'Token refreshed');
   } catch (err) {
     next(err);
   }
