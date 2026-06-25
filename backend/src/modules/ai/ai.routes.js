@@ -584,6 +584,28 @@ const AGENT_TOOLS = [
     },
   },
   {
+    name: 'list_deals',
+    description: 'List deals in the CRM pipeline with optional status filter',
+    input_schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['open', 'won', 'lost', 'negotiation'], description: 'Filter by deal status' },
+        limit: { type: 'number', description: 'Max results (default 5)' },
+      },
+    },
+  },
+  {
+    name: 'list_contacts',
+    description: 'List CRM contacts with optional search by name, email, or company',
+    input_schema: {
+      type: 'object',
+      properties: {
+        search: { type: 'string', description: 'Search term (name, email, or company)' },
+        limit: { type: 'number', description: 'Max results (default 5)' },
+      },
+    },
+  },
+  {
     name: 'search',
     description: 'Search across CRM leads, contacts, and deals',
     input_schema: {
@@ -945,6 +967,33 @@ async function executeAgentTool(name, input, req) {
         select: { id: true, firstName: true, lastName: true, email: true, company: true, status: true, createdAt: true },
       });
       return { leads, count: leads.length };
+    }
+    case 'list_deals': {
+      const deals = await prisma.deal.findMany({
+        where: { companyId: cid, ...(input.status && { status: input.status }) },
+        take: input.limit || 5,
+        orderBy: { value: 'desc' },
+        select: { id: true, title: true, value: true, status: true, stage: { select: { name: true } } },
+      });
+      return { deals: deals.map(d => ({ ...d, value: d.value ? Number(d.value) : null })), count: deals.length };
+    }
+    case 'list_contacts': {
+      const mode = 'insensitive';
+      const contacts = await prisma.contact.findMany({
+        where: {
+          companyId: cid,
+          ...(input.search && { OR: [
+            { firstName: { contains: input.search, mode } },
+            { lastName: { contains: input.search, mode } },
+            { email: { contains: input.search, mode } },
+            { company: { contains: input.search, mode } },
+          ] }),
+        },
+        take: input.limit || 5,
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, firstName: true, lastName: true, email: true, phone: true, company: true, jobTitle: true },
+      });
+      return { contacts, count: contacts.length };
     }
     case 'create_contact': {
       const contact = await prisma.contact.create({
@@ -1553,6 +1602,9 @@ function getAgentSuggestions(actions) {
   }
   if (used.has('convert_lead')) {
     s.push('Schedule a follow-up for the new deal', 'Create an invoice for this client', 'Add a note to the contact');
+  }
+  if (used.has('list_deals') || used.has('list_contacts')) {
+    s.push('Convert top lead to a deal', 'Add a follow-up task', 'Create an invoice for this client');
   }
   if (used.has('list_leaves') || used.has('approve_leave')) {
     s.push('Show employee list', 'Log a business expense', 'Show today\'s digest');
