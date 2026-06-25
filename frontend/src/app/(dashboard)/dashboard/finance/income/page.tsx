@@ -104,10 +104,10 @@ function IncomeModal({ onClose }: { onClose: () => void }) {
     <Modal onClose={onClose} title="Record Income" subtitle="Add a new income record" icon={DollarSign} iconColor="green">
       <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }}>
         <div className="p-6 space-y-4">
-          <TextField id="income-description" label="Description" required value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+          <TextField id="income-description" name="title" label="Description" required value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Income description" />
           <div className="grid grid-cols-2 gap-4">
-            <TextField id="income-amount" label="Amount" required type="number" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="0.00" />
-            <TextField id="income-date" label="Date" type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+            <TextField id="income-amount" name="amount" label="Amount" required type="number" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="0.00" />
+            <TextField id="income-date" name="date" label="Date" type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
           </div>
           <SelectField id="income-category" label="Category" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}

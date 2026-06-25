@@ -109,7 +109,7 @@ export default function DocumentsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Documents</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{documents?.meta?.total || documents?.data?.length || 0} files</p>
+          <p className="text-sm text-gray-500 mt-0.5">{(() => { const n = documents?.meta?.total ?? documents?.data?.length ?? 0; return `${n} ${n === 1 ? 'file' : 'files'}`; })()}</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowFolderModal(true)} className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800">
