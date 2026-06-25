@@ -39,13 +39,25 @@ const TOOL_LABELS: Record<string, { label: string; url?: string }> = {
   resolve_ticket:        { label: '✓ Ticket resolved',         url: '/dashboard/helpdesk' },
   add_note:              { label: '📝 Note added',             url: '/dashboard/crm/leads' },
   generate_image:        { label: '🖼️ Image generated' },
+  create_project:        { label: '✓ Project created',         url: '/dashboard/projects' },
+  list_projects:         { label: '📋 Projects fetched',       url: '/dashboard/projects' },
+  create_contract:       { label: '✓ Contract created',        url: '/dashboard/contracts' },
+  list_contracts:        { label: '📋 Contracts fetched',      url: '/dashboard/contracts' },
+  create_purchase_order: { label: '✓ PO created',              url: '/dashboard/finance/purchase-orders' },
+  list_leaves:           { label: '📋 Leave requests',         url: '/dashboard/hr/leaves' },
+  approve_leave:         { label: '✓ Leave processed',         url: '/dashboard/hr/leaves' },
+  create_expense:        { label: '✓ Expense logged',          url: '/dashboard/finance/expenses' },
+  schedule_appointment:  { label: '📅 Appointment scheduled',  url: '/dashboard/appointments' },
+  daily_digest:          { label: '📊 Daily digest' },
 };
 
 const STARTERS = [
-  "What needs my attention today?",
+  "Give me today's full business digest",
   'Send payment reminders to all overdue clients',
-  'Show pipeline summary and top deals',
+  'Approve all pending leave requests',
+  'Show pipeline summary and create follow-ups for top deals',
   'Bulk mark all new leads as contacted',
+  'Show overdue invoices and mark any paid ones',
 ];
 
 function renderMarkdown(text: string) {
@@ -193,13 +205,13 @@ export function AIAgent() {
                   <Zap className="w-7 h-7 text-indigo-500" />
                 </div>
                 <p className="text-sm font-semibold text-gray-900 dark:text-white">Full autopilot — ask anything</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Bulk ops, cross-module workflows, send emails, close deals</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">CRM · Finance · HR · Helpdesk · Projects · Contracts · Marketing</p>
               </div>
-              <div className="grid grid-cols-1 gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 {STARTERS.map((s, i) => (
                   <button key={i} onClick={() => send(s)}
-                    className="text-left px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-xs text-gray-600 dark:text-gray-400 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-all flex items-center gap-2">
-                    <Sparkles className="w-3 h-3 text-indigo-400 flex-shrink-0" />
+                    className="text-left px-2.5 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-[11px] text-gray-600 dark:text-gray-400 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-all flex items-start gap-1.5 leading-snug">
+                    <Sparkles className="w-3 h-3 text-indigo-400 flex-shrink-0 mt-0.5" />
                     {s}
                   </button>
                 ))}

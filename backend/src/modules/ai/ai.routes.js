@@ -767,6 +767,153 @@ const AGENT_TOOLS = [
       required: ['note'],
     },
   },
+  {
+    name: 'create_project',
+    description: 'Create a new project with optional budget and deadline',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Project name' },
+        description: { type: 'string' },
+        priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
+        status: { type: 'string', enum: ['planning', 'active', 'on_hold'], description: 'Initial status (default: planning)' },
+        budget: { type: 'number', description: 'Project budget in USD' },
+        startDate: { type: 'string', description: 'Start date YYYY-MM-DD' },
+        endDate: { type: 'string', description: 'End/deadline date YYYY-MM-DD' },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'list_projects',
+    description: 'List projects with optional status filter',
+    input_schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['planning', 'active', 'on_hold', 'completed', 'cancelled'] },
+        limit: { type: 'number', description: 'Max results (default 5)' },
+      },
+    },
+  },
+  {
+    name: 'create_contract',
+    description: 'Create a new contract for a client, vendor, or employee',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Contract title' },
+        type: { type: 'string', enum: ['client', 'vendor', 'employment', 'nda', 'partnership'], description: 'Contract type' },
+        partyName: { type: 'string', description: 'Name of the other party' },
+        partyEmail: { type: 'string', description: 'Email of the other party' },
+        value: { type: 'number', description: 'Contract value in USD' },
+        startDate: { type: 'string', description: 'Start date YYYY-MM-DD' },
+        endDate: { type: 'string', description: 'End date YYYY-MM-DD' },
+        description: { type: 'string', description: 'Contract description or terms summary' },
+      },
+      required: ['title', 'partyName'],
+    },
+  },
+  {
+    name: 'list_contracts',
+    description: 'List contracts with optional status or type filter',
+    input_schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['draft', 'sent', 'signed', 'active', 'expired', 'terminated'] },
+        type: { type: 'string', enum: ['client', 'vendor', 'employment', 'nda', 'partnership'] },
+        limit: { type: 'number', description: 'Max results (default 5)' },
+      },
+    },
+  },
+  {
+    name: 'create_purchase_order',
+    description: 'Create a purchase order (PO) for a vendor',
+    input_schema: {
+      type: 'object',
+      properties: {
+        vendorName: { type: 'string', description: 'Vendor / supplier name' },
+        vendorEmail: { type: 'string' },
+        items: {
+          type: 'array',
+          description: 'Line items',
+          items: {
+            type: 'object',
+            properties: {
+              description: { type: 'string' },
+              qty: { type: 'number' },
+              unitPrice: { type: 'number' },
+            },
+          },
+        },
+        notes: { type: 'string' },
+        expectedDate: { type: 'string', description: 'Expected delivery date YYYY-MM-DD' },
+      },
+      required: ['vendorName', 'items'],
+    },
+  },
+  {
+    name: 'list_leaves',
+    description: 'List employee leave requests, optionally filtered by status',
+    input_schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['pending', 'approved', 'rejected'], description: 'Filter by status (default: pending)' },
+        limit: { type: 'number', description: 'Max results (default 10)' },
+      },
+    },
+  },
+  {
+    name: 'approve_leave',
+    description: 'Approve or reject an employee leave request',
+    input_schema: {
+      type: 'object',
+      properties: {
+        leaveId: { type: 'string', description: 'Leave request ID' },
+        employeeName: { type: 'string', description: 'Employee name to find their pending leave if ID is unknown' },
+        action: { type: 'string', enum: ['approve', 'reject'], description: 'Action to take' },
+        comments: { type: 'string', description: 'Optional comments / reason' },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'create_expense',
+    description: 'Log a business expense',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Expense title / description' },
+        category: { type: 'string', description: 'Category e.g. travel, meals, software, office, marketing' },
+        amount: { type: 'number', description: 'Amount in USD' },
+        date: { type: 'string', description: 'Expense date YYYY-MM-DD (default: today)' },
+        isReimbursable: { type: 'boolean', description: 'Whether to reimburse the employee' },
+        description: { type: 'string' },
+      },
+      required: ['title', 'category', 'amount'],
+    },
+  },
+  {
+    name: 'schedule_appointment',
+    description: 'Schedule a meeting, call, or appointment with a contact or client',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Appointment title' },
+        startAt: { type: 'string', description: 'Start datetime ISO string e.g. 2024-06-25T10:00:00' },
+        endAt: { type: 'string', description: 'End datetime ISO string' },
+        location: { type: 'string', description: 'Physical location or meeting room' },
+        meetingUrl: { type: 'string', description: 'Video call link (Zoom, Meet, Teams)' },
+        notes: { type: 'string' },
+        contactName: { type: 'string', description: 'Contact name to link appointment to' },
+      },
+      required: ['title', 'startAt'],
+    },
+  },
+  {
+    name: 'daily_digest',
+    description: 'Get a complete morning briefing — overdue items, today\'s tasks, pipeline health, pending approvals, and revenue snapshot. Use this when the user asks "what needs my attention", "morning summary", or "what\'s happening today".',
+    input_schema: { type: 'object', properties: {} },
+  },
 ];
 
 async function executeAgentTool(name, input, req) {
@@ -1195,6 +1342,189 @@ async function executeAgentTool(name, input, req) {
       });
       return { success: true, id: activity.id, message: `Note added${leadId ? ' to lead' : ''}${dealId ? ' to deal' : ''}${contactId ? ' to contact' : ''}` };
     }
+    case 'create_project': {
+      const project = await prisma.project.create({
+        data: {
+          name: input.name,
+          description: input.description || null,
+          priority: input.priority || 'medium',
+          status: input.status || 'planning',
+          budget: input.budget ? Number(input.budget) : null,
+          startDate: input.startDate ? new Date(input.startDate) : null,
+          endDate: input.endDate ? new Date(input.endDate) : null,
+          companyId: cid,
+          managerId: uid,
+        },
+      });
+      return { success: true, id: project.id, message: `Project created: "${project.name}" (${project.status})` };
+    }
+    case 'list_projects': {
+      const projects = await prisma.project.findMany({
+        where: { companyId: cid, ...(input.status && { status: input.status }) },
+        take: input.limit || 5,
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, name: true, status: true, priority: true, progress: true, endDate: true, budget: true },
+      });
+      return { projects: projects.map(p => ({ ...p, budget: p.budget ? Number(p.budget) : null })), count: projects.length };
+    }
+    case 'create_contract': {
+      const count = await prisma.contract.count({ where: { companyId: cid } });
+      const contractNo = generateNumber('CTR', count + 1);
+      const contract = await prisma.contract.create({
+        data: {
+          contractNo,
+          title: input.title,
+          type: input.type || 'client',
+          partyName: input.partyName,
+          partyEmail: input.partyEmail || null,
+          value: input.value ? Number(input.value) : null,
+          startDate: input.startDate ? new Date(input.startDate) : null,
+          endDate: input.endDate ? new Date(input.endDate) : null,
+          description: input.description || null,
+          status: 'draft',
+          companyId: cid,
+        },
+      });
+      return { success: true, id: contract.id, contractNo, message: `Contract ${contractNo} created: "${input.title}" with ${input.partyName}` };
+    }
+    case 'list_contracts': {
+      const contracts = await prisma.contract.findMany({
+        where: { companyId: cid, ...(input.status && { status: input.status }), ...(input.type && { type: input.type }) },
+        take: input.limit || 5,
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, contractNo: true, title: true, type: true, partyName: true, value: true, status: true, endDate: true },
+      });
+      return { contracts: contracts.map(c => ({ ...c, value: c.value ? Number(c.value) : null })), count: contracts.length };
+    }
+    case 'create_purchase_order': {
+      const count = await prisma.purchaseOrder.count({ where: { companyId: cid } });
+      const poNumber = generateNumber('PO', count + 1);
+      const items = (input.items || []).map(i => ({ ...i, amount: Number(i.qty || 1) * Number(i.unitPrice || 0) }));
+      const subtotal = items.reduce((s, i) => s + i.amount, 0);
+      const po = await prisma.purchaseOrder.create({
+        data: {
+          poNumber,
+          vendorName: input.vendorName,
+          vendorEmail: input.vendorEmail || null,
+          subtotal,
+          tax: 0,
+          total: subtotal,
+          notes: input.notes || null,
+          expectedDate: input.expectedDate ? new Date(input.expectedDate) : null,
+          status: 'draft',
+          companyId: cid,
+          items: { create: items.map(i => ({ description: i.description, quantity: Number(i.qty || 1), unitPrice: Number(i.unitPrice || 0), total: i.amount })) },
+        },
+      });
+      return { success: true, id: po.id, poNumber, message: `PO ${poNumber} created for ${input.vendorName} — total $${subtotal.toFixed(2)}` };
+    }
+    case 'list_leaves': {
+      const leaves = await prisma.leaveRequest.findMany({
+        where: { status: input.status || 'pending', employee: { companyId: cid } },
+        take: input.limit || 10,
+        orderBy: { createdAt: 'desc' },
+        include: { employee: { include: { user: { select: { firstName: true, lastName: true } } } }, leaveType: { select: { name: true } } },
+      });
+      return {
+        leaves: leaves.map(l => ({
+          id: l.id,
+          employee: `${l.employee.user?.firstName || ''} ${l.employee.user?.lastName || ''}`.trim(),
+          leaveType: l.leaveType?.name,
+          startDate: l.startDate,
+          endDate: l.endDate,
+          totalDays: l.totalDays,
+          status: l.status,
+          reason: l.reason,
+        })),
+        count: leaves.length,
+      };
+    }
+    case 'approve_leave': {
+      let leave = input.leaveId
+        ? await prisma.leaveRequest.findFirst({ where: { id: input.leaveId, status: 'pending' }, include: { employee: { include: { user: { select: { firstName: true, lastName: true } } } } } })
+        : await prisma.leaveRequest.findFirst({
+            where: { status: 'pending', employee: { companyId: cid, user: { OR: [{ firstName: { contains: input.employeeName || '', mode: 'insensitive' } }, { lastName: { contains: input.employeeName || '', mode: 'insensitive' } }] } } },
+            include: { employee: { include: { user: { select: { firstName: true, lastName: true } } } } },
+          });
+      if (!leave) return { error: 'No pending leave request found.' };
+      const isApprove = input.action === 'approve';
+      await prisma.leaveRequest.update({
+        where: { id: leave.id },
+        data: { status: isApprove ? 'approved' : 'rejected', approvedById: isApprove ? uid : null, approvedAt: isApprove ? new Date() : null, rejectedAt: isApprove ? null : new Date(), comments: input.comments || null },
+      });
+      const empName = `${leave.employee.user?.firstName || ''} ${leave.employee.user?.lastName || ''}`.trim();
+      return { success: true, message: `Leave request for ${empName} has been ${isApprove ? 'approved' : 'rejected'}` };
+    }
+    case 'create_expense': {
+      const expense = await prisma.expense.create({
+        data: {
+          title: input.title,
+          category: input.category,
+          amount: Number(input.amount),
+          date: input.date ? new Date(input.date) : new Date(),
+          description: input.description || null,
+          isReimbursable: input.isReimbursable || false,
+          status: 'pending',
+          companyId: cid,
+        },
+      });
+      return { success: true, id: expense.id, message: `Expense logged: "${input.title}" — $${Number(input.amount).toFixed(2)} (${input.category})` };
+    }
+    case 'schedule_appointment': {
+      const appt = await prisma.appointment.create({
+        data: {
+          title: input.title,
+          startAt: new Date(input.startAt),
+          endAt: input.endAt ? new Date(input.endAt) : new Date(new Date(input.startAt).getTime() + 60 * 60 * 1000),
+          location: input.location || null,
+          meetingUrl: input.meetingUrl || null,
+          notes: input.notes || null,
+          status: 'scheduled',
+          companyId: cid,
+          bookedById: uid,
+        },
+      });
+      return { success: true, id: appt.id, message: `Appointment scheduled: "${input.title}" on ${new Date(appt.startAt).toLocaleString()}` };
+    }
+    case 'daily_digest': {
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(todayStart.getTime() + 86400000);
+      const [
+        todayTasks, overdueTasks,
+        overdueInvoices,
+        pendingLeaves,
+        openTickets, urgentTickets,
+        newLeads,
+        activeDeals,
+        todayAppts,
+        monthRevenue,
+      ] = await Promise.all([
+        prisma.task.count({ where: { companyId: cid, status: { in: ['todo', 'in_progress'] }, dueDate: { gte: todayStart, lt: todayEnd } } }),
+        prisma.task.count({ where: { companyId: cid, status: { in: ['todo', 'in_progress'] }, dueDate: { lt: todayStart } } }),
+        prisma.invoice.findMany({ where: { companyId: cid, status: { in: ['sent', 'overdue'] }, dueDate: { lt: now } }, select: { invoiceNo: true, clientName: true, total: true, dueDate: true }, take: 5, orderBy: { dueDate: 'asc' } }),
+        prisma.leaveRequest.count({ where: { status: 'pending', employee: { companyId: cid } } }),
+        prisma.ticket.count({ where: { companyId: cid, status: { in: ['open', 'pending'] } } }),
+        prisma.ticket.count({ where: { companyId: cid, status: { in: ['open', 'pending'] }, priority: 'urgent' } }),
+        prisma.lead.count({ where: { companyId: cid, status: 'new' } }),
+        prisma.deal.aggregate({ where: { companyId: cid, status: { in: ['open', 'negotiation'] } }, _sum: { value: true }, _count: true }),
+        prisma.appointment.findMany({ where: { companyId: cid, startAt: { gte: todayStart, lt: todayEnd } }, select: { title: true, startAt: true, location: true, meetingUrl: true }, orderBy: { startAt: 'asc' } }),
+        prisma.invoice.aggregate({ where: { companyId: cid, status: 'paid', paidAt: { gte: new Date(now.getFullYear(), now.getMonth(), 1) } }, _sum: { total: true } }),
+      ]);
+      return {
+        todaysTasks: todayTasks,
+        overdueTasks,
+        overdueInvoices: overdueInvoices.map(i => ({ invoiceNo: i.invoiceNo, client: i.clientName, amount: Number(i.total), daysOverdue: Math.floor((now.getTime() - new Date(i.dueDate).getTime()) / 86400000) })),
+        pendingLeaveRequests: pendingLeaves,
+        openTickets,
+        urgentTickets,
+        newLeads,
+        activeDeals: activeDeals._count,
+        pipelineValue: Number(activeDeals._sum.value || 0),
+        todaysAppointments: todayAppts.map(a => ({ title: a.title, time: new Date(a.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), location: a.location, meetingUrl: a.meetingUrl })),
+        monthRevenue: Number(monthRevenue._sum.total || 0),
+      };
+    }
     default:
       return { error: `Unknown tool: ${name}` };
   }
@@ -1203,26 +1533,41 @@ async function executeAgentTool(name, input, req) {
 function getAgentSuggestions(actions) {
   const used = new Set(actions.map(a => a.tool));
   const s = [];
-  if (used.has('get_stats') || used.has('get_overdue_summary')) {
-    s.push('Show my pipeline summary', 'Send payment reminders to all overdue clients', 'List urgent tickets');
+  if (used.has('daily_digest') || used.has('get_stats') || used.has('get_overdue_summary')) {
+    s.push('Send payment reminders to all overdue clients', 'Approve all pending leave requests', 'Show pipeline summary');
   }
   if (used.has('list_leads') || used.has('create_lead')) {
-    s.push('Convert this lead to a contact and deal', 'Add a follow-up task for this lead', 'Bulk mark all new leads as contacted');
+    s.push('Convert this lead to a contact and deal', 'Schedule a follow-up for this lead', 'Bulk mark all new leads as contacted');
   }
   if (used.has('list_invoices') || used.has('create_invoice')) {
     s.push('Send payment reminders', 'Show revenue report last 6 months', 'Mark overdue invoices as paid');
   }
   if (used.has('get_pipeline_summary') || used.has('create_deal') || used.has('update_deal')) {
-    s.push("Show all won deals this month", 'Create a follow-up for the top deal', 'List leads to convert to deals');
+    s.push('Show all won deals this month', 'Create follow-up tasks for top 3 deals', 'List leads to convert');
   }
   if (used.has('create_ticket') || used.has('list_tickets')) {
-    s.push('Resolve all urgent tickets', 'Show overdue summary', 'List open helpdesk tickets');
+    s.push('Resolve all urgent tickets', 'Show today\'s digest', 'List all open tickets');
   }
   if (used.has('get_revenue_report')) {
-    s.push("Show today's stats", 'List unpaid invoices', 'Get overdue summary');
+    s.push("Show today's digest", 'List unpaid invoices', 'Create a purchase order');
   }
   if (used.has('convert_lead')) {
-    s.push('Add a note to the new contact', 'Schedule a follow-up for the new deal', 'Create an invoice for this client');
+    s.push('Schedule a follow-up for the new deal', 'Create an invoice for this client', 'Add a note to the contact');
+  }
+  if (used.has('list_leaves') || used.has('approve_leave')) {
+    s.push('Show employee list', 'Log a business expense', 'Show today\'s digest');
+  }
+  if (used.has('create_project') || used.has('list_projects')) {
+    s.push('Create tasks for this project', 'Show pipeline summary', 'List active projects');
+  }
+  if (used.has('create_contract') || used.has('list_contracts')) {
+    s.push('Create an invoice for this client', 'Schedule a follow-up meeting', 'Show revenue report');
+  }
+  if (used.has('create_purchase_order')) {
+    s.push('Log this as an expense', 'List all purchase orders', 'Show overdue summary');
+  }
+  if (used.has('schedule_appointment')) {
+    s.push('Add a follow-up task', 'Send the client an invoice', 'Show today\'s digest');
   }
   return [...new Set(s)].slice(0, 3);
 }
@@ -1264,13 +1609,14 @@ router.post('/agent', async (req, res, next) => {
 
     const provider = company?.aiProvider || config.ai.provider || 'anthropic';
     const today = new Date().toISOString().slice(0, 10);
-    const systemPrompt = `You are an AI business assistant for ${company?.name || 'this company'}. You have tools to take real actions across CRM, Finance, Helpdesk, Projects, HR, and Marketing.
+    const systemPrompt = `You are an AI business assistant for ${company?.name || 'this company'}. You have tools to take real actions across CRM, Finance, Helpdesk, Projects, HR, Contracts, Purchase Orders, Expenses, Appointments, and Marketing.
 
 Rules:
-- Act immediately — call tools without asking for confirmation unless critical info is genuinely missing.
-- After actions, confirm what was done with the key details (name, number, amount).
-- For lists/reports, format with bullet points or short tables using **bold** for emphasis.
-- When converting leads or sending emails, summarize each item acted on.
+- Act immediately — call tools without asking for confirmation unless truly critical info is missing.
+- Chain multiple tools in one response when it makes sense (e.g. daily_digest → then send_payment_reminder).
+- After actions, confirm what was done with key details (name, number, amount, date).
+- For lists/reports, use **bold** for key values and bullet points for items.
+- When the user asks for "today's digest", "morning briefing", or "what needs attention", call daily_digest first.
 - Today: ${today}.`;
 
     const actions = [];
