@@ -7,6 +7,7 @@ import {
   Megaphone, Search, FileText, ShoppingCart, Wallet, CalendarPlus,
   LayoutDashboard, Copy, Check, ArrowDown, Users, Layers, RefreshCw,
   Zap, List, DollarSign, AlertCircle, Image as LucideImage,
+  Wand2, Brain, Mic, MicOff, FileBarChart2, SendHorizonal,
   type LucideIcon,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -65,26 +66,43 @@ const TOOL_META: Record<string, ToolMeta> = {
   // Marketing
   create_campaign:       { label: 'Campaign created',    url: '/dashboard/marketing',               icon: Megaphone,       cls: 'text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950/30 border-pink-200 dark:border-pink-800' },
   // General
-  get_stats:             { label: 'Stats loaded',        url: '/dashboard',                         icon: LayoutDashboard, cls: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800' },
-  daily_digest:          { label: 'Daily digest',        url: '/dashboard',                         icon: LayoutDashboard, cls: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800' },
-  generate_image:        { label: 'Image generated',                                                 icon: LucideImage,     cls: 'text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950/30 border-pink-200 dark:border-pink-800' },
+  get_stats:             { label: 'Stats loaded',           url: '/dashboard',        icon: LayoutDashboard, cls: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800' },
+  daily_digest:          { label: 'Daily digest',           url: '/dashboard',        icon: LayoutDashboard, cls: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800' },
+  generate_image:        { label: 'Image generated',                                  icon: LucideImage,     cls: 'text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950/30 border-pink-200 dark:border-pink-800' },
+  // AI-powered tools
+  draft_email:           { label: 'Email drafted',          url: '/dashboard/crm/leads', icon: Wand2,        cls: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800' },
+  score_leads:           { label: 'Leads scored',           url: '/dashboard/crm/leads', icon: Brain,        cls: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800' },
+  bulk_qualify_leads:    { label: 'Leads qualified',        url: '/dashboard/crm/leads', icon: Brain,        cls: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800' },
+  send_bulk_email:       { label: 'Bulk emails sent',       url: '/dashboard/crm/leads', icon: SendHorizonal,cls: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800' },
+  forecast_revenue:      { label: 'Revenue forecast',       url: '/dashboard/analytics', icon: TrendingUp,   cls: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800' },
+  analyze_pipeline:      { label: 'Pipeline analyzed',      url: '/dashboard/crm/pipeline', icon: Brain,     cls: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800' },
+  create_social_post:    { label: 'Post drafted',           url: '/dashboard/marketing', icon: Wand2,        cls: 'text-pink-600 dark:text-pink-400 bg-pink-50 dark:bg-pink-950/30 border-pink-200 dark:border-pink-800' },
+  reply_to_ticket:       { label: 'Reply drafted',          url: '/dashboard/helpdesk',  icon: Wand2,        cls: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800' },
+  generate_report:       { label: 'Report generated',                                   icon: FileBarChart2, cls: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800' },
 };
 
 // ── category starters ────────────────────────────────────────────────────────
 
 const CATS = [
-  { key: 'all',      label: 'Suggested' },
-  { key: 'overview', label: 'Overview'  },
-  { key: 'crm',      label: 'CRM'       },
-  { key: 'finance',  label: 'Finance'   },
-  { key: 'hr',       label: 'HR'        },
-  { key: 'helpdesk', label: 'Helpdesk'  },
-  { key: 'projects', label: 'Projects'  },
+  { key: 'all',      label: 'Suggested'  },
+  { key: 'ai',       label: 'AI Magic'   },
+  { key: 'overview', label: 'Overview'   },
+  { key: 'crm',      label: 'CRM'        },
+  { key: 'finance',  label: 'Finance'    },
+  { key: 'hr',       label: 'HR'         },
+  { key: 'helpdesk', label: 'Helpdesk'   },
+  { key: 'projects', label: 'Projects'   },
 ];
 
 const STARTERS: { cat: string; text: string }[] = [
   { cat: 'overview',  text: "Give me today's full business digest" },
   { cat: 'overview',  text: 'Show overdue summary across all modules' },
+  { cat: 'ai',        text: 'Score and qualify all my new leads with AI' },
+  { cat: 'ai',        text: 'Send personalized emails to all qualified leads' },
+  { cat: 'ai',        text: 'Analyze my pipeline and identify at-risk deals' },
+  { cat: 'ai',        text: 'Forecast next month revenue' },
+  { cat: 'ai',        text: 'Generate a monthly business report' },
+  { cat: 'ai',        text: 'Draft a LinkedIn post about our services' },
   { cat: 'finance',   text: 'Send payment reminders to all overdue clients' },
   { cat: 'finance',   text: 'Show revenue report for last 6 months' },
   { cat: 'finance',   text: 'Mark all overdue invoices as paid' },
@@ -94,9 +112,16 @@ const STARTERS: { cat: string; text: string }[] = [
   { cat: 'hr',        text: 'Approve all pending leave requests' },
   { cat: 'hr',        text: 'List active employees' },
   { cat: 'helpdesk',  text: 'List all urgent support tickets' },
-  { cat: 'helpdesk',  text: 'Resolve all open low-priority tickets' },
+  { cat: 'helpdesk',  text: 'AI-draft replies to all open urgent tickets' },
   { cat: 'projects',  text: 'List active projects with progress' },
   { cat: 'projects',  text: 'List high-priority tasks due this week' },
+];
+
+const WORKFLOWS = [
+  { label: 'Morning Briefing', icon: LayoutDashboard, prompt: "Morning briefing: give me today's full digest, then analyze my pipeline for risks and show overdue items" },
+  { label: 'Lead Blitz',       icon: Brain,           prompt: 'Lead blitz: bulk qualify all new leads with AI, then send personalized follow-up emails to qualified leads' },
+  { label: 'Revenue Boost',    icon: TrendingUp,      prompt: 'Revenue boost: send payment reminders to all overdue clients, then forecast next month revenue and show pipeline quick wins' },
+  { label: 'End of Day',       icon: CheckCircle2,    prompt: 'End of day wrap-up: resolve all low-priority tickets, list urgent tasks overdue, and generate a business summary' },
 ];
 
 const LOADING_PHASES = ['Analyzing request…', 'Running actions…', 'Writing response…'];
@@ -159,9 +184,12 @@ export function AIAgent() {
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [activeCat, setActiveCat]     = useState('all');
 
+  const [isRecording, setIsRecording] = useState(false);
+
   const listRef     = useRef<HTMLDivElement>(null);
   const bottomRef   = useRef<HTMLDivElement>(null);
   const inputRef    = useRef<HTMLTextAreaElement>(null);
+  const recognition = useRef<any>(null);
 
   // Keyboard shortcut Ctrl/Cmd+K
   useEffect(() => {
@@ -217,7 +245,21 @@ export function AIAgent() {
 
   const clear = () => { setMsgs([]); setHistory([]); setInput(''); setActiveCat('all'); };
 
-  const visibleStarters = activeCat === 'all' ? STARTERS.slice(0, 6) : STARTERS.filter(s => s.cat === activeCat);
+  const toggleVoice = () => {
+    if (isRecording) { recognition.current?.stop(); setIsRecording(false); return; }
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    const r = new SR();
+    r.continuous = false; r.interimResults = false; r.lang = 'en-US';
+    r.onresult = (e: any) => { setInput(prev => (prev + ' ' + e.results[0][0].transcript).trim()); setIsRecording(false); };
+    r.onerror = () => setIsRecording(false);
+    r.onend = () => setIsRecording(false);
+    recognition.current = r;
+    r.start();
+    setIsRecording(true);
+  };
+
+  const visibleStarters = activeCat === 'all' ? STARTERS.slice(0, 6) : STARTERS.filter(s => s.cat === activeCat).slice(0, 8);
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
   return (
@@ -254,7 +296,7 @@ export function AIAgent() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-white leading-tight">AI Business Agent</p>
-            <p className="text-[10px] text-indigo-200 leading-tight">39 tools · CRM · Finance · HR · Helpdesk · Projects</p>
+            <p className="text-[10px] text-indigo-200 leading-tight">48 AI tools · CRM · Finance · HR · Helpdesk · Projects · AI Magic</p>
           </div>
           <div className="flex items-center gap-1">
             {msgs.length > 0 && (
@@ -280,6 +322,25 @@ export function AIAgent() {
                 </div>
                 <p className="font-semibold text-gray-900 dark:text-white text-sm">Your AI Business Autopilot</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Take real actions across every module — no manual effort</p>
+              </div>
+
+              {/* Workflow presets */}
+              <div className="grid grid-cols-2 gap-1.5">
+                {WORKFLOWS.map((w, i) => {
+                  const Icon = w.icon;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => send(w.prompt)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-950/30 dark:to-violet-950/30 border border-indigo-100 dark:border-indigo-900 hover:from-indigo-100 hover:to-violet-100 dark:hover:from-indigo-950/50 dark:hover:to-violet-950/50 transition-all group"
+                    >
+                      <div className="w-6 h-6 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Icon className="w-3 h-3 text-white" />
+                      </div>
+                      <span className="text-[11px] font-medium text-indigo-700 dark:text-indigo-300 leading-tight">{w.label}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Category tabs */}
@@ -463,18 +524,27 @@ export function AIAgent() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder="Create, update, send, report — anything…"
+              placeholder="Create, analyze, email, report — anything…"
               rows={1}
               className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 outline-none resize-none max-h-32"
               style={{ minHeight: '22px' }}
             />
-            <button
-              onClick={() => send()}
-              disabled={!input.trim() || loading}
-              className="w-8 h-8 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 text-white rounded-lg flex-shrink-0 transition-colors"
-            >
-              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            </button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={toggleVoice}
+                title={isRecording ? 'Stop recording' : 'Voice input'}
+                className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${isRecording ? 'bg-red-100 dark:bg-red-950/40 text-red-500 dark:text-red-400 animate-pulse' : 'text-gray-400 hover:text-indigo-500 dark:text-gray-500 dark:hover:text-indigo-400 hover:bg-gray-200 dark:hover:bg-gray-800'}`}
+              >
+                {isRecording ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                onClick={() => send()}
+                disabled={!input.trim() || loading}
+                className="w-8 h-8 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 text-white rounded-lg transition-colors"
+              >
+                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              </button>
+            </div>
           </div>
           <p className="text-[10px] text-gray-400 dark:text-gray-600 text-center mt-1.5">
             Enter to send · Shift+Enter for new line · Esc to close

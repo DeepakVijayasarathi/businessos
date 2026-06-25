@@ -936,6 +936,103 @@ const AGENT_TOOLS = [
     description: 'Get a complete morning briefing — overdue items, today\'s tasks, pipeline health, pending approvals, and revenue snapshot. Use this when the user asks "what needs my attention", "morning summary", or "what\'s happening today".',
     input_schema: { type: 'object', properties: {} },
   },
+  // ── AI-powered tools ──────────────────────────────────────────────────────
+  {
+    name: 'draft_email',
+    description: 'AI drafts a personalized email to a lead or contact, then optionally sends it. Use for follow-ups, introductions, proposals, or any outreach.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        recipientName: { type: 'string', description: 'Name of the lead or contact to email' },
+        purpose: { type: 'string', description: 'Purpose of the email (e.g. follow-up, introduction, proposal, meeting request)' },
+        tone: { type: 'string', enum: ['professional', 'friendly', 'urgent', 'formal'], description: 'Email tone (default: professional)' },
+        keyPoints: { type: 'string', description: 'Key points or context to include' },
+        send: { type: 'boolean', description: 'If true, send the email immediately after drafting' },
+      },
+      required: ['recipientName', 'purpose'],
+    },
+  },
+  {
+    name: 'score_leads',
+    description: 'AI scores and ranks leads based on their profile, company, job title, source, and activity level. Updates scores in the CRM.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['new', 'contacted', 'qualified'], description: 'Which leads to score (default: new)' },
+        limit: { type: 'number', description: 'Max leads to score (default 10, max 20)' },
+      },
+    },
+  },
+  {
+    name: 'bulk_qualify_leads',
+    description: 'AI analyzes all new leads and automatically qualifies or disqualifies them, updating their status and score in CRM.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number', description: 'Max leads to process (default 20)' },
+      },
+    },
+  },
+  {
+    name: 'send_bulk_email',
+    description: 'AI drafts and sends personalized emails to a targeted list — new leads, all contacts, or overdue clients.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        target: { type: 'string', enum: ['new_leads', 'qualified_leads', 'all_leads', 'contacts', 'overdue_clients'], description: 'Who to email' },
+        purpose: { type: 'string', description: 'Email purpose / campaign goal' },
+        tone: { type: 'string', enum: ['professional', 'friendly', 'urgent'], description: 'Tone (default: professional)' },
+        limit: { type: 'number', description: 'Max recipients (default 15, max 30)' },
+      },
+      required: ['target', 'purpose'],
+    },
+  },
+  {
+    name: 'forecast_revenue',
+    description: 'AI forecasts next month revenue using historical data, pipeline value, deal probabilities, and growth trends.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'analyze_pipeline',
+    description: 'AI analyzes the sales pipeline to identify at-risk deals, stale opportunities, and quick wins with specific action recommendations.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'create_social_post',
+    description: 'AI creates engaging social media post content for LinkedIn, Twitter/X, or Instagram.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        topic: { type: 'string', description: 'Topic, product, or service to promote' },
+        platform: { type: 'string', enum: ['linkedin', 'twitter', 'instagram', 'general'], description: 'Target platform (default: linkedin)' },
+        tone: { type: 'string', enum: ['professional', 'casual', 'inspiring', 'promotional'], description: 'Post tone (default: professional)' },
+        includeHashtags: { type: 'boolean', description: 'Include relevant hashtags (default: true)' },
+      },
+      required: ['topic'],
+    },
+  },
+  {
+    name: 'reply_to_ticket',
+    description: 'AI drafts a professional reply to a support ticket. Analyzes the issue and writes an empathetic, solution-focused response.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        ticketNo: { type: 'string', description: 'Ticket number (e.g. TKT-00001)' },
+        subject: { type: 'string', description: 'Ticket subject to find it (if ticketNo unknown)' },
+        tone: { type: 'string', enum: ['professional', 'empathetic', 'technical'], description: 'Reply tone (default: professional)' },
+      },
+    },
+  },
+  {
+    name: 'generate_report',
+    description: 'AI generates a comprehensive business health report with insights, trends, risk factors, and action recommendations.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', enum: ['weekly', 'monthly', 'quarterly'], description: 'Report period (default: monthly)' },
+      },
+    },
+  },
 ];
 
 async function executeAgentTool(name, input, req) {
@@ -1574,6 +1671,259 @@ async function executeAgentTool(name, input, req) {
         monthRevenue: Number(monthRevenue._sum.total || 0),
       };
     }
+    // ── AI-powered tool executors ───────────────────────────────────────────
+    case 'draft_email': {
+      const mode = 'insensitive';
+      const company = await prisma.company.findUnique({ where: { id: cid }, select: { name: true, anthropicKey: true, openaiKey: true, aiProvider: true } });
+      // Find recipient in leads or contacts
+      const lead = await prisma.lead.findFirst({
+        where: { companyId: cid, OR: [{ firstName: { contains: input.recipientName, mode } }, { lastName: { contains: input.recipientName, mode } }] },
+        select: { id: true, firstName: true, lastName: true, email: true, company: true, jobTitle: true, notes: true },
+      });
+      const contact = !lead ? await prisma.contact.findFirst({
+        where: { companyId: cid, OR: [{ firstName: { contains: input.recipientName, mode } }, { lastName: { contains: input.recipientName, mode } }] },
+        select: { id: true, firstName: true, lastName: true, email: true, company: true, jobTitle: true },
+      }) : null;
+      const recipient = lead || contact;
+      if (!recipient) return { error: `"${input.recipientName}" not found in CRM. Try their exact first name.` };
+
+      const aiResult = await callAI({
+        messages: [{ role: 'user', content: `Write a ${input.tone || 'professional'} email to ${recipient.firstName} ${recipient.lastName || ''}${recipient.company ? ` at ${recipient.company}` : ''}${recipient.jobTitle ? ` (${recipient.jobTitle})` : ''} for: "${input.purpose}". ${input.keyPoints ? `Key points: ${input.keyPoints}.` : ''} From: ${company?.name}. Write a complete email with Subject line and body. Keep it under 200 words.` }],
+        companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider,
+        maxTokens: 500, system: 'Write professional business emails. Format: Subject: ...\n\n[Body]. No extra commentary.',
+      });
+
+      const subjectMatch = aiResult.text.match(/Subject:\s*(.+)/);
+      const subject = subjectMatch?.[1]?.trim() || input.purpose;
+      const body = aiResult.text.replace(/Subject:.*\n?/, '').trim();
+
+      if (input.send && recipient.email) {
+        const emailService = require('../../services/email.service');
+        await emailService.send({ to: recipient.email, subject, html: `<div style="font-family:sans-serif;line-height:1.6;white-space:pre-wrap">${body}</div>`, companyId: cid }).catch(() => {});
+      }
+      return { success: true, subject, body, recipient: `${recipient.firstName} ${recipient.lastName || ''}`.trim(), email: recipient.email, sent: !!(input.send && recipient.email), message: `Email drafted${input.send && recipient.email ? ' and sent' : ''} to ${recipient.firstName}` };
+    }
+
+    case 'score_leads': {
+      const company = await prisma.company.findUnique({ where: { id: cid }, select: { anthropicKey: true, openaiKey: true, aiProvider: true } });
+      const leads = await prisma.lead.findMany({
+        where: { companyId: cid, status: input.status || 'new' },
+        take: Math.min(input.limit || 10, 20),
+        orderBy: { createdAt: 'desc' },
+        include: { activities: { take: 3 } },
+      });
+      if (!leads.length) return { message: 'No leads found to score.' };
+
+      const aiResult = await callAI({
+        messages: [{ role: 'user', content: `Score these ${leads.length} B2B sales leads from 0-100. Higher scores for: senior titles (CEO/VP/Director/Owner), known companies, referral source, more activities. Return JSON array only: [{"id":"...","score":0-100,"grade":"A/B/C/D","reason":"brief"}]\n\nLeads:\n${leads.map((l, i) => `${i+1}. id:${l.id} | ${l.firstName} ${l.lastName || ''} | ${l.jobTitle || 'no title'} @ ${l.company || 'unknown'} | source:${l.source} | activities:${l.activities.length}`).join('\n')}` }],
+        companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider,
+        maxTokens: 1000, system: 'Return only valid JSON array, no other text.',
+      });
+
+      let scores;
+      try { const m = aiResult.text.match(/\[[\s\S]*\]/); scores = JSON.parse(m ? m[0] : aiResult.text); }
+      catch { return { error: 'AI scoring failed. Try with fewer leads.' }; }
+
+      for (const s of scores) {
+        await prisma.lead.update({ where: { id: s.id }, data: { score: Math.round(Number(s.score)) } }).catch(() => {});
+      }
+      const ranked = scores.sort((a, b) => b.score - a.score);
+      return { success: true, scored: scores.length, results: ranked, topLead: leads.find(l => l.id === ranked[0]?.id)?.firstName, message: `${scores.length} leads scored by AI. Top score: ${ranked[0]?.score}/100 (grade ${ranked[0]?.grade})` };
+    }
+
+    case 'bulk_qualify_leads': {
+      const company = await prisma.company.findUnique({ where: { id: cid }, select: { anthropicKey: true, openaiKey: true, aiProvider: true } });
+      const leads = await prisma.lead.findMany({
+        where: { companyId: cid, status: 'new' },
+        take: Math.min(input.limit || 20, 30),
+        include: { activities: { take: 3 } },
+      });
+      if (!leads.length) return { message: 'No new leads to qualify.' };
+
+      const aiResult = await callAI({
+        messages: [{ role: 'user', content: `Qualify these ${leads.length} B2B leads. "qualified" = worth pursuing (decision maker, relevant company, engaged). "unqualified" = poor fit (no company, junior role, no engagement). Return JSON array: [{"id":"...","status":"qualified|unqualified","score":0-100,"reason":"brief"}]\n\nLeads:\n${leads.map((l, i) => `${i+1}. id:${l.id} | ${l.firstName} ${l.lastName || ''} | ${l.jobTitle || 'no title'} @ ${l.company || 'unknown'} | source:${l.source} | activities:${l.activities.length}`).join('\n')}` }],
+        companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider,
+        maxTokens: 1200, system: 'Return only valid JSON array.',
+      });
+
+      let results;
+      try { const m = aiResult.text.match(/\[[\s\S]*\]/); results = JSON.parse(m ? m[0] : aiResult.text); }
+      catch { return { error: 'AI qualification failed.' }; }
+
+      let qualified = 0, unqualified = 0;
+      for (const r of results) {
+        await prisma.lead.update({ where: { id: r.id }, data: { status: r.status, score: Math.round(Number(r.score || 50)) } }).catch(() => {});
+        if (r.status === 'qualified') qualified++; else unqualified++;
+      }
+      return { success: true, processed: results.length, qualified, unqualified, results, message: `${results.length} leads qualified by AI: ${qualified} qualified, ${unqualified} unqualified` };
+    }
+
+    case 'send_bulk_email': {
+      const company = await prisma.company.findUnique({ where: { id: cid }, select: { name: true, anthropicKey: true, openaiKey: true, aiProvider: true } });
+      const emailService = require('../../services/email.service');
+      const lim = Math.min(input.limit || 15, 30);
+      let recipients = [];
+
+      if (input.target === 'new_leads' || input.target === 'all_leads') {
+        const where = { companyId: cid, email: { not: null }, ...(input.target === 'new_leads' && { status: 'new' }) };
+        const rows = await prisma.lead.findMany({ where, take: lim, select: { firstName: true, lastName: true, email: true, company: true, jobTitle: true } });
+        recipients = rows;
+      } else if (input.target === 'qualified_leads') {
+        const rows = await prisma.lead.findMany({ where: { companyId: cid, status: 'qualified', email: { not: null } }, take: lim, select: { firstName: true, lastName: true, email: true, company: true, jobTitle: true } });
+        recipients = rows;
+      } else if (input.target === 'contacts') {
+        const rows = await prisma.contact.findMany({ where: { companyId: cid, email: { not: null } }, take: lim, select: { firstName: true, lastName: true, email: true, company: true, jobTitle: true } });
+        recipients = rows;
+      } else if (input.target === 'overdue_clients') {
+        const rows = await prisma.invoice.findMany({ where: { companyId: cid, status: { in: ['sent', 'overdue'] }, dueDate: { lt: new Date() }, clientEmail: { not: null } }, take: lim, select: { clientName: true, clientEmail: true }, distinct: ['clientEmail'] });
+        recipients = rows.map(r => ({ firstName: r.clientName, email: r.clientEmail }));
+      }
+
+      if (!recipients.length) return { message: 'No recipients with email addresses found.' };
+
+      // Single AI call for all drafts
+      const aiResult = await callAI({
+        messages: [{ role: 'user', content: `Draft ${recipients.length} short personalized emails. Purpose: "${input.purpose}". Tone: ${input.tone || 'professional'}. From: ${company?.name}. Max 100 words each.\n\nRecipients:\n${recipients.map((r, i) => `${i+1}. ${r.firstName} ${r.lastName || ''}${r.company ? ` @ ${r.company}` : ''} | ${r.email}`).join('\n')}\n\nReturn JSON array: [{"email":"...","subject":"...","body":"..."}]` }],
+        companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider,
+        maxTokens: 2000, system: 'Return only valid JSON array.',
+      });
+
+      let drafts;
+      try { const m = aiResult.text.match(/\[[\s\S]*\]/); drafts = JSON.parse(m ? m[0] : aiResult.text); }
+      catch { return { error: 'AI could not draft emails.' }; }
+
+      let sent = 0;
+      const results = [];
+      for (const d of drafts) {
+        try {
+          await emailService.send({ to: d.email, subject: d.subject, html: `<div style="font-family:sans-serif;line-height:1.6;white-space:pre-wrap">${d.body}</div>`, companyId: cid });
+          sent++;
+          results.push({ email: d.email, status: 'sent' });
+        } catch { results.push({ email: d.email, status: 'failed' }); }
+      }
+      return { success: true, total: recipients.length, sent, results, message: `${sent}/${recipients.length} personalized emails sent by AI` };
+    }
+
+    case 'forecast_revenue': {
+      const company = await prisma.company.findUnique({ where: { id: cid }, select: { name: true, anthropicKey: true, openaiKey: true, aiProvider: true } });
+      const now = new Date();
+      const months = [];
+      for (let i = 5; i >= 0; i--) {
+        const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+        const agg = await prisma.invoice.aggregate({ where: { companyId: cid, status: 'paid', paidAt: { gte: start, lt: end } }, _sum: { total: true } });
+        months.push({ month: start.toLocaleString('default', { month: 'short', year: 'numeric' }), revenue: Number(agg._sum.total || 0) });
+      }
+      const pipeline = await prisma.deal.findMany({ where: { companyId: cid, status: { in: ['open', 'negotiation'] } }, select: { value: true, probability: true } });
+      const expectedPipeline = pipeline.reduce((s, d) => s + (Number(d.value || 0) * (d.probability || 50) / 100), 0);
+      const avgMonthly = months.reduce((s, m) => s + m.revenue, 0) / 6 || 0;
+
+      const aiResult = await callAI({
+        messages: [{ role: 'user', content: `Forecast next month revenue for ${company?.name}.\n\nLast 6 months revenue:\n${months.map(m => `${m.month}: $${m.revenue.toFixed(0)}`).join('\n')}\n\nWeighted pipeline value: $${expectedPipeline.toFixed(0)}\n6-month avg: $${avgMonthly.toFixed(0)}\n\nReturn JSON: {"forecast":number,"confidence":"high|medium|low","trend":"growing|stable|declining","factors":["string"],"recommendations":["string"]}` }],
+        companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider,
+        maxTokens: 500, system: 'Return only valid JSON.',
+      });
+
+      let result;
+      try { const m = aiResult.text.match(/\{[\s\S]*\}/); result = JSON.parse(m ? m[0] : aiResult.text); }
+      catch { result = { forecast: avgMonthly * 1.05, confidence: 'medium', trend: 'stable', factors: [], recommendations: [] }; }
+
+      return { historicalMonths: months, expectedPipeline, avgMonthly, ...result, message: `Next month forecast: $${Number(result.forecast || 0).toFixed(0)} (${result.confidence} confidence · ${result.trend} trend)` };
+    }
+
+    case 'analyze_pipeline': {
+      const company = await prisma.company.findUnique({ where: { id: cid }, select: { anthropicKey: true, openaiKey: true, aiProvider: true } });
+      const deals = await prisma.deal.findMany({
+        where: { companyId: cid, status: { in: ['open', 'negotiation'] } },
+        include: { stage: { select: { name: true } } },
+        orderBy: { value: 'desc' }, take: 20,
+      });
+      if (!deals.length) return { message: 'No open deals in pipeline to analyze.' };
+
+      const now = new Date();
+      const aiResult = await callAI({
+        messages: [{ role: 'user', content: `Analyze this sales pipeline. Identify at-risk deals (stale, low prob), quick wins (high prob, good value), and give specific next actions.\n\nDeals:\n${deals.map((d, i) => `${i+1}. "${d.title}" | Stage:${d.stage?.name} | Value:$${Number(d.value||0).toFixed(0)} | Prob:${d.probability}% | Age:${Math.floor((now.getTime()-new Date(d.createdAt).getTime())/86400000)}d`).join('\n')}\n\nReturn JSON: {"atRisk":[{"title":"...","reason":"...","action":"..."}],"quickWins":[{"title":"...","value":number,"action":"..."}],"stale":[{"title":"...","daysOld":number,"recommendation":"..."}],"summary":"2 sentences"}` }],
+        companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider,
+        maxTokens: 800, system: 'Return only valid JSON.',
+      });
+
+      let analysis;
+      try { const m = aiResult.text.match(/\{[\s\S]*\}/); analysis = JSON.parse(m ? m[0] : aiResult.text); }
+      catch { return { error: 'Pipeline analysis failed.' }; }
+
+      return { ...analysis, totalDeals: deals.length, totalValue: deals.reduce((s, d) => s + Number(d.value || 0), 0), message: `Pipeline analyzed: ${analysis.atRisk?.length || 0} at-risk, ${analysis.quickWins?.length || 0} quick wins, ${analysis.stale?.length || 0} stale deals` };
+    }
+
+    case 'create_social_post': {
+      const company = await prisma.company.findUnique({ where: { id: cid }, select: { name: true, anthropicKey: true, openaiKey: true, aiProvider: true } });
+      const platformGuide = { linkedin: '1300 chars max, thought leadership style, 3-5 hashtags', twitter: '280 chars max, punchy and concise, 2-3 hashtags', instagram: 'Visual caption, 2200 chars max, 20-30 hashtags', general: 'Adaptable for any platform, 500 chars' };
+      const platform = input.platform || 'linkedin';
+
+      const aiResult = await callAI({
+        messages: [{ role: 'user', content: `Write a ${input.tone || 'professional'} ${platform} post for ${company?.name} about: "${input.topic}". Platform rules: ${platformGuide[platform] || platformGuide.general}. ${input.includeHashtags !== false ? 'Include relevant hashtags.' : 'No hashtags.'} Write only the post content, ready to copy-paste.` }],
+        companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider,
+        maxTokens: 600, system: 'Write engaging social media content. Post content only, no preamble.',
+      });
+
+      let savedId = null;
+      try {
+        const post = await prisma.socialPost.create({ data: { companyId: cid, platform, content: aiResult.text, status: 'draft' } });
+        savedId = post.id;
+      } catch {}
+
+      return { success: true, content: aiResult.text, platform, savedId, message: `${platform.charAt(0).toUpperCase() + platform.slice(1)} post drafted about "${input.topic}"` };
+    }
+
+    case 'reply_to_ticket': {
+      const mode = 'insensitive';
+      const company = await prisma.company.findUnique({ where: { id: cid }, select: { name: true, anthropicKey: true, openaiKey: true, aiProvider: true } });
+      const ticket = await prisma.ticket.findFirst({
+        where: { companyId: cid, ...(input.ticketNo ? { ticketNo: input.ticketNo } : { subject: { contains: input.subject || '', mode } }), status: { notIn: ['resolved', 'closed'] } },
+        select: { id: true, ticketNo: true, subject: true, description: true, priority: true },
+      });
+      if (!ticket) return { error: 'Ticket not found or already resolved.' };
+
+      const aiResult = await callAI({
+        messages: [{ role: 'user', content: `Write a ${input.tone || 'professional'} support reply for:\n\nTicket: ${ticket.ticketNo}\nSubject: ${ticket.subject}\nPriority: ${ticket.priority}\nCustomer message: ${ticket.description || 'No description'}\n\nFrom: ${company?.name} Support Team. Be helpful, acknowledge the issue, provide clear next steps. Under 150 words. Reply only, no subject line.` }],
+        companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider,
+        maxTokens: 400, system: 'Write empathetic, solution-focused customer support replies.',
+      });
+
+      await prisma.activity.create({ data: { companyId: cid, type: 'email', subject: `AI Reply: ${ticket.subject}`, description: aiResult.text, userId: uid, completedAt: new Date() } }).catch(() => {});
+      return { success: true, ticketNo: ticket.ticketNo, reply: aiResult.text, message: `AI reply drafted for ticket ${ticket.ticketNo}` };
+    }
+
+    case 'generate_report': {
+      const company = await prisma.company.findUnique({ where: { id: cid }, select: { name: true, anthropicKey: true, openaiKey: true, aiProvider: true } });
+      const now = new Date();
+      const since = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+      const [newLeads, qualifiedLeads, convertedLeads, openDeals, wonDeals, dealValue, revenue, outstanding, openTickets, resolvedTickets, activeProjects, activeTasks, pendingLeaves, activeEmps] = await Promise.all([
+        prisma.lead.count({ where: { companyId: cid, createdAt: { gte: since } } }),
+        prisma.lead.count({ where: { companyId: cid, status: 'qualified' } }),
+        prisma.lead.count({ where: { companyId: cid, status: 'converted', updatedAt: { gte: since } } }),
+        prisma.deal.count({ where: { companyId: cid, status: { in: ['open', 'negotiation'] } } }),
+        prisma.deal.count({ where: { companyId: cid, status: 'won', updatedAt: { gte: since } } }),
+        prisma.deal.aggregate({ where: { companyId: cid, status: { in: ['open', 'negotiation'] } }, _sum: { value: true } }),
+        prisma.invoice.aggregate({ where: { companyId: cid, status: 'paid', paidAt: { gte: since } }, _sum: { total: true } }),
+        prisma.invoice.aggregate({ where: { companyId: cid, status: { in: ['sent', 'overdue'] } }, _sum: { total: true } }),
+        prisma.ticket.count({ where: { companyId: cid, status: { in: ['open', 'pending'] } } }),
+        prisma.ticket.count({ where: { companyId: cid, status: 'resolved', updatedAt: { gte: since } } }),
+        prisma.project.count({ where: { companyId: cid, status: 'active' } }),
+        prisma.task.count({ where: { companyId: cid, status: { in: ['todo', 'in_progress'] } } }),
+        prisma.leaveRequest.count({ where: { status: 'pending', employee: { companyId: cid } } }),
+        prisma.employee.count({ where: { companyId: cid, status: 'active' } }),
+      ]);
+
+      const aiResult = await callAI({
+        messages: [{ role: 'user', content: `Write a ${input.type || 'monthly'} business report for ${company?.name} (last 30 days).\n\nMetrics:\n- New leads: ${newLeads} | Qualified: ${qualifiedLeads} | Converted: ${convertedLeads}\n- Open deals: ${openDeals} worth $${Number(dealValue._sum.value||0).toFixed(0)} | Won: ${wonDeals}\n- Revenue collected: $${Number(revenue._sum.total||0).toFixed(0)} | Outstanding: $${Number(outstanding._sum.total||0).toFixed(0)}\n- Open tickets: ${openTickets} | Resolved: ${resolvedTickets}\n- Active projects: ${activeProjects} | Open tasks: ${activeTasks}\n- Employees: ${activeEmps} | Pending leaves: ${pendingLeaves}\n\nWrite: Executive Summary, Performance Highlights, Areas of Concern, Key Metrics table, Strategic Recommendations. Use markdown headers and bullet points.` }],
+        companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider,
+        maxTokens: 1500, system: 'Write comprehensive, data-driven business reports in clear markdown.',
+      });
+
+      return { success: true, report: aiResult.text, generatedAt: now.toISOString(), period: input.type || 'monthly', message: `${input.type || 'Monthly'} business report generated (${now.toLocaleDateString()})` };
+    }
+
     default:
       return { error: `Unknown tool: ${name}` };
   }
@@ -1604,7 +1954,28 @@ function getAgentSuggestions(actions) {
     s.push('Schedule a follow-up for the new deal', 'Create an invoice for this client', 'Add a note to the contact');
   }
   if (used.has('list_deals') || used.has('list_contacts')) {
-    s.push('Convert top lead to a deal', 'Add a follow-up task', 'Create an invoice for this client');
+    s.push('Convert top lead to a deal', 'Draft email to top contact', 'Create an invoice for this client');
+  }
+  if (used.has('draft_email')) {
+    s.push('Draft emails to all new leads', 'Add a follow-up task for this contact', 'Create a deal for this client');
+  }
+  if (used.has('score_leads') || used.has('bulk_qualify_leads')) {
+    s.push('Send emails to all qualified leads', 'Convert top qualified lead', 'Draft follow-up for top scored lead');
+  }
+  if (used.has('send_bulk_email')) {
+    s.push('Score all leads that responded', 'Show pipeline summary', 'Generate a monthly report');
+  }
+  if (used.has('forecast_revenue') || used.has('analyze_pipeline')) {
+    s.push('Show revenue report last 6 months', 'Create follow-ups for at-risk deals', 'Send payment reminders');
+  }
+  if (used.has('create_social_post')) {
+    s.push('Generate another post for Instagram', 'Create a campaign for this topic', 'Generate a LinkedIn post about services');
+  }
+  if (used.has('reply_to_ticket')) {
+    s.push('Resolve this ticket after sending reply', 'List all urgent tickets', 'Show overdue summary');
+  }
+  if (used.has('generate_report')) {
+    s.push('Forecast next month revenue', 'Analyze pipeline for risks', 'Show today\'s digest');
   }
   if (used.has('list_leaves') || used.has('approve_leave')) {
     s.push('Show employee list', 'Log a business expense', 'Show today\'s digest');
@@ -1661,14 +2032,18 @@ router.post('/agent', async (req, res, next) => {
 
     const provider = company?.aiProvider || config.ai.provider || 'anthropic';
     const today = new Date().toISOString().slice(0, 10);
-    const systemPrompt = `You are an AI business assistant for ${company?.name || 'this company'}. You have tools to take real actions across CRM, Finance, Helpdesk, Projects, HR, Contracts, Purchase Orders, Expenses, Appointments, and Marketing.
+    const systemPrompt = `You are an AI business autopilot for ${company?.name || 'this company'}. You can take real actions and use AI to create content, analyze data, score leads, draft emails, and automate complex workflows — all from a single message.
 
 Rules:
-- Act immediately — call tools without asking for confirmation unless truly critical info is missing.
-- Chain multiple tools in one response when it makes sense (e.g. daily_digest → then send_payment_reminder).
-- After actions, confirm what was done with key details (name, number, amount, date).
-- For lists/reports, use **bold** for key values and bullet points for items.
-- When the user asks for "today's digest", "morning briefing", or "what needs attention", call daily_digest first.
+- Act immediately — call tools without confirmation unless critical info is missing.
+- Chain tools intelligently: e.g. daily_digest → analyze_pipeline → send_payment_reminder.
+- For "morning briefing" or "what needs attention" → call daily_digest then analyze_pipeline.
+- For "score my leads" or "qualify leads" → call bulk_qualify_leads then score_leads.
+- For "email all leads" or "reach out" → use send_bulk_email.
+- For "analyze pipeline" or "at-risk deals" → call analyze_pipeline.
+- For "forecast revenue" or "next month prediction" → call forecast_revenue.
+- After actions: confirm with key numbers (sent X emails, scored Y leads, forecast $Z).
+- Format responses with **bold** for values, bullets for lists.
 - Today: ${today}.`;
 
     const actions = [];
