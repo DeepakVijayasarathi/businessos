@@ -92,10 +92,11 @@ router.post('/invoices', auditLog('finance.invoices', 'invoice'), async (req, re
   try {
     if (!req.body.clientName) return error(res, 'Client name is required', 400);
     if (req.body.total == null) return error(res, 'Total is required', 400);
-    const count = await prisma.invoice.count({ where: { companyId: req.companyId } });
-    const invoiceNo = generateNumber('INV', count + 1);
-    const invoice = await prisma.invoice.create({
-      data: { ...normalizeInvoiceBody(req.body), companyId: req.companyId, invoiceNo },
+    const cid = req.companyId;
+    const invoice = await prisma.$transaction(async (tx) => {
+      const count = await tx.invoice.count({ where: { companyId: cid } });
+      const invoiceNo = generateNumber('INV', count + 1);
+      return tx.invoice.create({ data: { ...normalizeInvoiceBody(req.body), companyId: cid, invoiceNo } });
     });
     return created(res, invoice, 'Invoice created');
   } catch (err) { next(err); }

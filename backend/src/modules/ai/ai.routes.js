@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const Anthropic = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
+const rateLimit = require('express-rate-limit');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
@@ -10,7 +11,19 @@ const { authenticate, sameCompany } = require('../../middleware/auth');
 const { success, created, error, notFound } = require('../../utils/response');
 const { decrypt, generateNumber } = require('../../utils/helpers');
 const config = require('../../config');
+const logger = require('../../config/logger');
 const { generateImage } = require('../../services/ai.service');
+
+// Stricter rate limit for the agentic AI endpoint — each call may make multiple
+// upstream API calls, so we cap tighter than the global 500/15min limit.
+const agentLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 30,
+  keyGenerator: (req) => req.userId || req.ip,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many AI agent requests. Please wait a few minutes and try again.' },
+});
 
 const uploadDir = process.env.UPLOAD_PATH || path.join(__dirname, '../../../uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -60,6 +73,7 @@ router.post('/chat', async (req, res, next) => {
       where: { id: req.companyId },
       select: { name: true, anthropicKey: true, openaiKey: true, aiProvider: true },
     });
+    if (!company) return error(res, 'Company not found', 404);
 
     let systemPrompt = `You are an AI assistant for ${company.name}. Be helpful, concise, and professional.`;
 
@@ -1699,7 +1713,7 @@ async function executeAgentTool(name, input, req) {
 
       if (input.send && recipient.email) {
         const emailService = require('../../services/email.service');
-        await emailService.send({ to: recipient.email, subject, html: `<div style="font-family:sans-serif;line-height:1.6;white-space:pre-wrap">${body}</div>`, companyId: cid }).catch(() => {});
+        await emailService.send({ to: recipient.email, subject, html: `<div style="font-family:sans-serif;line-height:1.6;white-space:pre-wrap">${body}</div>`, companyId: cid }).catch(e => logger.warn(`draft_email: send failed to ${recipient.email}: ${e.message}`));
       }
       return { success: true, subject, body, recipient: `${recipient.firstName} ${recipient.lastName || ''}`.trim(), email: recipient.email, sent: !!(input.send && recipient.email), message: `Email drafted${input.send && recipient.email ? ' and sent' : ''} to ${recipient.firstName}` };
     }
@@ -1725,7 +1739,7 @@ async function executeAgentTool(name, input, req) {
       catch { return { error: 'AI scoring failed. Try with fewer leads.' }; }
 
       for (const s of scores) {
-        await prisma.lead.update({ where: { id: s.id }, data: { score: Math.round(Number(s.score)) } }).catch(() => {});
+        await prisma.lead.update({ where: { id: s.id }, data: { score: Math.round(Number(s.score)) } }).catch(e => logger.warn(`score_leads: update failed for lead ${s.id}: ${e.message}`));
       }
       const ranked = scores.sort((a, b) => b.score - a.score);
       return { success: true, scored: scores.length, results: ranked, topLead: leads.find(l => l.id === ranked[0]?.id)?.firstName, message: `${scores.length} leads scored by AI. Top score: ${ranked[0]?.score}/100 (grade ${ranked[0]?.grade})` };
@@ -1752,7 +1766,7 @@ async function executeAgentTool(name, input, req) {
 
       let qualified = 0, unqualified = 0;
       for (const r of results) {
-        await prisma.lead.update({ where: { id: r.id }, data: { status: r.status, score: Math.round(Number(r.score || 50)) } }).catch(() => {});
+        await prisma.lead.update({ where: { id: r.id }, data: { status: r.status, score: Math.round(Number(r.score || 50)) } }).catch(e => logger.warn(`bulk_qualify_leads: update failed for lead ${r.id}: ${e.message}`));
         if (r.status === 'qualified') qualified++; else unqualified++;
       }
       return { success: true, processed: results.length, qualified, unqualified, results, message: `${results.length} leads qualified by AI: ${qualified} qualified, ${unqualified} unqualified` };
@@ -1889,7 +1903,7 @@ async function executeAgentTool(name, input, req) {
         maxTokens: 400, system: 'Write empathetic, solution-focused customer support replies.',
       });
 
-      await prisma.activity.create({ data: { companyId: cid, type: 'email', subject: `AI Reply: ${ticket.subject}`, description: aiResult.text, userId: uid, completedAt: new Date() } }).catch(() => {});
+      await prisma.activity.create({ data: { companyId: cid, type: 'email', subject: `AI Reply: ${ticket.subject}`, description: aiResult.text, userId: uid, completedAt: new Date() } }).catch(e => logger.warn(`reply_to_ticket: activity log failed: ${e.message}`));
       return { success: true, ticketNo: ticket.ticketNo, reply: aiResult.text, message: `AI reply drafted for ticket ${ticket.ticketNo}` };
     }
 
@@ -2020,7 +2034,7 @@ const OPENAI_TOOLS = AGENT_TOOLS.map(t => ({
 }));
 
 // POST /ai/agent — Agentic AI with tool use (supports both Anthropic and OpenAI)
-router.post('/agent', async (req, res, next) => {
+router.post('/agent', agentLimiter, async (req, res, next) => {
   try {
     const { message, history = [] } = req.body;
     if (!message?.trim()) return error(res, 'Message is required', 400);
@@ -2151,8 +2165,6 @@ Rules:
     const suggestions = getAgentSuggestions(actions);
     return success(res, { message: assistantText, actions, history: nextHistory, suggestions });
   } catch (err) {
-    // Surface the real error message so the client can show it (not just "Internal server error")
-    const logger = require('../../config/logger');
     logger.error('AI agent error:', err?.message || err);
     const clientMsg = err?.message?.includes('API key') || err?.status
       ? err.message

@@ -74,10 +74,11 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', auditLog('helpdesk.tickets', 'ticket'), async (req, res, next) => {
   try {
     if (!req.body.subject) return error(res, 'Subject is required', 400);
-    const count = await prisma.ticket.count({ where: { companyId: req.companyId } });
-    const ticketNo = generateNumber('TKT', count + 1);
-    const ticket = await prisma.ticket.create({
-      data: { ...pick(req.body, TICKET_WRITABLE_FIELDS), companyId: req.companyId, ticketNo, reporterId: req.userId },
+    const cid = req.companyId;
+    const ticket = await prisma.$transaction(async (tx) => {
+      const count = await tx.ticket.count({ where: { companyId: cid } });
+      const ticketNo = generateNumber('TKT', count + 1);
+      return tx.ticket.create({ data: { ...pick(req.body, TICKET_WRITABLE_FIELDS), companyId: cid, ticketNo, reporterId: req.userId } });
     });
     return created(res, ticket, 'Ticket created');
   } catch (err) { next(err); }

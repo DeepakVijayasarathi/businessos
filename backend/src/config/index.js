@@ -1,5 +1,17 @@
 require('dotenv').config({ override: true });
 
+// Fail fast in production if critical secrets are missing
+if (process.env.NODE_ENV === 'production') {
+  const missing = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'ENCRYPTION_KEY'].filter(k => !process.env[k]);
+  if (missing.length) {
+    console.error(`[FATAL] Missing required environment variables: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+}
+if (!process.env.JWT_SECRET) {
+  console.warn('[WARN] JWT_SECRET is not set — authentication tokens will be insecure. Set JWT_SECRET in .env');
+}
+
 module.exports = {
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT) || 5000,

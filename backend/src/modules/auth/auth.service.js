@@ -177,6 +177,7 @@ class AuthService {
 
   async changePassword(userId, currentPassword, newPassword) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new AppError('User not found', 404);
     const valid = await bcrypt.compare(currentPassword, user.password);
     if (!valid) throw new AppError('Current password is incorrect', 400);
 

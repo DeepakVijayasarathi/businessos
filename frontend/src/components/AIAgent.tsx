@@ -201,7 +201,7 @@ export function AIAgent() {
     return () => window.removeEventListener('keydown', h);
   }, [open]);
 
-  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 150); }, [open]);
+  useEffect(() => { if (!open) return; const t = setTimeout(() => inputRef.current?.focus(), 150); return () => clearTimeout(t); }, [open]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs, loading]);
 
   // 3-phase loading animation
