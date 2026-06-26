@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, Fragment, Suspense } from 'react';
+import { useState, useEffect, useMemo, Fragment, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
@@ -12,12 +12,45 @@ export default function SettingsPage() {
   return <Suspense><SettingsInner /></Suspense>;
 }
 
+function getUtcOffset(tz: string): string {
+  try {
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, timeZoneName: 'shortOffset',
+    }).formatToParts(now);
+    const offset = parts.find(p => p.type === 'timeZoneName')?.value || 'UTC';
+    return offset;
+  } catch {
+    return 'UTC';
+  }
+}
+
 function SettingsInner() {
   const searchParams = useSearchParams();
   const [tab, setTab] = useState(searchParams.get('tab') || 'company');
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const qc = useQueryClient();
+
+  const allTimezones = useMemo(() => {
+    try {
+      const zones = (Intl as any).supportedValuesOf('timeZone') as string[];
+      return zones.map(tz => {
+        const offset = getUtcOffset(tz);
+        const label = `${offset.replace('GMT', 'UTC')} — ${tz.replace(/_/g, ' ')}`;
+        return { tz, label, offset };
+      }).sort((a, b) => {
+        const parse = (o: string) => {
+          const m = o.replace('GMT', '').match(/([+-])(\d+):?(\d*)/);
+          if (!m) return 0;
+          return (parseInt(m[1] + '1') * (parseInt(m[2]) * 60 + (parseInt(m[3]) || 0)));
+        };
+        return parse(a.offset) - parse(b.offset) || a.tz.localeCompare(b.tz);
+      });
+    } catch {
+      return [{ tz: 'UTC', label: 'UTC — Coordinated Universal Time', offset: 'UTC' }];
+    }
+  }, []);
 
   const { data: company } = useQuery({
     queryKey: ['company-settings'],
@@ -236,93 +269,19 @@ function SettingsInner() {
               </select>
             </div>
 
-            {/* Timezone dropdown */}
+            {/* Timezone dropdown — all IANA zones */}
             <div>
-              <label htmlFor="company-timezone" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Timezone</label>
+              <label htmlFor="company-timezone" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Timezone <span className="text-gray-400 font-normal">({allTimezones.length} zones)</span>
+              </label>
               <select
                 id="company-timezone"
                 value={companyForm.timezone || 'UTC'}
                 onChange={e => setCompanyForm({ ...companyForm, timezone: e.target.value })}
                 className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                size={1}
               >
-                {[
-                  ['UTC','UTC — Coordinated Universal Time'],
-                  ['America/New_York','UTC-5 — New York (EST/EDT)'],
-                  ['America/Chicago','UTC-6 — Chicago (CST/CDT)'],
-                  ['America/Denver','UTC-7 — Denver (MST/MDT)'],
-                  ['America/Los_Angeles','UTC-8 — Los Angeles (PST/PDT)'],
-                  ['America/Anchorage','UTC-9 — Anchorage (AKST)'],
-                  ['Pacific/Honolulu','UTC-10 — Honolulu (HST)'],
-                  ['America/Toronto','UTC-5 — Toronto (EST/EDT)'],
-                  ['America/Vancouver','UTC-8 — Vancouver (PST/PDT)'],
-                  ['America/Mexico_City','UTC-6 — Mexico City (CST)'],
-                  ['America/Sao_Paulo','UTC-3 — São Paulo (BRT)'],
-                  ['America/Argentina/Buenos_Aires','UTC-3 — Buenos Aires (ART)'],
-                  ['America/Bogota','UTC-5 — Bogotá (COT)'],
-                  ['America/Lima','UTC-5 — Lima (PET)'],
-                  ['America/Santiago','UTC-4 — Santiago (CLT)'],
-                  ['Europe/London','UTC+0 — London (GMT/BST)'],
-                  ['Europe/Dublin','UTC+0 — Dublin (IST)'],
-                  ['Europe/Lisbon','UTC+0 — Lisbon (WET)'],
-                  ['Europe/Paris','UTC+1 — Paris (CET/CEST)'],
-                  ['Europe/Berlin','UTC+1 — Berlin (CET/CEST)'],
-                  ['Europe/Madrid','UTC+1 — Madrid (CET/CEST)'],
-                  ['Europe/Rome','UTC+1 — Rome (CET/CEST)'],
-                  ['Europe/Amsterdam','UTC+1 — Amsterdam (CET/CEST)'],
-                  ['Europe/Brussels','UTC+1 — Brussels (CET/CEST)'],
-                  ['Europe/Zurich','UTC+1 — Zurich (CET/CEST)'],
-                  ['Europe/Stockholm','UTC+1 — Stockholm (CET/CEST)'],
-                  ['Europe/Oslo','UTC+1 — Oslo (CET/CEST)'],
-                  ['Europe/Copenhagen','UTC+1 — Copenhagen (CET/CEST)'],
-                  ['Europe/Warsaw','UTC+1 — Warsaw (CET/CEST)'],
-                  ['Europe/Prague','UTC+1 — Prague (CET/CEST)'],
-                  ['Europe/Vienna','UTC+1 — Vienna (CET/CEST)'],
-                  ['Europe/Helsinki','UTC+2 — Helsinki (EET/EEST)'],
-                  ['Europe/Athens','UTC+2 — Athens (EET/EEST)'],
-                  ['Europe/Bucharest','UTC+2 — Bucharest (EET/EEST)'],
-                  ['Europe/Kiev','UTC+2 — Kyiv (EET/EEST)'],
-                  ['Europe/Istanbul','UTC+3 — Istanbul (TRT)'],
-                  ['Europe/Moscow','UTC+3 — Moscow (MSK)'],
-                  ['Asia/Dubai','UTC+4 — Dubai (GST)'],
-                  ['Asia/Muscat','UTC+4 — Muscat (GST)'],
-                  ['Asia/Riyadh','UTC+3 — Riyadh (AST)'],
-                  ['Asia/Qatar','UTC+3 — Doha (AST)'],
-                  ['Asia/Kuwait','UTC+3 — Kuwait City (AST)'],
-                  ['Asia/Baghdad','UTC+3 — Baghdad (AST)'],
-                  ['Asia/Tehran','UTC+3:30 — Tehran (IRST)'],
-                  ['Asia/Kabul','UTC+4:30 — Kabul (AFT)'],
-                  ['Asia/Karachi','UTC+5 — Karachi (PKT)'],
-                  ['Asia/Colombo','UTC+5:30 — Colombo (IST)'],
-                  ['Asia/Kolkata','UTC+5:30 — India (IST)'],
-                  ['Asia/Kathmandu','UTC+5:45 — Kathmandu (NPT)'],
-                  ['Asia/Dhaka','UTC+6 — Dhaka (BST)'],
-                  ['Asia/Rangoon','UTC+6:30 — Yangon (MMT)'],
-                  ['Asia/Bangkok','UTC+7 — Bangkok (ICT)'],
-                  ['Asia/Jakarta','UTC+7 — Jakarta (WIB)'],
-                  ['Asia/Ho_Chi_Minh','UTC+7 — Ho Chi Minh City (ICT)'],
-                  ['Asia/Kuala_Lumpur','UTC+8 — Kuala Lumpur (MYT)'],
-                  ['Asia/Singapore','UTC+8 — Singapore (SGT)'],
-                  ['Asia/Shanghai','UTC+8 — Shanghai (CST)'],
-                  ['Asia/Hong_Kong','UTC+8 — Hong Kong (HKT)'],
-                  ['Asia/Taipei','UTC+8 — Taipei (CST)'],
-                  ['Asia/Manila','UTC+8 — Manila (PHT)'],
-                  ['Asia/Seoul','UTC+9 — Seoul (KST)'],
-                  ['Asia/Tokyo','UTC+9 — Tokyo (JST)'],
-                  ['Australia/Perth','UTC+8 — Perth (AWST)'],
-                  ['Australia/Darwin','UTC+9:30 — Darwin (ACST)'],
-                  ['Australia/Adelaide','UTC+9:30 — Adelaide (ACST/ACDT)'],
-                  ['Australia/Brisbane','UTC+10 — Brisbane (AEST)'],
-                  ['Australia/Sydney','UTC+10 — Sydney (AEST/AEDT)'],
-                  ['Australia/Melbourne','UTC+10 — Melbourne (AEST/AEDT)'],
-                  ['Pacific/Auckland','UTC+12 — Auckland (NZST/NZDT)'],
-                  ['Pacific/Fiji','UTC+12 — Fiji (FJT)'],
-                  ['Africa/Cairo','UTC+2 — Cairo (EET)'],
-                  ['Africa/Lagos','UTC+1 — Lagos (WAT)'],
-                  ['Africa/Nairobi','UTC+3 — Nairobi (EAT)'],
-                  ['Africa/Johannesburg','UTC+2 — Johannesburg (SAST)'],
-                  ['Africa/Casablanca','UTC+1 — Casablanca (WET)'],
-                  ['Africa/Accra','UTC+0 — Accra (GMT)'],
-                ].map(([tz, label]) => (
+                {allTimezones.map(({ tz, label }) => (
                   <option key={tz} value={tz}>{label}</option>
                 ))}
               </select>
