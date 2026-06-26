@@ -2407,4 +2407,120 @@ router.post('/email-template', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /ai/brain-chat — conversational AI with full live business context
+router.post('/brain-chat', async (req, res, next) => {
+  try {
+    const { message, history = [] } = req.body;
+    if (!message) return error(res, 'message required', 400);
+
+    const cid = req.companyId;
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+    const co = await getCompanyKeys(cid);
+
+    // Load live business data from all modules in parallel
+    const [
+      totalLeads, newLeads30, convertedLeads30,
+      openDeals, wonDeals30, dealValue,
+      contacts,
+      openTickets, urgentTickets, resolvedTickets30,
+      revenue30, outstandingInvoices, overdueCount,
+      activeEmployees, onLeave,
+      activeProjects, overdueTasksCount,
+      recentExpenses,
+    ] = await Promise.all([
+      prisma.lead.count({ where: { companyId: cid } }),
+      prisma.lead.count({ where: { companyId: cid, createdAt: { gte: thirtyDaysAgo } } }),
+      prisma.lead.count({ where: { companyId: cid, status: 'converted', updatedAt: { gte: thirtyDaysAgo } } }),
+      prisma.deal.count({ where: { companyId: cid, status: { in: ['open', 'negotiation'] } } }),
+      prisma.deal.count({ where: { companyId: cid, status: 'won', updatedAt: { gte: thirtyDaysAgo } } }),
+      prisma.deal.aggregate({ where: { companyId: cid, status: { in: ['open', 'negotiation'] } }, _sum: { value: true } }),
+      prisma.contact.count({ where: { companyId: cid } }).catch(() => 0),
+      prisma.ticket.count({ where: { companyId: cid, status: { in: ['open', 'pending'] } } }),
+      prisma.ticket.count({ where: { companyId: cid, status: { in: ['open', 'pending'] }, priority: 'urgent' } }),
+      prisma.ticket.count({ where: { companyId: cid, status: 'resolved', resolvedAt: { gte: thirtyDaysAgo } } }).catch(() => 0),
+      prisma.invoice.aggregate({ where: { companyId: cid, status: 'paid', paidAt: { gte: thirtyDaysAgo } }, _sum: { total: true } }),
+      prisma.invoice.aggregate({ where: { companyId: cid, status: { in: ['sent', 'overdue', 'draft'] } }, _sum: { total: true } }),
+      prisma.invoice.count({ where: { companyId: cid, status: { in: ['sent', 'overdue'] }, dueDate: { lt: now } } }),
+      prisma.employee.count({ where: { companyId: cid, status: 'active' } }).catch(() => 0),
+      prisma.leaveRequest.count({ where: { companyId: cid, status: 'approved', startDate: { lte: now }, endDate: { gte: now } } }).catch(() => 0),
+      prisma.project.count({ where: { companyId: cid, status: { in: ['active', 'in_progress'] } } }).catch(() => 0),
+      prisma.task.count({ where: { companyId: cid, status: { not: 'done' }, dueDate: { lt: now } } }).catch(() => 0),
+      prisma.expense.aggregate({ where: { companyId: cid, createdAt: { gte: thirtyDaysAgo } }, _sum: { amount: true } }).catch(() => ({ _sum: { amount: 0 } })),
+    ]);
+
+    const rev = Number(revenue30._sum.total || 0);
+    const pipeline = Number(dealValue._sum.value || 0);
+    const outstanding = Number(outstandingInvoices._sum.total || 0);
+    const expenses = Number(recentExpenses._sum?.amount || 0);
+    const convRate = newLeads30 > 0 ? ((convertedLeads30 / newLeads30) * 100).toFixed(1) : '0';
+
+    const businessContext = `
+LIVE BUSINESS DATA as of ${now.toDateString()}:
+
+COMPANY: ${co?.name || 'Your Company'}
+
+REVENUE & FINANCE:
+- Revenue (last 30 days): $${rev.toLocaleString()}
+- Expenses (last 30 days): $${expenses.toLocaleString()}
+- Net profit estimate: $${(rev - expenses).toLocaleString()}
+- Outstanding invoices: $${outstanding.toLocaleString()}
+- Overdue invoices: ${overdueCount}
+
+CRM:
+- Total leads: ${totalLeads} | New (30d): ${newLeads30} | Converted (30d): ${convertedLeads30}
+- Lead conversion rate: ${convRate}%
+- Total contacts: ${contacts}
+- Open deals: ${openDeals} worth $${pipeline.toLocaleString()}
+- Won deals (30d): ${wonDeals30}
+
+SUPPORT / HELPDESK:
+- Open tickets: ${openTickets} (${urgentTickets} urgent)
+- Resolved (30d): ${resolvedTickets30}
+
+PROJECTS:
+- Active projects: ${activeProjects}
+- Overdue tasks: ${overdueTasksCount}
+
+HR:
+- Active employees: ${activeEmployees}
+- Currently on leave: ${onLeave}
+`.trim();
+
+    const systemPrompt = `You are the AI Brain for ${co?.name || 'this business'} — a senior business advisor with real-time access to every module: CRM, finance, HR, projects, helpdesk, and more.
+
+${businessContext}
+
+Your job: answer questions, give strategic advice, identify risks, and surface opportunities — all grounded in the live data above.
+- Be direct, specific, and data-driven. Reference real numbers from the context.
+- When asked for advice, give prioritized, actionable recommendations.
+- Keep responses concise but complete. Use bullet points for lists. No fluff.
+- Today is ${now.toDateString()}.`;
+
+    const messages = [
+      ...history.map((h: any) => ({ role: h.role, content: h.content })),
+      { role: 'user', content: message },
+    ];
+
+    const result = await callAI({
+      messages,
+      system: systemPrompt,
+      companyAnthropicKey: co?.anthropicKey,
+      companyOpenaiKey: co?.openaiKey,
+      companyProvider: co?.aiProvider,
+      maxTokens: 1500,
+    });
+
+    return success(res, {
+      message: result.text,
+      model: result.model,
+      provider: result.provider,
+      context: {
+        revenue30: rev, pipeline, openDeals, openTickets: openTickets, activeEmployees, overdueCount,
+      },
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
