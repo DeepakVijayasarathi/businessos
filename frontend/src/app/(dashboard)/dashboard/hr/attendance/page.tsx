@@ -1,15 +1,22 @@
 'use client';
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import { Clock, CheckCircle, XCircle, Calendar, LogIn, LogOut } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Calendar, LogIn, LogOut, ScanFace } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const FaceVerification = dynamic(
+  () => import('@/components/hr/FaceVerification'),
+  { ssr: false }
+);
 
 export default function AttendancePage() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
+  const [faceModal, setFaceModal] = useState<{ open: boolean; mode: 'check-in' | 'check-out' }>({ open: false, mode: 'check-in' });
   const qc = useQueryClient();
 
   const { data: attendance, isLoading } = useQuery({
@@ -67,7 +74,7 @@ export default function AttendancePage() {
 
       {/* Check-in/out card */}
       <div className="glass-card rounded-2xl p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">Today — {formatDate(today.toISOString())}</p>
             <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -80,16 +87,47 @@ export default function AttendancePage() {
               ) : null}
             </div>
           </div>
-          <div className="flex gap-3">
-            <button onClick={() => checkInMutation.mutate()} disabled={!!todayRecord?.checkIn || checkInMutation.isPending} className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-medium disabled:opacity-40 hover:bg-green-600">
-              <LogIn className="w-4 h-4" /> Check In
-            </button>
-            <button onClick={() => checkOutMutation.mutate()} disabled={!todayRecord?.checkIn || !!todayRecord?.checkOut || checkOutMutation.isPending} className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-medium disabled:opacity-40 hover:bg-orange-600">
-              <LogOut className="w-4 h-4" /> Check Out
-            </button>
+          <div className="flex flex-col gap-2">
+            {/* Face verification buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFaceModal({ open: true, mode: 'check-in' })}
+                disabled={!!todayRecord?.checkIn}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium disabled:opacity-40 hover:bg-indigo-700 transition-colors"
+              >
+                <ScanFace className="w-4 h-4" /> Face Check-In
+              </button>
+              <button
+                onClick={() => setFaceModal({ open: true, mode: 'check-out' })}
+                disabled={!todayRecord?.checkIn || !!todayRecord?.checkOut}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-medium disabled:opacity-40 hover:bg-orange-600 transition-colors"
+              >
+                <ScanFace className="w-4 h-4" /> Face Check-Out
+              </button>
+            </div>
+            {/* Manual fallback */}
+            <div className="flex gap-2">
+              <button onClick={() => checkInMutation.mutate()} disabled={!!todayRecord?.checkIn || checkInMutation.isPending} className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40">
+                <LogIn className="w-3 h-3" /> Manual In
+              </button>
+              <button onClick={() => checkOutMutation.mutate()} disabled={!todayRecord?.checkIn || !!todayRecord?.checkOut || checkOutMutation.isPending} className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40">
+                <LogOut className="w-3 h-3" /> Manual Out
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {faceModal.open && (
+        <FaceVerification
+          actionMode={faceModal.mode}
+          onClose={() => setFaceModal({ ...faceModal, open: false })}
+          onSuccess={() => {
+            qc.invalidateQueries({ queryKey: ['attendance'] });
+            qc.invalidateQueries({ queryKey: ['attendance-today'] });
+          }}
+        />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

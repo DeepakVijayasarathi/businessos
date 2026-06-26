@@ -626,6 +626,7 @@ model Employee {
   country          String?
   skills           String[]  @default([])
   customFields     Json      @default("{}")
+  faceDescriptor   Json?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

@@ -85,6 +85,41 @@ router.get('/export', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /hr/employees/me/face — return face registration status for the current user
+router.get('/me/face', async (req, res, next) => {
+  try {
+    const employee = await prisma.employee.findFirst({
+      where: { userId: req.userId, companyId: req.companyId },
+      select: { id: true, faceDescriptor: true },
+    });
+    if (!employee) return notFound(res, 'No employee record found for your account');
+    return success(res, {
+      id: employee.id,
+      descriptor: employee.faceDescriptor || null,
+      registered: !!employee.faceDescriptor,
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /hr/employees/me/face — save 128-float face descriptor for the current user
+router.post('/me/face', async (req, res, next) => {
+  try {
+    const { descriptor } = req.body;
+    if (!Array.isArray(descriptor) || descriptor.length !== 128) {
+      return error(res, 'Invalid face descriptor — expected array of 128 numbers', 400);
+    }
+    const employee = await prisma.employee.findFirst({
+      where: { userId: req.userId, companyId: req.companyId },
+    });
+    if (!employee) return notFound(res, 'No employee record found for your account');
+    await prisma.employee.update({
+      where: { id: employee.id },
+      data: { faceDescriptor: descriptor },
+    });
+    return success(res, {}, 'Face registered successfully');
+  } catch (err) { next(err); }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     const employee = await prisma.employee.findFirst({
