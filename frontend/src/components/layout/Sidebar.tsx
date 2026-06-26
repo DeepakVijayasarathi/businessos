@@ -9,7 +9,7 @@ import {
   Headphones, BookOpen, FileText, Bot, Workflow, Calendar,
   MessageSquare, Mail, BarChart3, Settings, Shield, Building2,
   Target, UserSquare, Zap, Globe, Bell, ChevronLeft, ChevronRight,
-  TrendingUp, Brain, X, Clock, ShoppingCart, FileSignature, UserCheck, Share2,
+  TrendingUp, Brain, X, Clock, ShoppingCart, FileSignature, UserCheck, Share2, Cpu,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
@@ -52,6 +52,7 @@ const navigation = [
   { name: 'Knowledge Base', href: '/dashboard/knowledgebase', icon: BookOpen,    module: 'knowledgebase' },
   { name: 'Documents',      href: '/dashboard/documents',     icon: FileText,    module: 'documents' },
   { name: 'AI Intelligence',href: '/dashboard/intelligence',  icon: Brain,       module: 'intelligence' },
+  { name: 'AI Costs',       href: '/dashboard/ai-costs',      icon: Cpu,         module: 'intelligence' },
   { name: 'Workflows',      href: '/dashboard/workflow',      icon: Workflow,    module: 'workflow' },
   { name: 'Appointments',   href: '/dashboard/appointments',  icon: Calendar,    module: 'appointments' },
   { name: 'WhatsApp',       href: '/dashboard/whatsapp',      icon: MessageSquare, module: 'whatsapp' },

@@ -118,6 +118,7 @@ model Company {
   contracts         Contract[]
   onboardingTemplates OnboardingTemplate[]
   onboardingInstances OnboardingInstance[]
+  aiUsageLogs       AiUsageLog[]
 
   @@map("companies")
 }
@@ -1872,4 +1873,22 @@ model OnboardingTask {
 
   @@index([instanceId])
   @@map("onboarding_tasks")
+}
+
+model AiUsageLog {
+  id           String   @id @default(uuid())
+  companyId    String
+  provider     String   // openai | claude
+  model        String
+  module       String   // brain-chat | chat | crm | hr | finance | contract | project | kb | okr | social
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  costUsd      Float    @default(0)
+  createdAt    DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([companyId, createdAt])
+  @@map("ai_usage_logs")
 }

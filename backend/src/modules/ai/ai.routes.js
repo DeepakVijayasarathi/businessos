@@ -30,11 +30,49 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 router.use(authenticate, sameCompany);
 
+// ─── Token pricing table (per 1M tokens, USD) ────────────────────────────────
+const MODEL_PRICING = {
+  'gpt-4o':                  { input: 2.50,  output: 10.00 },
+  'gpt-4o-mini':             { input: 0.15,  output: 0.60  },
+  'gpt-4-turbo':             { input: 10.00, output: 30.00 },
+  'gpt-4':                   { input: 30.00, output: 60.00 },
+  'gpt-3.5-turbo':           { input: 0.50,  output: 1.50  },
+  'claude-sonnet-4-6':       { input: 3.00,  output: 15.00 },
+  'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
+  'claude-opus-4-8':         { input: 15.00, output: 75.00 },
+  'claude-3-5-sonnet-20241022': { input: 3.00, output: 15.00 },
+  'claude-3-5-haiku-20241022':  { input: 0.80, output: 4.00 },
+  'claude-3-opus-20240229':     { input: 15.00, output: 75.00 },
+};
+
+function calcCost(model, inputTokens, outputTokens) {
+  const p = MODEL_PRICING[model] || { input: 3.00, output: 15.00 };
+  return (inputTokens / 1_000_000) * p.input + (outputTokens / 1_000_000) * p.output;
+}
+
+async function logUsage(companyId, provider, model, module, inputTokens, outputTokens) {
+  try {
+    await prisma.aiUsageLog.create({
+      data: {
+        companyId, provider, model, module,
+        inputTokens: inputTokens || 0,
+        outputTokens: outputTokens || 0,
+        costUsd: calcCost(model, inputTokens || 0, outputTokens || 0),
+      },
+    });
+  } catch (e) {
+    logger.warn('Failed to log AI usage:', e.message);
+  }
+}
+
 // Unified AI call — routes to Claude or OpenAI
 // companyAnthropicKey / companyOpenaiKey are the *encrypted* DB values; we decrypt them here
-async function callAI({ messages, system, companyAnthropicKey, companyOpenaiKey, companyProvider, maxTokens }) {
+// Pass logCtx: { companyId, module } to auto-log usage after the call
+async function callAI({ messages, system, companyAnthropicKey, companyOpenaiKey, companyProvider, maxTokens, logCtx }) {
   const provider = companyProvider || config.ai.provider;
   const tokens = maxTokens || config.ai.maxTokens;
+
+  let result;
 
   if (provider === 'openai') {
     const rawKey = (companyOpenaiKey ? decrypt(companyOpenaiKey) : null) || config.ai.openaiKey;
@@ -47,21 +85,27 @@ async function callAI({ messages, system, companyAnthropicKey, companyOpenaiKey,
       messages: chatMessages,
     });
     const text = response.choices[0].message.content;
-    return { text, model: config.ai.openaiModel, provider: 'openai', usage: { input: response.usage.prompt_tokens, output: response.usage.completion_tokens } };
+    result = { text, model: config.ai.openaiModel, provider: 'openai', usage: { input: response.usage.prompt_tokens, output: response.usage.completion_tokens } };
+  } else {
+    // Default: Claude
+    const rawKey = (companyAnthropicKey ? decrypt(companyAnthropicKey) : null) || config.ai.anthropicKey;
+    if (!rawKey) throw new Error('Anthropic API key not configured. Set ANTHROPIC_API_KEY in .env or add it in Settings → AI.');
+    const client = new Anthropic({ apiKey: rawKey });
+    const response = await client.messages.create({
+      model: config.ai.claudeModel,
+      max_tokens: tokens,
+      ...(system && { system }),
+      messages,
+    });
+    const text = response.content[0].text;
+    result = { text, model: config.ai.claudeModel, provider: 'claude', usage: { input: response.usage.input_tokens, output: response.usage.output_tokens } };
   }
 
-  // Default: Claude
-  const rawKey = (companyAnthropicKey ? decrypt(companyAnthropicKey) : null) || config.ai.anthropicKey;
-  if (!rawKey) throw new Error('Anthropic API key not configured. Set ANTHROPIC_API_KEY in .env or add it in Settings → AI.');
-  const client = new Anthropic({ apiKey: rawKey });
-  const response = await client.messages.create({
-    model: config.ai.claudeModel,
-    max_tokens: tokens,
-    ...(system && { system }),
-    messages,
-  });
-  const text = response.content[0].text;
-  return { text, model: config.ai.claudeModel, provider: 'claude', usage: { input: response.usage.input_tokens, output: response.usage.output_tokens } };
+  if (logCtx?.companyId) {
+    logUsage(logCtx.companyId, result.provider, result.model, logCtx.module || 'ai', result.usage.input, result.usage.output);
+  }
+
+  return result;
 }
 
 // POST /ai/chat — General AI chat
@@ -93,6 +137,7 @@ router.post('/chat', async (req, res, next) => {
       companyAnthropicKey: company.anthropicKey,
       companyOpenaiKey: company.openaiKey,
       companyProvider: company.aiProvider,
+      logCtx: { companyId: req.companyId, module: 'chat' },
     });
 
     // Save conversation
@@ -2188,6 +2233,7 @@ router.post('/contract-review', async (req, res, next) => {
       messages: [{ role: 'user', content: `Review this contract and provide a risk assessment.\n\nTitle: ${title || 'Untitled'}\nParty: ${partyName || 'Unknown'}\nValue: ${value ? '$' + value : 'Not specified'}\n\nContent excerpt:\n${(content || '').slice(0, 3000) || '(no content provided)'}\n\nReturn JSON only:\n{\n  "riskLevel": "low|medium|high",\n  "riskScore": 0-100,\n  "summary": "2-3 sentence overview",\n  "risks": ["risk1", "risk2", "risk3"],\n  "recommendations": ["rec1", "rec2", "rec3"],\n  "keyTerms": ["important clause or term1", "term2"],\n  "negotiationTips": "1-2 tips for negotiation"\n}` }],
       system: 'You are a contract lawyer and risk analyst. Return only valid JSON. Be specific and practical.',
       companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1200,
+      logCtx: { companyId: req.companyId, module: 'contract-review' },
     });
     const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
     return success(res, parsed);
@@ -2204,6 +2250,7 @@ router.post('/project-breakdown', async (req, res, next) => {
       messages: [{ role: 'user', content: `Break down this project into actionable tasks.\n\nProject: ${name}\nDescription: ${description || 'No description'}\nDeadline: ${deadline || 'Not set'}\n\nReturn JSON only:\n{\n  "phases": [\n    { "name": "phase name", "tasks": [{ "title": "task", "description": "brief", "priority": "high|medium|low", "estimatedHours": 2 }] }\n  ],\n  "totalEstimatedHours": 0,\n  "criticalPath": ["most critical task1", "task2"],\n  "risks": ["risk1", "risk2"],\n  "recommendation": "brief project advice"\n}` }],
       system: 'You are a senior project manager. Return only valid JSON. Be realistic with estimates.',
       companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1500,
+      logCtx: { companyId: req.companyId, module: 'project-ai' },
     });
     const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
     return success(res, parsed);
@@ -2220,6 +2267,7 @@ router.post('/kb-article', async (req, res, next) => {
       messages: [{ role: 'user', content: `Write a comprehensive knowledge base article.\n\nTopic: ${topic}\nAudience: ${audience || 'general users'}\nTone: ${tone || 'professional and helpful'}\n${outline ? `Outline to follow: ${outline}` : ''}\n\nReturn JSON only:\n{\n  "title": "article title",\n  "content": "full markdown article with headers, bullet points, steps",\n  "summary": "1-2 sentence summary",\n  "tags": ["tag1", "tag2", "tag3"]\n}` }],
       system: 'You are a technical writer. Write clear, helpful articles. Return only valid JSON. Use markdown in the content field.',
       companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 2000,
+      logCtx: { companyId: req.companyId, module: 'knowledge-base' },
     });
     const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
     return success(res, parsed);
@@ -2241,6 +2289,7 @@ router.post('/okr-suggest', async (req, res, next) => {
       messages: [{ role: 'user', content: `Suggest OKRs for ${co?.name || 'our company'} (${co?.industry || 'business'}).\n\nContext: ${leads} leads, $${Math.round((invoices._sum.total||0)/100)/10}K revenue, ${employees} employees.\nFocus area: ${focus || 'overall growth'}\nTimeframe: ${timeframe || 'Q3 2026'}\n${existingOkrs ? `Existing OKRs: ${existingOkrs}` : ''}\n\nReturn JSON only:\n{\n  "objectives": [\n    {\n      "objective": "objective statement",\n      "keyResults": [\n        { "kr": "key result", "metric": "measurable target", "current": "current value", "target": "goal value" }\n      ]\n    }\n  ],\n  "reasoning": "brief explanation of why these OKRs"\n}` }],
       system: 'You are a strategic business consultant specializing in OKRs. Return only valid JSON. Make OKRs specific, measurable, and ambitious.',
       companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1500,
+      logCtx: { companyId: req.companyId, module: 'okr' },
     });
     const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
     return success(res, parsed);
@@ -2514,6 +2563,7 @@ Each question must be under 10 words. Make them specific to what you just answer
       companyOpenaiKey: co?.openaiKey,
       companyProvider: co?.aiProvider,
       maxTokens: 1600,
+      logCtx: { companyId: cid, module: 'brain-chat' },
     });
 
     // Split answer from follow-up suggestions
@@ -2535,6 +2585,86 @@ Each question must be under 10 words. Make them specific to what you just answer
       context: {
         revenue30: rev, pipeline, openDeals, openTickets, activeEmployees, overdueCount,
       },
+    });
+  } catch (err) { next(err); }
+});
+
+// ─── GET /ai/usage-stats ──────────────────────────────────────────────────────
+router.get('/usage-stats', async (req, res, next) => {
+  try {
+    const { period = '30' } = req.query;
+    const days = Math.min(Number(period) || 30, 365);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const cid = req.companyId;
+
+    const [logs, byModel, byModule, daily] = await Promise.all([
+      // Aggregate totals
+      prisma.aiUsageLog.aggregate({
+        where: { companyId: cid, createdAt: { gte: since } },
+        _sum: { inputTokens: true, outputTokens: true, costUsd: true },
+        _count: { id: true },
+      }),
+      // By model
+      prisma.aiUsageLog.groupBy({
+        by: ['model', 'provider'],
+        where: { companyId: cid, createdAt: { gte: since } },
+        _sum: { inputTokens: true, outputTokens: true, costUsd: true },
+        _count: { id: true },
+        orderBy: { _sum: { costUsd: 'desc' } },
+      }),
+      // By module/feature
+      prisma.aiUsageLog.groupBy({
+        by: ['module'],
+        where: { companyId: cid, createdAt: { gte: since } },
+        _sum: { inputTokens: true, outputTokens: true, costUsd: true },
+        _count: { id: true },
+        orderBy: { _sum: { costUsd: 'desc' } },
+      }),
+      // Daily breakdown (raw logs, grouped in JS for flexibility)
+      prisma.aiUsageLog.findMany({
+        where: { companyId: cid, createdAt: { gte: since } },
+        select: { createdAt: true, costUsd: true, inputTokens: true, outputTokens: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
+
+    // Group daily into date buckets
+    const dailyMap = {};
+    for (const log of daily) {
+      const date = log.createdAt.toISOString().slice(0, 10);
+      if (!dailyMap[date]) dailyMap[date] = { date, cost: 0, inputTokens: 0, outputTokens: 0, requests: 0 };
+      dailyMap[date].cost += Number(log.costUsd);
+      dailyMap[date].inputTokens += log.inputTokens;
+      dailyMap[date].outputTokens += log.outputTokens;
+      dailyMap[date].requests += 1;
+    }
+    const dailyArr = Object.values(dailyMap).map(d => ({ ...d, cost: +d.cost.toFixed(6) }));
+
+    return success(res, {
+      period: days,
+      totals: {
+        requests: logs._count.id || 0,
+        inputTokens: logs._sum.inputTokens || 0,
+        outputTokens: logs._sum.outputTokens || 0,
+        totalTokens: (logs._sum.inputTokens || 0) + (logs._sum.outputTokens || 0),
+        costUsd: +(Number(logs._sum.costUsd || 0).toFixed(6)),
+      },
+      byModel: byModel.map(m => ({
+        model: m.model,
+        provider: m.provider,
+        requests: m._count.id,
+        inputTokens: m._sum.inputTokens || 0,
+        outputTokens: m._sum.outputTokens || 0,
+        costUsd: +(Number(m._sum.costUsd || 0).toFixed(6)),
+      })),
+      byModule: byModule.map(m => ({
+        module: m.module,
+        requests: m._count.id,
+        inputTokens: m._sum.inputTokens || 0,
+        outputTokens: m._sum.outputTokens || 0,
+        costUsd: +(Number(m._sum.costUsd || 0).toFixed(6)),
+      })),
+      daily: dailyArr,
     });
   } catch (err) { next(err); }
 });
