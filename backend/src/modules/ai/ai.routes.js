@@ -2496,7 +2496,11 @@ Your job: answer questions, give strategic advice, identify risks, and surface o
 - Be direct, specific, and data-driven. Reference real numbers from the context.
 - When asked for advice, give prioritized, actionable recommendations.
 - Keep responses concise but complete. Use bullet points for lists. No fluff.
-- Today is ${now.toDateString()}.`;
+- Today is ${now.toDateString()}.
+
+IMPORTANT: End every response with this exact block on a new line (no extra text after it):
+FOLLOWUPS:["short follow-up question 1","short follow-up question 2","short follow-up question 3"]
+Each question must be under 10 words. Make them specific to what you just answered.`;
 
     const messages = [
       ...history.map(h => ({ role: h.role, content: h.content })),
@@ -2509,15 +2513,27 @@ Your job: answer questions, give strategic advice, identify risks, and surface o
       companyAnthropicKey: co?.anthropicKey,
       companyOpenaiKey: co?.openaiKey,
       companyProvider: co?.aiProvider,
-      maxTokens: 1500,
+      maxTokens: 1600,
     });
 
+    // Split answer from follow-up suggestions
+    let answer = result.text;
+    let followUps = [];
+    const fuMatch = result.text.match(/FOLLOWUPS:\[([^\]]+)\]\s*$/);
+    if (fuMatch) {
+      try {
+        followUps = JSON.parse('[' + fuMatch[1] + ']');
+      } catch {}
+      answer = result.text.slice(0, result.text.lastIndexOf('FOLLOWUPS:')).trimEnd();
+    }
+
     return success(res, {
-      message: result.text,
+      message: answer,
+      followUps,
       model: result.model,
       provider: result.provider,
       context: {
-        revenue30: rev, pipeline, openDeals, openTickets: openTickets, activeEmployees, overdueCount,
+        revenue30: rev, pipeline, openDeals, openTickets, activeEmployees, overdueCount,
       },
     });
   } catch (err) { next(err); }
