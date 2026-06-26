@@ -124,19 +124,21 @@ function SettingsInner() {
     { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
     { id: 'roles', label: 'Roles', icon: Shield },
     { id: 'api-keys', label: 'API Keys', icon: Key },
-    { id: 'audit', label: 'Audit Log', icon: Clock },
+    { id: 'audit', label: 'Change Log', icon: Clock },
   ];
 
   return (
     <div className="space-y-6 max-w-4xl">
       <h1 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
 
-      <div className="flex gap-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl flex-wrap">
-        {tabs.map(({ id, label, icon: Icon }) => (
-          <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === id ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
-            <Icon className="w-4 h-4" /> {label}
-          </button>
-        ))}
+      <div className="overflow-x-auto pb-1">
+        <div className="flex gap-1.5 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl min-w-max">
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button key={id} onClick={() => setTab(id)} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${tab === id ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+              <Icon className="w-3.5 h-3.5" /> {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {tab === 'profile' && (
