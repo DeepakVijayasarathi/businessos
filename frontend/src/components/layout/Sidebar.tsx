@@ -13,8 +13,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { useQuery } from '@tanstack/react-query';
-import api from '@/lib/api';
+import { useCompanyStore } from '@/store/company.store';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -80,12 +79,7 @@ export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>(['CRM']);
 
-  const { data: company } = useQuery({
-    queryKey: ['company-settings'],
-    queryFn: async () => { const { data } = await api.get('/settings/company'); return data.data; },
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
+  const company = useCompanyStore((s) => s.settings);
 
   const visibleNav = navigation.filter(item => hasModule(item.module ?? 'dashboard'));
 
@@ -125,7 +119,7 @@ export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
           {!collapsed && (
             <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
-              {company?.logo ? (
+              {company.logo ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={company.logo.startsWith('http') ? company.logo : `${API_BASE}${company.logo}`}
@@ -133,26 +127,26 @@ export function Sidebar({ isMobileOpen = false, onMobileClose }: SidebarProps) {
                   className="w-8 h-8 rounded-lg object-contain bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `linear-gradient(135deg, ${company.primaryColor}, ${company.secondaryColor})` }}>
                   <Zap className="w-4 h-4 text-white" />
                 </div>
               )}
               <span className="font-bold text-gray-900 dark:text-white text-sm truncate">
-                {company?.name || 'BusinessOS AI'}
+                {company.name || 'BusinessOS AI'}
               </span>
             </Link>
           )}
           {collapsed && (
             <Link href="/dashboard" className="mx-auto">
-              {company?.logo ? (
+              {company.logo ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={company.logo.startsWith('http') ? company.logo : `${API_BASE}${company.logo}`}
-                  alt={company?.name || 'Logo'}
+                  alt={company.name || 'Logo'}
                   className="w-8 h-8 rounded-lg object-contain bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${company.primaryColor}, ${company.secondaryColor})` }}>
                   <Zap className="w-4 h-4 text-white" />
                 </div>
               )}

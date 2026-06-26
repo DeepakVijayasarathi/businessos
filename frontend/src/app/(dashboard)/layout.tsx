@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { AIAgent } from '@/components/AIAgent';
+import { CompanySettingsProvider } from '@/providers/CompanySettingsProvider';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, fetchMe } = useAuthStore();
@@ -48,18 +49,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
-      <Sidebar isMobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => setMobileSidebarOpen(true)} />
-        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-indigo-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">
-          Skip to content
-        </a>
-        <main id="main-content" className="flex-1 overflow-y-auto p-6">
-          {children}
-        </main>
+    <CompanySettingsProvider>
+      <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+        <Sidebar isMobileOpen={mobileSidebarOpen} onMobileClose={() => setMobileSidebarOpen(false)} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Header onMenuClick={() => setMobileSidebarOpen(true)} />
+          <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-indigo-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">
+            Skip to content
+          </a>
+          <main id="main-content" className="flex-1 overflow-y-auto p-6">
+            {children}
+          </main>
+        </div>
+        <AIAgent />
       </div>
-      <AIAgent />
-    </div>
+    </CompanySettingsProvider>
   );
 }

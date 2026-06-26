@@ -4,6 +4,10 @@
 
 @layer base {
   :root {
+    /* Brand colours — overridden at runtime by CompanySettingsProvider */
+    --brand-primary: #6366f1;
+    --brand-secondary: #8b5cf6;
+
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -80,7 +84,8 @@
 }
 
 .sidebar-item.active {
-  @apply bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400;
+  background-color: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+  color: var(--brand-primary);
 }
 
 /* Kanban */
