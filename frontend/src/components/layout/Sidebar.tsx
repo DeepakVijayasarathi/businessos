@@ -52,7 +52,6 @@ const navigation = [
   { name: 'Knowledge Base', href: '/dashboard/knowledgebase', icon: BookOpen,    module: 'knowledgebase' },
   { name: 'Documents',      href: '/dashboard/documents',     icon: FileText,    module: 'documents' },
   { name: 'AI Intelligence',href: '/dashboard/intelligence',  icon: Brain,       module: 'intelligence' },
-  { name: 'AI Assistant',   href: '/dashboard/ai',            icon: Bot,         module: 'ai' },
   { name: 'Workflows',      href: '/dashboard/workflow',      icon: Workflow,    module: 'workflow' },
   { name: 'Appointments',   href: '/dashboard/appointments',  icon: Calendar,    module: 'appointments' },
   { name: 'WhatsApp',       href: '/dashboard/whatsapp',      icon: MessageSquare, module: 'whatsapp' },
