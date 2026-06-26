@@ -1,13 +1,20 @@
 'use client';
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Building2, Bell, Key, Shield, Mail, MessageSquare, Palette, Bot, Zap, CheckCircle, XCircle, Clock, Plus, Trash2, Users, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Building2, Bell, Key, Shield, Mail, MessageSquare, Palette, Bot, Zap, CheckCircle, XCircle, Clock, Plus, Trash2, Users, ToggleLeft, ToggleRight, UserCircle, Lock } from 'lucide-react';
 import { ALL_MODULES } from '@/hooks/usePermissions';
+import { useAuthStore } from '@/store/auth.store';
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState('company');
+  return <Suspense><SettingsInner /></Suspense>;
+}
+
+function SettingsInner() {
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get('tab') || 'company');
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const qc = useQueryClient();
@@ -56,7 +63,28 @@ export default function SettingsPage() {
     queryFn: async () => { const { data } = await api.get('/ai/status'); return data.data; },
   });
 
+  const { user, updateUser } = useAuthStore();
+  const [profileForm, setProfileForm] = useState({ firstName: '', lastName: '', phone: '', timezone: '', language: '' });
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+
+  useEffect(() => {
+    if (user) setProfileForm({ firstName: user.firstName || '', lastName: user.lastName || '', phone: (user as any).phone || '', timezone: (user as any).timezone || '', language: (user as any).language || '' });
+  }, [user]);
+
+  const profileMutation = useMutation({
+    mutationFn: (data: any) => api.put('/auth/me', data),
+    onSuccess: (res) => { updateUser(res.data.data); toast.success('Profile updated'); },
+    onError: () => toast.error('Failed to update profile'),
+  });
+
+  const changePwMutation = useMutation({
+    mutationFn: (data: any) => api.post('/auth/change-password', data),
+    onSuccess: () => { setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); toast.success('Password changed successfully'); },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to change password'),
+  });
+
   const tabs = [
+    { id: 'profile', label: 'Profile', icon: UserCircle },
     { id: 'company', label: 'Company', icon: Building2 },
     { id: 'ai', label: 'AI Config', icon: Bot },
     { id: 'smtp', label: 'Email (SMTP)', icon: Mail },
@@ -77,6 +105,87 @@ export default function SettingsPage() {
           </button>
         ))}
       </div>
+
+      {tab === 'profile' && (
+        <div className="space-y-6">
+          <div className="glass-card rounded-2xl p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
+                {profileForm.firstName?.[0]}{profileForm.lastName?.[0]}
+              </div>
+              <div>
+                <h2 className="font-semibold text-gray-900 dark:text-white">{profileForm.firstName} {profileForm.lastName}</h2>
+                <p className="text-sm text-gray-500">{user?.email}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { k: 'firstName', l: 'First Name' },
+                { k: 'lastName', l: 'Last Name' },
+                { k: 'phone', l: 'Phone' },
+                { k: 'timezone', l: 'Timezone' },
+                { k: 'language', l: 'Language' },
+              ].map(({ k, l }) => (
+                <div key={k}>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
+                  <input
+                    name={k}
+                    value={(profileForm as any)[k] || ''}
+                    onChange={e => setProfileForm({ ...profileForm, [k]: e.target.value })}
+                    placeholder={l}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => profileMutation.mutate(profileForm)}
+              disabled={profileMutation.isPending}
+              className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {profileMutation.isPending ? 'Saving...' : 'Save Profile'}
+            </button>
+          </div>
+
+          <div className="glass-card rounded-2xl p-6 space-y-5">
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4 text-gray-500" />
+              <h2 className="font-semibold text-gray-900 dark:text-white">Change Password</h2>
+            </div>
+            <div className="space-y-3 max-w-sm">
+              {[
+                { k: 'currentPassword', l: 'Current Password', ph: 'Enter current password' },
+                { k: 'newPassword', l: 'New Password', ph: 'Minimum 8 characters' },
+                { k: 'confirmPassword', l: 'Confirm New Password', ph: 'Re-enter new password' },
+              ].map(({ k, l, ph }) => (
+                <div key={k}>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
+                  <input
+                    name={k}
+                    type="password"
+                    autoComplete="new-password"
+                    value={(pwForm as any)[k]}
+                    onChange={e => setPwForm({ ...pwForm, [k]: e.target.value })}
+                    placeholder={ph}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                if (pwForm.newPassword !== pwForm.confirmPassword) { toast.error('Passwords do not match'); return; }
+                if (pwForm.newPassword.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+                changePwMutation.mutate({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword });
+              }}
+              disabled={changePwMutation.isPending || !pwForm.currentPassword || !pwForm.newPassword}
+              className="px-6 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+            >
+              {changePwMutation.isPending ? 'Changing...' : 'Change Password'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {tab === 'company' && companyForm && (
         <div className="glass-card rounded-2xl p-6 space-y-6">

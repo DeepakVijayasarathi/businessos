@@ -209,6 +209,9 @@ export function Header({ onMenuClick }: HeaderProps) {
             </button>
             {showMenu && (
               <div className="absolute right-0 top-12 w-48 glass-card rounded-xl shadow-xl z-50 overflow-hidden">
+                <Link href="/dashboard/settings?tab=profile" className="flex items-center gap-2 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800" onClick={() => setShowMenu(false)}>
+                  <User className="w-4 h-4" /> My Profile
+                </Link>
                 <Link href="/dashboard/settings" className="flex items-center gap-2 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800" onClick={() => setShowMenu(false)}>
                   <Settings className="w-4 h-4" /> Settings
                 </Link>
