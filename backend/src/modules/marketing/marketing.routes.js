@@ -546,10 +546,28 @@ router.post('/ai/competitor', authenticate, sameCompany, async (req, res, next) 
     const { name, website, industry } = req.body;
     if (!name?.trim()) return error(res, 'Competitor name is required', 400);
     const company = await getCompanyAI(req.companyId);
+    const myCompany = await prisma.company.findUnique({ where: { id: req.companyId }, select: { name: true, industry: true } });
+    const prompt = `You are a senior competitive intelligence analyst. Analyze the competitor "${name}"${website ? ` (${website})` : ''}${industry ? ` in the ${industry} industry` : ''}.
+${myCompany?.name ? `Our company: "${myCompany.name}"${myCompany.industry ? ` in the ${myCompany.industry} industry` : ''}` : ''}
+
+Provide a detailed, realistic analysis. Return ONLY a valid JSON object:
+{
+  "industry": "detected industry / niche",
+  "description": "2-3 sentence company overview",
+  "monthlyTraffic": <estimated monthly website visitors as integer, e.g. 250000>,
+  "domainAuthority": <Moz DA score 1-100 as integer>,
+  "adPlatforms": ["platform1", "platform2"],
+  "topKeywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
+  "strengths": "Key strengths and competitive advantages (2-3 points)",
+  "weaknesses": "Weaknesses, gaps, or areas where they fall short (2-3 points)",
+  "notes": "Strategic notes: how to position against them"
+}
+All values must be realistic estimates based on known data about the company. monthlyTraffic and domainAuthority must be integers. Arrays must have at least 3 items.`;
+
     const result = await callAI({
-      messages: [{ role: 'user', content: `Analyze competitor: ${name} (website: ${website || 'unknown'}, industry: ${industry || 'unknown'})\n\nReturn JSON only: { "description": "...", "strengths": "...", "weaknesses": "...", "topKeywords": ["kw1", "kw2", "kw3"], "adPlatforms": ["google", "facebook"] }` }],
-      system: 'You are a competitive intelligence analyst. Return only valid JSON with realistic analysis. topKeywords and adPlatforms must be arrays of strings.',
-      companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider, maxTokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+      system: 'You are a competitive intelligence analyst. Return only valid JSON. Never wrap in markdown. Use realistic, data-informed estimates.',
+      companyAnthropicKey: company?.anthropicKey, companyOpenaiKey: company?.openaiKey, companyProvider: company?.aiProvider, maxTokens: 1500,
     });
     return success(res, parseAIJson(result.text));
   } catch (err) { next(err); }

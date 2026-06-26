@@ -1319,6 +1319,8 @@ function CompetitorModal({ competitor, onClose }: { competitor?: any; onClose: (
     weaknesses: competitor?.weaknesses || '',
     notes: competitor?.notes || '',
   });
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiFields, setAiFields] = useState<Set<string>>(new Set());
 
   const mutation = useMutation({
     mutationFn: (data: any) => competitor
@@ -1339,37 +1341,98 @@ function CompetitorModal({ competitor, onClose }: { competitor?: any; onClose: (
     });
   };
 
-  const [aiLoading, setAiLoading] = useState(false);
-  const f = (k: string) => ({ value: form[k as keyof typeof form] as string, onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value }) });
+  const runAIAnalysis = async () => {
+    if (!form.name.trim()) { toast.error('Enter a company name first'); return; }
+    setAiLoading(true);
+    try {
+      const { data } = await api.post('/marketing/ai/competitor', { name: form.name, website: form.website, industry: form.industry });
+      const d = data.data;
+      const filled = new Set<string>();
+      setForm(prev => {
+        const next = { ...prev };
+        if (d.industry && !prev.industry) { next.industry = d.industry; filled.add('industry'); }
+        if (d.description) { next.description = d.description; filled.add('description'); }
+        if (d.monthlyTraffic) { next.monthlyTraffic = String(d.monthlyTraffic); filled.add('monthlyTraffic'); }
+        if (d.domainAuthority) { next.domainAuthority = String(d.domainAuthority); filled.add('domainAuthority'); }
+        if (d.adPlatforms?.length) { next.adPlatforms = d.adPlatforms.join(', '); filled.add('adPlatforms'); }
+        if (d.topKeywords?.length) { next.topKeywords = d.topKeywords.join(', '); filled.add('topKeywords'); }
+        if (d.strengths) { next.strengths = d.strengths; filled.add('strengths'); }
+        if (d.weaknesses) { next.weaknesses = d.weaknesses; filled.add('weaknesses'); }
+        if (d.notes) { next.notes = d.notes; filled.add('notes'); }
+        return next;
+      });
+      setAiFields(filled);
+      toast.success(`AI filled ${filled.size} fields — review and save`);
+    } catch {
+      toast.error('AI analysis failed — check your AI API key in Settings');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const f = (k: string) => ({
+    value: form[k as keyof typeof form] as string,
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      setForm({ ...form, [k]: e.target.value });
+      setAiFields(prev => { const n = new Set(prev); n.delete(k); return n; });
+    },
+    className: aiFields.has(k) ? 'ring-2 ring-indigo-400 dark:ring-indigo-500' : undefined,
+  });
 
   return (
     <Modal onClose={onClose} title={competitor ? 'Edit Competitor' : 'Add Competitor'} subtitle="Track a competitor's online presence and metrics" icon={Building} iconColor="indigo" size="2xl">
       <form onSubmit={handleSubmit}>
         <div className="p-6 space-y-4">
-          {!competitor && form.name && (
-            <div className="flex justify-end">
-              <button type="button" disabled={aiLoading} onClick={async () => { setAiLoading(true); try { const { data } = await api.post('/marketing/ai/competitor', { name: form.name, website: form.website, industry: form.industry }); const d = data.data; setForm(prev => ({ ...prev, description: d.description||prev.description, strengths: d.strengths||prev.strengths, weaknesses: d.weaknesses||prev.weaknesses, topKeywords: d.topKeywords?.join(', ')||prev.topKeywords, adPlatforms: d.adPlatforms?.join(', ')||prev.adPlatforms })); toast.success('AI competitor analysis ready!'); } catch { toast.error('AI analysis failed'); } finally { setAiLoading(false); } }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-700 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 disabled:opacity-50">
-                {aiLoading ? <><Loader2 className="w-3 h-3 animate-spin" /> Analyzing…</> : <><Sparkles className="w-3 h-3" /> AI Analyze</>}
-              </button>
+          {/* AI Analysis Banner */}
+          <div className={`rounded-xl border p-3 flex items-center gap-3 transition-all ${aiLoading ? 'border-indigo-300 bg-indigo-50 dark:bg-indigo-950/30' : 'border-indigo-200 dark:border-indigo-800 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20'}`}>
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center flex-shrink-0">
+              {aiLoading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Sparkles className="w-4 h-4 text-white" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                {aiLoading ? 'Analyzing competitor…' : 'AI Competitor Analysis'}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {aiLoading ? 'Fetching industry data, traffic estimates, keywords & SWOT…' : 'Auto-fill all fields with AI-powered competitive intelligence'}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={aiLoading}
+              onClick={runAIAnalysis}
+              className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            >
+              {aiLoading ? 'Analyzing…' : <><Sparkles className="w-3.5 h-3.5" /> Analyze with AI</>}
+            </button>
+          </div>
+
+          {aiFields.size > 0 && (
+            <div className="flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400">
+              <Sparkles className="w-3 h-3" />
+              <span>{aiFields.size} fields auto-filled by AI — highlighted in blue. Edit any field to customize.</span>
             </div>
           )}
+
           <div className="grid grid-cols-2 gap-4">
             <TextField id="comp-name" label="Company Name" required {...f('name')} />
             <TextField id="comp-website" label="Website URL" placeholder="https://competitor.com" {...f('website')} />
-            <TextField id="comp-industry" label="Industry" placeholder="SaaS, E-commerce..." {...f('industry')} />
+            <TextField id="comp-industry" label="Industry" placeholder="SaaS, E-commerce…" {...f('industry')} />
             <TextField id="comp-traffic" label="Monthly Traffic (est.)" type="number" placeholder="50000" {...f('monthlyTraffic')} />
             <TextField id="comp-da" label="Domain Authority (0-100)" type="number" min="0" max="100" placeholder="45" {...f('domainAuthority')} />
             <TextField id="comp-adplatforms" label="Ad Platforms (comma-separated)" placeholder="google, facebook, tiktok" {...f('adPlatforms')} />
           </div>
           <TextField id="comp-keywords" label="Top Keywords (comma-separated)" placeholder="crm software, sales tool, leads management" {...f('topKeywords')} />
-          <TextAreaField id="comp-strengths" label="Strengths" rows={2} {...f('strengths')} />
-          <TextAreaField id="comp-weaknesses" label="Weaknesses / Gaps" rows={2} {...f('weaknesses')} />
-          <TextAreaField id="comp-notes" label="Notes" rows={2} {...f('notes')} />
+          {form.description && (
+            <TextAreaField id="comp-desc" label="Description" rows={2} {...f('description')} />
+          )}
+          <TextAreaField id="comp-strengths" label="Strengths" rows={2} placeholder="Key competitive advantages…" {...f('strengths')} />
+          <TextAreaField id="comp-weaknesses" label="Weaknesses / Gaps" rows={2} placeholder="Where they fall short…" {...f('weaknesses')} />
+          <TextAreaField id="comp-notes" label="Strategic Notes" rows={2} placeholder="How to position against them…" {...f('notes')} />
         </div>
         <ModalFooter>
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm">Cancel</button>
           <button type="submit" disabled={!form.name || mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
-            {mutation.isPending ? 'Saving...' : competitor ? 'Update' : 'Add Competitor'}
+            {mutation.isPending ? 'Saving...' : competitor ? 'Update Competitor' : 'Add Competitor'}
           </button>
         </ModalFooter>
       </form>
