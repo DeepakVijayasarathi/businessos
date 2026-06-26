@@ -59,7 +59,6 @@ const navigation = [
   { name: 'Social Studio',   href: '/dashboard/social',         icon: Share2,      module: 'marketing' },
   { name: 'Marketing',      href: '/dashboard/marketing',     icon: TrendingUp,  module: 'marketing' },
   { name: 'Analytics',      href: '/dashboard/analytics',     icon: BarChart3,   module: 'analytics' },
-  { name: 'Notifications',   href: '/dashboard/notifications',  icon: Bell,        module: 'dashboard' },
   { name: 'Settings',       href: '/dashboard/settings',      icon: Settings,    module: 'settings' },
 ];
 
