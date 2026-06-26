@@ -106,6 +106,7 @@ model Company {
   marketingActivities MarketingActivity[]
   campaigns         Campaign[]
   socialPosts       SocialPost[]
+  socialAccounts    SocialAccount[]
   competitors       Competitor[]
   keywordResearch   KeywordResearch[]
   timeEntries       TimeEntry[]
@@ -1367,6 +1368,26 @@ model SocialPost {
 
   @@index([companyId])
   @@map("social_posts")
+}
+
+model SocialAccount {
+  id           String   @id @default(uuid())
+  companyId    String
+  platform     String   // twitter, linkedin, facebook, instagram, tiktok, youtube
+  accountName  String
+  accountId    String?
+  accessToken  String?  @db.Text // encrypted
+  accessSecret String?  @db.Text // encrypted — Twitter OAuth1 secret
+  pageId       String?  // Facebook page / LinkedIn org ID
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, platform])
+  @@index([companyId])
+  @@map("social_accounts")
 }
 
 model Competitor {

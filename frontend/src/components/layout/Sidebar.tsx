@@ -9,7 +9,7 @@ import {
   Headphones, BookOpen, FileText, Bot, Workflow, Calendar,
   MessageSquare, Mail, BarChart3, Settings, Shield, Building2,
   Target, UserSquare, Zap, Globe, Bell, ChevronLeft, ChevronRight,
-  TrendingUp, Brain, X, Clock, ShoppingCart, FileSignature, UserCheck,
+  TrendingUp, Brain, X, Clock, ShoppingCart, FileSignature, UserCheck, Share2,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
@@ -53,7 +53,8 @@ const navigation = [
   { name: 'Appointments',   href: '/dashboard/appointments',  icon: Calendar,    module: 'appointments' },
   { name: 'WhatsApp',       href: '/dashboard/whatsapp',      icon: MessageSquare, module: 'whatsapp' },
   { name: 'Email',          href: '/dashboard/email',         icon: Mail,        module: 'email' },
-  { name: 'Marketing',      href: '/dashboard/marketing',     icon: Globe,       module: 'marketing' },
+  { name: 'Social Studio',   href: '/dashboard/social',         icon: Share2,      module: 'marketing' },
+  { name: 'Marketing',      href: '/dashboard/marketing',     icon: TrendingUp,  module: 'marketing' },
   { name: 'Analytics',      href: '/dashboard/analytics',     icon: BarChart3,   module: 'analytics' },
   { name: 'Notifications',   href: '/dashboard/notifications',  icon: Bell,        module: 'dashboard' },
   { name: 'Settings',       href: '/dashboard/settings',      icon: Settings,    module: 'settings' },

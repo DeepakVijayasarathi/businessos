@@ -75,6 +75,7 @@ const okrRoutes = require('./modules/okr/okr.routes');
 const procurementRoutes = require('./modules/procurement/procurement.routes');
 const contractsRoutes = require('./modules/contracts/contracts.routes');
 const apiKeysRoutes = require('./modules/apikeys/apikeys.routes');
+const socialRoutes = require('./modules/social/social.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -234,6 +235,7 @@ app.use(`${v1}/okr`, okrRoutes);
 app.use(`${v1}/procurement`, procurementRoutes);
 app.use(`${v1}/contracts`, contractsRoutes);
 app.use(`${v1}/api-keys`, apiKeysRoutes);
+app.use(`${v1}/social`, socialRoutes);
 
 // WhatsApp webhook verification (GET)
 app.get(`${v1}/whatsapp/webhook`, (req, res) => {
