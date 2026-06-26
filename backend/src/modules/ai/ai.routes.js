@@ -2499,7 +2499,7 @@ Your job: answer questions, give strategic advice, identify risks, and surface o
 - Today is ${now.toDateString()}.`;
 
     const messages = [
-      ...history.map((h: any) => ({ role: h.role, content: h.content })),
+      ...history.map(h => ({ role: h.role, content: h.content })),
       { role: 'user', content: message },
     ];
 
