@@ -1,64 +1,83 @@
 'use client';
-import { useState, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import {
   Instagram, Twitter, Linkedin, Facebook, Youtube, Sparkles, Send, Loader2,
-  Plus, Trash2, CheckCircle2, AlertCircle, Clock, Globe, Zap, Copy,
-  Settings2, Eye, Hash, Calendar, BarChart3, X, ChevronDown, RefreshCw,
-  Link2, TrendingUp, MessageSquare, Heart,
+  Trash2, CheckCircle2, AlertCircle, Globe, Zap, Copy,
+  Settings2, Calendar, BarChart3, X, RefreshCw,
+  Link2, MessageSquare, Heart,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type PlatformIcon = React.ComponentType<{ className?: string }>;
+
+interface Platform {
+  id: string;
+  label: string;
+  icon: PlatformIcon;
+  gradient: string;
+  iconColor: string;
+  limit: number;
+  guide: string;
+  tokenLabel: string;
+  secretLabel: string;
+  helpUrl: string;
+}
+
+// ── TikTok icon (accepts className) ──────────────────────────────────────────
+
+function TikTokIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+      <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.67a8.16 8.16 0 004.77 1.52V6.72a4.85 4.85 0 01-1-.03z" />
+    </svg>
+  );
+}
+
 // ── Platform config ───────────────────────────────────────────────────────────
 
-const PLATFORMS = [
+const PLATFORMS: Platform[] = [
   {
     id: 'twitter', label: 'X (Twitter)', icon: Twitter,
-    gradient: 'from-black to-gray-800', iconColor: 'text-white',
-    bg: 'bg-black', limit: 280,
+    gradient: 'from-black to-gray-800', iconColor: 'text-white', limit: 280,
     guide: 'Max 280 characters. Short, punchy, conversational.',
-    tokenLabel: 'Bearer Token', secretLabel: 'OAuth 1.0a Token Secret (optional for v1 endpoints)',
+    tokenLabel: 'Bearer Token', secretLabel: 'OAuth 1.0a Token Secret',
     helpUrl: 'https://developer.twitter.com/en/portal/dashboard',
   },
   {
     id: 'linkedin', label: 'LinkedIn', icon: Linkedin,
-    gradient: 'from-blue-700 to-blue-600', iconColor: 'text-white',
-    bg: 'bg-blue-700', limit: 3000,
+    gradient: 'from-blue-700 to-blue-600', iconColor: 'text-white', limit: 3000,
     guide: 'Professional tone. 150–300 words performs best.',
     tokenLabel: 'OAuth 2.0 Access Token', secretLabel: 'Organization ID (for company pages)',
     helpUrl: 'https://www.linkedin.com/developers/apps',
   },
   {
     id: 'facebook', label: 'Facebook', icon: Facebook,
-    gradient: 'from-blue-600 to-blue-500', iconColor: 'text-white',
-    bg: 'bg-blue-600', limit: 63206,
+    gradient: 'from-blue-600 to-blue-500', iconColor: 'text-white', limit: 63206,
     guide: 'Conversational, ask a question at the end.',
     tokenLabel: 'Page Access Token', secretLabel: 'Page ID',
     helpUrl: 'https://developers.facebook.com',
   },
   {
     id: 'instagram', label: 'Instagram', icon: Instagram,
-    gradient: 'from-pink-500 via-rose-500 to-orange-400', iconColor: 'text-white',
-    bg: 'bg-gradient-to-br from-pink-500 to-orange-400', limit: 2200,
+    gradient: 'from-pink-500 via-rose-500 to-orange-400', iconColor: 'text-white', limit: 2200,
     guide: 'Visual storytelling. Use emojis & 5–10 hashtags.',
     tokenLabel: 'Graph API Access Token', secretLabel: 'Instagram Business User ID',
     helpUrl: 'https://developers.facebook.com/docs/instagram-api',
   },
   {
-    id: 'tiktok', label: 'TikTok', icon: () => (
-      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.67a8.16 8.16 0 004.77 1.52V6.72a4.85 4.85 0 01-1-.03z"/></svg>
-    ),
-    gradient: 'from-gray-900 to-gray-800', iconColor: 'text-white',
-    bg: 'bg-gray-900', limit: 2200,
+    id: 'tiktok', label: 'TikTok', icon: TikTokIcon,
+    gradient: 'from-gray-900 to-gray-800', iconColor: 'text-white', limit: 2200,
     guide: 'Script for a 30–60s video. Strong hook in first 3 seconds.',
     tokenLabel: 'Access Token', secretLabel: 'Open ID',
     helpUrl: 'https://developers.tiktok.com',
   },
   {
     id: 'youtube', label: 'YouTube', icon: Youtube,
-    gradient: 'from-red-600 to-red-500', iconColor: 'text-white',
-    bg: 'bg-red-600', limit: 5000,
+    gradient: 'from-red-600 to-red-500', iconColor: 'text-white', limit: 5000,
     guide: 'Video description with timestamps and CTA to subscribe.',
     tokenLabel: 'OAuth 2.0 Access Token', secretLabel: 'Channel ID',
     helpUrl: 'https://console.developers.google.com',
