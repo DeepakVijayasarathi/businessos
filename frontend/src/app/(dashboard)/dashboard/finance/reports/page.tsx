@@ -4,13 +4,34 @@ import { useQuery } from '@tanstack/react-query';
 import dynamic from 'next/dynamic';
 import api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
-import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Sparkles, Loader2, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { ExportButton } from '@/components/ui/ExportButton';
+import toast from 'react-hot-toast';
 
 const RevenueBarChart = dynamic(() => import('./RevenueBarChart'), { ssr: false });
 
+const HEALTH_COLORS: Record<string, string> = {
+  healthy: 'text-green-600 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800',
+  caution: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800',
+  critical: 'text-red-600 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800',
+};
+
 export default function ReportsPage() {
   const [year, setYear] = useState(new Date().getFullYear());
+  const [forecastLoading, setForecastLoading] = useState(false);
+  const [forecastResult, setForecastResult] = useState<any>(null);
+
+  async function runForecast() {
+    setForecastLoading(true);
+    try {
+      const { data } = await api.post('/ai/cashflow-forecast', {});
+      setForecastResult(data.data);
+    } catch {
+      toast.error('Forecast failed. Check AI settings.');
+    } finally {
+      setForecastLoading(false);
+    }
+  }
 
   const { data: pl, isLoading } = useQuery({
     queryKey: ['pl-report', year],
@@ -43,9 +64,64 @@ export default function ReportsPage() {
           <select value={year} onChange={e => setYear(parseInt(e.target.value))} className="px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none">
             {[2023, 2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
+          <button onClick={runForecast} disabled={forecastLoading} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 text-sm font-medium hover:bg-indigo-50 dark:hover:bg-indigo-950/30 disabled:opacity-50 transition-colors">
+            {forecastLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {forecastLoading ? 'Forecasting…' : 'AI Forecast'}
+          </button>
           <ExportButton endpoint="/finance/reports/profit-loss/export" filename={`profit-loss-${year}.csv`} params={{ year: String(year) }} />
         </div>
       </div>
+
+      {/* AI Cash Flow Forecast Panel */}
+      {forecastResult && (
+        <div className={`rounded-2xl border p-5 ${HEALTH_COLORS[forecastResult.currentCashHealth] || ''}`}>
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="font-bold text-sm">AI Cash Flow Forecast</p>
+                <p className="text-xs opacity-75 mt-0.5">{forecastResult.summary}</p>
+              </div>
+            </div>
+            <button onClick={() => setForecastResult(null)} className="opacity-60 hover:opacity-100 ml-3"><X className="w-4 h-4" /></button>
+          </div>
+          {/* Forecast table */}
+          {forecastResult.forecast?.length > 0 && (
+            <div className="bg-white dark:bg-gray-900 rounded-xl overflow-hidden mb-3">
+              <table className="w-full text-xs">
+                <thead><tr className="border-b border-gray-100 dark:border-gray-800">
+                  {['Month', 'Revenue', 'Expenses', 'Net Cash Flow', 'Confidence'].map(h => <th key={h} className="px-4 py-2 text-left font-semibold text-gray-500">{h}</th>)}
+                </tr></thead>
+                <tbody>{forecastResult.forecast.map((f: any, i: number) => (
+                  <tr key={i} className="border-b border-gray-50 dark:border-gray-800 last:border-0">
+                    <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">{f.month}</td>
+                    <td className="px-4 py-2 text-green-600">{formatCurrency(f.projectedRevenue)}</td>
+                    <td className="px-4 py-2 text-red-500">{formatCurrency(f.projectedExpenses)}</td>
+                    <td className={`px-4 py-2 font-semibold ${f.netCashFlow >= 0 ? 'text-indigo-600' : 'text-red-500'}`}>{formatCurrency(f.netCashFlow)}</td>
+                    <td className="px-4 py-2 capitalize text-gray-500">{f.confidence}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+          <div className="grid sm:grid-cols-2 gap-3">
+            {forecastResult.risks?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold mb-1.5 opacity-75">Risks</p>
+                {forecastResult.risks.map((r: string, i: number) => <div key={i} className="flex gap-1.5 text-xs mb-1"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{r}</div>)}
+              </div>
+            )}
+            {forecastResult.recommendations?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold mb-1.5 opacity-75">Recommendations</p>
+                {forecastResult.recommendations.map((r: string, i: number) => <div key={i} className="flex gap-1.5 text-xs mb-1"><CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{r}</div>)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* P&L Summary */}
       {isLoading ? (

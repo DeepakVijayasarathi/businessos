@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import { FileSignature, Plus, Trash2, Edit2, Search, AlertCircle, CheckCircle2, Clock, X } from 'lucide-react';
+import { FileSignature, Plus, Trash2, Edit2, Search, AlertCircle, CheckCircle2, Clock, X, Brain, ShieldAlert, ShieldCheck, ShieldX, Sparkles, Loader2 } from 'lucide-react';
 import { SmartFill } from '@/components/ui/SmartFill';
 import toast from 'react-hot-toast';
 
@@ -19,6 +19,13 @@ const STATUS_COLOR: Record<string, string> = {
 const CONTRACT_TYPES = ['client', 'vendor', 'employment', 'nda', 'partnership'];
 const CONTRACT_STATUSES = ['draft', 'sent', 'signed', 'active', 'expired', 'terminated'];
 
+const RISK_ICONS: Record<string, any> = { low: ShieldCheck, medium: ShieldAlert, high: ShieldX };
+const RISK_COLORS: Record<string, string> = {
+  low: 'text-green-600 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800',
+  medium: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800',
+  high: 'text-red-600 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800',
+};
+
 export default function ContractsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
@@ -26,6 +33,27 @@ export default function ContractsPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [reviewResult, setReviewResult] = useState<any>(null);
+  const [reviewLoading, setReviewLoading] = useState<string | null>(null);
+
+  async function runAIReview(contract: any, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (reviewLoading) return;
+    setReviewLoading(contract.id);
+    try {
+      const { data } = await api.post('/ai/contract-review', {
+        title: contract.title,
+        content: contract.description,
+        partyName: contract.partyName,
+        value: contract.value,
+      });
+      setReviewResult({ ...data.data, contractTitle: contract.title });
+    } catch {
+      toast.error('AI review failed');
+    } finally {
+      setReviewLoading(null);
+    }
+  }
   const [form, setForm] = useState({
     title: '', type: 'client', partyName: '', partyEmail: '',
     value: '', currency: 'USD', startDate: '', endDate: '',
@@ -178,8 +206,16 @@ export default function ContractsPage() {
                   {c.endDate && <span>• Ends {formatDate(c.endDate)}</span>}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${STATUS_COLOR[c.status] || ''}`}>{c.status}</span>
+                <button
+                  onClick={e => runAIReview(c, e)}
+                  disabled={reviewLoading === c.id}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 text-xs font-medium hover:bg-indigo-100 transition-colors disabled:opacity-50 opacity-0 group-hover:opacity-100"
+                >
+                  {reviewLoading === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
+                  {reviewLoading === c.id ? 'Reviewing…' : 'AI Review'}
+                </button>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => openEdit(c)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
                     <Edit2 className="w-3.5 h-3.5 text-gray-500" />
@@ -193,6 +229,69 @@ export default function ContractsPage() {
           ))}
         </div>
       )}
+
+      {/* AI Contract Review Modal */}
+      {reviewResult && (() => {
+        const RiskIcon = RISK_ICONS[reviewResult.riskLevel] || ShieldAlert;
+        return (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-gray-900 dark:text-white">AI Contract Review</h2>
+                    <p className="text-xs text-gray-500 truncate max-w-[220px]">{reviewResult.contractTitle}</p>
+                  </div>
+                </div>
+                <button onClick={() => setReviewResult(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-6 space-y-5">
+                {/* Risk badge */}
+                <div className={`flex items-center gap-3 p-4 rounded-xl border ${RISK_COLORS[reviewResult.riskLevel] || ''}`}>
+                  <RiskIcon className="w-6 h-6" />
+                  <div>
+                    <p className="font-semibold capitalize">{reviewResult.riskLevel} Risk — Score {reviewResult.riskScore}/100</p>
+                    <p className="text-sm mt-0.5 opacity-80">{reviewResult.summary}</p>
+                  </div>
+                </div>
+                {reviewResult.risks?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Identified Risks</p>
+                    <ul className="space-y-1">
+                      {reviewResult.risks.map((r: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                          <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />{r}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {reviewResult.recommendations?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Recommendations</p>
+                    <ul className="space-y-1">
+                      {reviewResult.recommendations.map((r: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                          <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />{r}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {reviewResult.negotiationTips && (
+                  <div className="bg-indigo-50 dark:bg-indigo-950/30 rounded-xl p-4">
+                    <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-1">Negotiation Tips</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{reviewResult.negotiationTips}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Modal */}
       {showModal && (

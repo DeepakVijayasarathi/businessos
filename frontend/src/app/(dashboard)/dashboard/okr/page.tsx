@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { Target, Plus, Trash2, Edit2, ChevronDown, ChevronRight, TrendingUp, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+import { Target, Plus, Trash2, Edit2, ChevronDown, ChevronRight, TrendingUp, AlertTriangle, CheckCircle2, Clock, Sparkles, Loader2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const STATUS_CONFIG: Record<string, { color: string; icon: any; label: string }> = {
@@ -32,6 +32,20 @@ export default function OKRPage() {
   const [activeOKRId, setActiveOKRId] = useState('');
   const [okrForm, setOKRForm] = useState({ title: '', description: '', period: CURRENT_PERIOD, type: 'company', startDate: '', endDate: '' });
   const [krForm, setKRForm] = useState({ title: '', type: 'numeric', target: '', current: '0', unit: '' });
+  const [aiSuggestLoading, setAiSuggestLoading] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<any>(null);
+
+  async function runAISuggest() {
+    setAiSuggestLoading(true);
+    try {
+      const { data } = await api.post('/ai/okr-suggest', { focus: type || 'overall growth', timeframe: period });
+      setAiSuggestions(data.data);
+    } catch {
+      toast.error('AI suggestion failed');
+    } finally {
+      setAiSuggestLoading(false);
+    }
+  }
 
   const { data: okrs = [], isLoading } = useQuery<any[]>({
     queryKey: ['okrs', period, type],
@@ -102,9 +116,19 @@ export default function OKRPage() {
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">OKRs & Goals</h1>
           <p className="text-sm text-gray-500 mt-0.5">Objectives and Key Results tracking</p>
         </div>
-        <button onClick={() => openOKRModal()} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 text-sm font-medium">
-          <Plus className="w-4 h-4" /> New Objective
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={runAISuggest}
+            disabled={aiSuggestLoading}
+            className="flex items-center gap-2 px-4 py-2 border border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/30 text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            {aiSuggestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {aiSuggestLoading ? 'Thinking…' : 'AI Suggest'}
+          </button>
+          <button onClick={() => openOKRModal()} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 text-sm font-medium">
+            <Plus className="w-4 h-4" /> New Objective
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -121,6 +145,45 @@ export default function OKRPage() {
           </div>
         ))}
       </div>
+
+      {/* AI Suggestions Panel */}
+      {aiSuggestions && (
+        <div className="glass-card rounded-2xl border border-indigo-200 dark:border-indigo-800 overflow-hidden">
+          <div className="flex items-center justify-between p-4 bg-indigo-50 dark:bg-indigo-950/30 border-b border-indigo-200 dark:border-indigo-800">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>
+              <div>
+                <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">AI-Suggested OKRs for {period}</p>
+                <p className="text-xs text-indigo-500">{aiSuggestions.reasoning}</p>
+              </div>
+            </div>
+            <button onClick={() => setAiSuggestions(null)} className="text-indigo-400 hover:text-indigo-600"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="p-4 space-y-4 max-h-80 overflow-y-auto">
+            {aiSuggestions.objectives?.map((obj: any, i: number) => (
+              <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <p className="font-medium text-gray-900 dark:text-white text-sm">{obj.objective}</p>
+                  <button
+                    onClick={() => { setOKRForm(f => ({ ...f, title: obj.objective, description: '', period: CURRENT_PERIOD, type: 'company' })); setEditingOKR(null); setShowOKRModal(true); }}
+                    className="flex-shrink-0 text-xs px-2.5 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                  >
+                    Use this
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  {obj.keyResults?.map((kr: any, j: number) => (
+                    <div key={j} className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400 mt-0.5 flex-shrink-0" />
+                      <span><span className="font-medium">{kr.kr}</span> — Target: {kr.target} (Current: {kr.current})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-3 flex-wrap">

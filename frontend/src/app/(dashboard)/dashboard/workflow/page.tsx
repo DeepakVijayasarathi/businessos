@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDateTime, statusColor } from '@/lib/utils';
-import { Plus, Play, Pause, Trash2, Zap, ArrowRight, Mail, Bell, CheckSquare, Clock, Edit } from 'lucide-react';
+import { Plus, Play, Pause, Trash2, Zap, ArrowRight, Mail, Bell, CheckSquare, Clock, Edit, Sparkles, Loader2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField } from '@/components/ui/FormField';
@@ -29,6 +29,20 @@ export default function WorkflowPage() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [editWorkflow, setEditWorkflow] = useState<any>(null);
   const qc = useQueryClient();
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<any>(null);
+
+  async function getAISuggestions() {
+    setSuggestLoading(true);
+    try {
+      const { data } = await api.post('/ai/workflow-suggest', {});
+      setSuggestions(data.data);
+    } catch {
+      toast.error('AI suggestions failed');
+    } finally {
+      setSuggestLoading(false);
+    }
+  }
 
   const { data: workflows, isLoading } = useQuery({
     queryKey: ['workflows'],
@@ -59,9 +73,15 @@ export default function WorkflowPage() {
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Workflow Automation</h1>
           <p className="text-sm text-gray-500 mt-0.5">Automate repetitive tasks and business processes</p>
         </div>
-        <button onClick={() => { setEditWorkflow(null); setShowBuilder(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
-          <Plus className="w-4 h-4" /> New Workflow
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={getAISuggestions} disabled={suggestLoading} className="flex items-center gap-2 px-4 py-2 border border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 rounded-xl text-sm font-medium hover:bg-indigo-50 dark:hover:bg-indigo-950/30 disabled:opacity-50 transition-colors">
+            {suggestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {suggestLoading ? 'Thinking…' : 'AI Suggest'}
+          </button>
+          <button onClick={() => { setEditWorkflow(null); setShowBuilder(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
+            <Plus className="w-4 h-4" /> New Workflow
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -77,6 +97,46 @@ export default function WorkflowPage() {
           </div>
         ))}
       </div>
+
+      {/* AI Workflow Suggestions */}
+      {suggestions && (
+        <div className="glass-card rounded-2xl border border-indigo-200 dark:border-indigo-800 overflow-hidden">
+          <div className="flex items-center justify-between p-4 bg-indigo-50 dark:bg-indigo-950/30 border-b border-indigo-200 dark:border-indigo-800">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>
+              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">AI-Suggested Automations</p>
+            </div>
+            <button onClick={() => setSuggestions(null)} className="text-indigo-400 hover:text-indigo-600"><X className="w-4 h-4" /></button>
+          </div>
+          {suggestions.topPriority && (
+            <div className="px-4 pt-3 pb-0">
+              <p className="text-xs text-indigo-600 dark:text-indigo-400 italic">{suggestions.topPriority}</p>
+            </div>
+          )}
+          <div className="p-4 grid sm:grid-cols-2 gap-3">
+            {suggestions.workflows?.map((wf: any, i: number) => (
+              <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{wf.name}</p>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${wf.impact === 'high' ? 'bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400' : wf.impact === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-800'}`}>{wf.impact} impact</span>
+                </div>
+                <p className="text-xs text-gray-500 mb-2">Trigger: {wf.trigger}</p>
+                <div className="space-y-0.5 mb-2">
+                  {wf.actions?.map((a: string, j: number) => (
+                    <div key={j} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+                      <ArrowRight className="w-3 h-3 text-indigo-400 flex-shrink-0" />{a}
+                    </div>
+                  ))}
+                </div>
+                {wf.timeSavedPerWeek && <p className="text-xs text-green-600 dark:text-green-400 font-medium">Saves ~{wf.timeSavedPerWeek}/week</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Workflow list */}
       <div className="space-y-4">

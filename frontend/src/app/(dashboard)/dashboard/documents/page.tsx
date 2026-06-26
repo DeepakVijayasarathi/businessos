@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import { Upload, FolderPlus, Folder, FileText, Download, Trash2, ChevronRight, Search, X } from 'lucide-react';
+import { Upload, FolderPlus, Folder, FileText, Download, Trash2, ChevronRight, Search, X, Sparkles, Loader2, Brain } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField } from '@/components/ui/FormField';
@@ -36,6 +36,20 @@ export default function DocumentsPage() {
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [summaryLoading, setSummaryLoading] = useState<string | null>(null);
+  const [summaryResult, setSummaryResult] = useState<any>(null);
+
+  async function summarizeDoc(doc: any) {
+    setSummaryLoading(doc.id);
+    try {
+      const { data } = await api.post('/ai/document-summary', { documentId: doc.id, text: doc.name });
+      setSummaryResult({ ...data.data, docName: doc.name });
+    } catch {
+      toast.error('AI summary failed');
+    } finally {
+      setSummaryLoading(null);
+    }
+  }
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -220,6 +234,12 @@ export default function DocumentsPage() {
                         }}
                         className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
                       ><Download className="w-4 h-4" /></button>
+                      <button
+                        onClick={() => summarizeDoc(doc)}
+                        disabled={summaryLoading === doc.id}
+                        title="Summarize with AI"
+                        className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                      >{summaryLoading === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}</button>
                       <button onClick={() => { if (confirm('Delete this file?')) deleteMutation.mutate(doc.id); }} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </td>
@@ -230,6 +250,52 @@ export default function DocumentsPage() {
           </div>
         </div>
       </div>
+
+      {/* AI Summary Modal */}
+      {summaryResult && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>
+                <div>
+                  <p className="font-semibold text-gray-900 dark:text-white text-sm">AI Document Summary</p>
+                  <p className="text-xs text-gray-500 truncate max-w-[200px]">{summaryResult.docName}</p>
+                </div>
+              </div>
+              <button onClick={() => setSummaryResult(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-5 space-y-4">
+              {summaryResult.summary && <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{summaryResult.summary}</p>}
+              {summaryResult.keyPoints?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Key Points</p>
+                  <ul className="space-y-1.5">
+                    {summaryResult.keyPoints.map((p: string, i: number) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 flex-shrink-0" />{p}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {summaryResult.actionItems?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Action Items</p>
+                  <ul className="space-y-1">
+                    {summaryResult.actionItems.map((a: string, i: number) => <li key={i} className="text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2"><span className="text-indigo-500 mt-0.5">→</span>{a}</li>)}
+                  </ul>
+                </div>
+              )}
+              {summaryResult.suggestedTags?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {summaryResult.suggestedTags.map((t: string, i: number) => <span key={i} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-full text-xs">{t}</span>)}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showFolderModal && <FolderModal parentId={folderId} onClose={() => setShowFolderModal(false)} />}
     </div>

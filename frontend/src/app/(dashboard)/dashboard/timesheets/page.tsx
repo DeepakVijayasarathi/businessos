@@ -3,7 +3,7 @@ import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import { Clock, Plus, Trash2, Edit2, ChevronLeft, ChevronRight, DollarSign, BarChart3, Timer, TrendingUp } from 'lucide-react';
+import { Clock, Plus, Trash2, Edit2, ChevronLeft, ChevronRight, DollarSign, BarChart3, Timer, TrendingUp, Sparkles, Loader2, X, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -26,6 +26,20 @@ function fmtHours(h: number) {
 export default function TimesheetsPage() {
   const qc = useQueryClient();
   const [weekDate, setWeekDate] = useState(new Date());
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insights, setInsights] = useState<any>(null);
+
+  async function runInsights() {
+    setInsightLoading(true);
+    try {
+      const { data } = await api.post('/ai/timesheet-insights', {});
+      setInsights(data.data);
+    } catch {
+      toast.error('AI insights failed');
+    } finally {
+      setInsightLoading(false);
+    }
+  }
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({
@@ -159,10 +173,53 @@ export default function TimesheetsPage() {
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Time Tracking</h1>
           <p className="text-sm text-gray-500 mt-0.5">Log and track billable hours by project</p>
         </div>
-        <button onClick={() => openNew()} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-sm font-medium">
-          <Plus className="w-4 h-4" /> Log Time
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={runInsights} disabled={insightLoading} className="flex items-center gap-2 px-4 py-2 border border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-colors text-sm font-medium disabled:opacity-50">
+            {insightLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {insightLoading ? 'Analyzing…' : 'AI Insights'}
+          </button>
+          <button onClick={() => openNew()} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-sm font-medium">
+            <Plus className="w-4 h-4" /> Log Time
+          </button>
+        </div>
       </div>
+
+      {/* AI Insights Panel */}
+      {insights && (
+        <div className="glass-card rounded-2xl border border-indigo-200 dark:border-indigo-800 overflow-hidden">
+          <div className="flex items-center justify-between p-4 bg-indigo-50 dark:bg-indigo-950/30 border-b border-indigo-200 dark:border-indigo-800">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>
+              <div>
+                <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">AI Productivity Insights — Score {insights.productivityScore}/100</p>
+                <p className="text-xs text-indigo-500">{insights.summary}</p>
+              </div>
+            </div>
+            <button onClick={() => setInsights(null)} className="text-indigo-400 hover:text-indigo-600"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="p-4 grid sm:grid-cols-3 gap-4">
+            {insights.topInsights?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Insights</p>
+                {insights.topInsights.map((a: string, i: number) => <div key={i} className="flex gap-2 text-xs text-gray-700 dark:text-gray-300 mb-1.5"><TrendingUp className="w-3.5 h-3.5 text-indigo-400 mt-0.5 flex-shrink-0" />{a}</div>)}
+              </div>
+            )}
+            {insights.bottlenecks?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-2">Bottlenecks</p>
+                {insights.bottlenecks.map((a: string, i: number) => <div key={i} className="flex gap-2 text-xs text-gray-700 dark:text-gray-300 mb-1.5"><AlertTriangle className="w-3.5 h-3.5 text-red-400 mt-0.5 flex-shrink-0" />{a}</div>)}
+                {insights.burnoutRisk && <p className="text-xs mt-2 font-medium text-orange-600">Burnout risk: {insights.burnoutRisk}</p>}
+              </div>
+            )}
+            {insights.recommendations?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Recommendations</p>
+                {insights.recommendations.map((r: string, i: number) => <div key={i} className="flex gap-2 text-xs text-gray-700 dark:text-gray-300 mb-1.5"><span className="text-indigo-500">→</span>{r}</div>)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

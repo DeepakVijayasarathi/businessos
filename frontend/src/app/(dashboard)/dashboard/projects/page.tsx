@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate, statusColor } from '@/lib/utils';
-import { Plus, FolderKanban, Calendar, Users, CheckCircle2, Clock, AlertCircle, Circle, Edit, Trash2 } from 'lucide-react';
+import { Plus, FolderKanban, Calendar, Users, CheckCircle2, Clock, AlertCircle, Circle, Edit, Trash2, Sparkles, Loader2, X } from 'lucide-react';
 import { SmartFill } from '@/components/ui/SmartFill';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
@@ -145,6 +145,21 @@ function ProjectModal({ project, onClose }: { project?: any; onClose: () => void
     startDate: project?.startDate?.slice(0,10) || '', endDate: project?.endDate?.slice(0,10) || '',
     color: project?.color || '#6366f1',
   });
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiPlan, setAiPlan] = useState<any>(null);
+
+  async function generateAIPlan() {
+    if (!form.name) return toast.error('Enter a project name first');
+    setAiLoading(true);
+    try {
+      const { data } = await api.post('/ai/project-breakdown', { name: form.name, description: form.description, deadline: form.endDate });
+      setAiPlan(data.data);
+    } catch {
+      toast.error('AI planning failed');
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: (data: any) => project ? api.put(`/projects/${project.id}`, data) : api.post('/projects', data),
@@ -153,11 +168,50 @@ function ProjectModal({ project, onClose }: { project?: any; onClose: () => void
   });
 
   return (
-    <Modal onClose={onClose} title={project ? 'Edit Project' : 'New Project'} subtitle={project ? 'Update project details' : 'Set up a new project to track tasks and progress'} icon={FolderKanban} iconColor="teal">
+    <Modal onClose={onClose} title={project ? 'Edit Project' : 'New Project'} subtitle={project ? 'Update project details' : 'Set up a new project to track tasks and progress'} icon={FolderKanban} iconColor="teal" size={aiPlan ? '2xl' : 'default'}>
       <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }} className="flex flex-col">
         <div className="p-6 space-y-4">
           <TextField id="project-name" label="Project Name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
           <TextAreaField id="project-description" label="Description" rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+
+          {/* AI Plan button + result */}
+          {!project && (
+            <div>
+              <button type="button" onClick={generateAIPlan} disabled={aiLoading} className="flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50">
+                {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                {aiLoading ? 'Generating AI project plan…' : 'Generate AI project plan'}
+              </button>
+              {aiPlan && (
+                <div className="mt-3 border border-indigo-200 dark:border-indigo-800 rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-indigo-50 dark:bg-indigo-950/30">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">AI Project Plan — ~{aiPlan.totalEstimatedHours}h total</span>
+                    </div>
+                    <button type="button" onClick={() => setAiPlan(null)} className="text-indigo-400 hover:text-indigo-600"><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                  <div className="p-4 max-h-48 overflow-y-auto space-y-3">
+                    {aiPlan.phases?.map((phase: any, i: number) => (
+                      <div key={i}>
+                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">{phase.name}</p>
+                        <div className="space-y-1">
+                          {phase.tasks?.map((task: any, j: number) => (
+                            <div key={j} className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400">
+                              <CheckCircle2 className="w-3 h-3 text-indigo-400 mt-0.5 flex-shrink-0" />
+                              <span><span className="font-medium">{task.title}</span> — {task.estimatedHours}h ({task.priority})</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    {aiPlan.recommendation && (
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400 italic border-t border-indigo-100 dark:border-indigo-900 pt-2">{aiPlan.recommendation}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <SelectField id="project-status" label="Status" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
               {['planning', 'active', 'on_hold', 'completed', 'cancelled'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}

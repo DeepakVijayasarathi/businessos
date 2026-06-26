@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate, statusColor } from '@/lib/utils';
-import { Plus, Search, Mail, Phone, Building2, UserSquare, Users, UserPlus, Upload } from 'lucide-react';
+import { Plus, Search, Mail, Phone, Building2, UserSquare, Users, UserPlus, Upload, Sparkles, Loader2, X, TrendingUp, AlertTriangle } from 'lucide-react';
 import { useRef } from 'react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
@@ -18,6 +18,20 @@ export default function EmployeesPage() {
   const [showDeptModal, setShowDeptModal] = useState(false);
   const qc = useQueryClient();
   const importRef = useRef<HTMLInputElement>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insights, setInsights] = useState<any>(null);
+
+  async function runHRInsights() {
+    setInsightLoading(true);
+    try {
+      const { data } = await api.post('/ai/hr-insights', {});
+      setInsights(data.data);
+    } catch {
+      toast.error('AI insights failed');
+    } finally {
+      setInsightLoading(false);
+    }
+  }
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -62,6 +76,10 @@ export default function EmployeesPage() {
         </div>
         {tab === 'employees' ? (
           <div className="flex items-center gap-2">
+            <button onClick={runHRInsights} disabled={insightLoading} className="flex items-center gap-2 px-3 py-2 border border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 rounded-xl text-sm font-medium hover:bg-indigo-50 dark:hover:bg-indigo-950/30 disabled:opacity-50 transition-colors">
+              {insightLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {insightLoading ? 'Analyzing…' : 'AI Insights'}
+            </button>
             <ExportButton endpoint="/hr/employees/export" filename="employees.csv" params={{ search: debouncedSearch }} />
             <button onClick={() => importRef.current?.click()} className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800">
               <Upload className="w-4 h-4" /> Import CSV
@@ -84,6 +102,42 @@ export default function EmployeesPage() {
           <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all ${tab === t ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500'}`}>{t}</button>
         ))}
       </div>
+
+      {/* AI HR Insights Panel */}
+      {insights && (
+        <div className="glass-card rounded-2xl border border-indigo-200 dark:border-indigo-800 overflow-hidden">
+          <div className="flex items-center justify-between p-4 bg-indigo-50 dark:bg-indigo-950/30 border-b border-indigo-200 dark:border-indigo-800">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>
+              <div>
+                <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">AI HR Insights — Score {insights.healthScore}/100</p>
+                <p className="text-xs text-indigo-500">Burnout risk: {insights.burnoutRisk || 'N/A'} · Retention: {insights.trends?.retention || 'N/A'}</p>
+              </div>
+            </div>
+            <button onClick={() => setInsights(null)} className="text-indigo-400 hover:text-indigo-600"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="p-4 grid sm:grid-cols-3 gap-4">
+            {insights.alerts?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-2">Alerts</p>
+                {insights.alerts.map((a: string, i: number) => <div key={i} className="flex gap-2 text-xs text-gray-700 dark:text-gray-300 mb-1.5"><AlertTriangle className="w-3.5 h-3.5 text-red-400 mt-0.5 flex-shrink-0" />{a}</div>)}
+              </div>
+            )}
+            {insights.insights?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Insights</p>
+                {insights.insights.map((a: string, i: number) => <div key={i} className="flex gap-2 text-xs text-gray-700 dark:text-gray-300 mb-1.5"><TrendingUp className="w-3.5 h-3.5 text-indigo-400 mt-0.5 flex-shrink-0" />{a}</div>)}
+              </div>
+            )}
+            {insights.recommendations?.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Recommendations</p>
+                {insights.recommendations.map((r: string, i: number) => <div key={i} className="flex gap-2 text-xs text-gray-700 dark:text-gray-300 mb-1.5"><span className="text-indigo-500 mt-0.5">→</span>{r}</div>)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {tab === 'employees' && (
         <>

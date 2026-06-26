@@ -2173,4 +2173,238 @@ Rules:
   }
 });
 
+// ─── Helper: get company AI keys ─────────────────────────────────────────────
+async function getCompanyKeys(companyId) {
+  return prisma.company.findUnique({ where: { id: companyId }, select: { name: true, industry: true, anthropicKey: true, openaiKey: true, aiProvider: true } });
+}
+
+// ─── POST /ai/contract-review ─────────────────────────────────────────────────
+router.post('/contract-review', async (req, res, next) => {
+  try {
+    const { title, content, partyName, value } = req.body;
+    if (!title && !content) return error(res, 'Contract title or content required', 400);
+    const co = await getCompanyKeys(req.companyId);
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Review this contract and provide a risk assessment.\n\nTitle: ${title || 'Untitled'}\nParty: ${partyName || 'Unknown'}\nValue: ${value ? '$' + value : 'Not specified'}\n\nContent excerpt:\n${(content || '').slice(0, 3000) || '(no content provided)'}\n\nReturn JSON only:\n{\n  "riskLevel": "low|medium|high",\n  "riskScore": 0-100,\n  "summary": "2-3 sentence overview",\n  "risks": ["risk1", "risk2", "risk3"],\n  "recommendations": ["rec1", "rec2", "rec3"],\n  "keyTerms": ["important clause or term1", "term2"],\n  "negotiationTips": "1-2 tips for negotiation"\n}` }],
+      system: 'You are a contract lawyer and risk analyst. Return only valid JSON. Be specific and practical.',
+      companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1200,
+    });
+    const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
+    return success(res, parsed);
+  } catch (err) { next(err); }
+});
+
+// ─── POST /ai/project-breakdown ───────────────────────────────────────────────
+router.post('/project-breakdown', async (req, res, next) => {
+  try {
+    const { name, description, deadline } = req.body;
+    if (!name) return error(res, 'Project name required', 400);
+    const co = await getCompanyKeys(req.companyId);
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Break down this project into actionable tasks.\n\nProject: ${name}\nDescription: ${description || 'No description'}\nDeadline: ${deadline || 'Not set'}\n\nReturn JSON only:\n{\n  "phases": [\n    { "name": "phase name", "tasks": [{ "title": "task", "description": "brief", "priority": "high|medium|low", "estimatedHours": 2 }] }\n  ],\n  "totalEstimatedHours": 0,\n  "criticalPath": ["most critical task1", "task2"],\n  "risks": ["risk1", "risk2"],\n  "recommendation": "brief project advice"\n}` }],
+      system: 'You are a senior project manager. Return only valid JSON. Be realistic with estimates.',
+      companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1500,
+    });
+    const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
+    return success(res, parsed);
+  } catch (err) { next(err); }
+});
+
+// ─── POST /ai/kb-article ──────────────────────────────────────────────────────
+router.post('/kb-article', async (req, res, next) => {
+  try {
+    const { topic, audience, tone, outline } = req.body;
+    if (!topic) return error(res, 'Topic required', 400);
+    const co = await getCompanyKeys(req.companyId);
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Write a comprehensive knowledge base article.\n\nTopic: ${topic}\nAudience: ${audience || 'general users'}\nTone: ${tone || 'professional and helpful'}\n${outline ? `Outline to follow: ${outline}` : ''}\n\nReturn JSON only:\n{\n  "title": "article title",\n  "content": "full markdown article with headers, bullet points, steps",\n  "summary": "1-2 sentence summary",\n  "tags": ["tag1", "tag2", "tag3"]\n}` }],
+      system: 'You are a technical writer. Write clear, helpful articles. Return only valid JSON. Use markdown in the content field.',
+      companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 2000,
+    });
+    const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
+    return success(res, parsed);
+  } catch (err) { next(err); }
+});
+
+// ─── POST /ai/okr-suggest ─────────────────────────────────────────────────────
+router.post('/okr-suggest', async (req, res, next) => {
+  try {
+    const { focus, timeframe, existingOkrs } = req.body;
+    const co = await getCompanyKeys(req.companyId);
+    // Pull recent stats for context
+    const [leads, invoices, employees] = await Promise.all([
+      prisma.lead.count({ where: { companyId: req.companyId } }),
+      prisma.invoice.aggregate({ where: { companyId: req.companyId, status: 'paid' }, _sum: { total: true } }),
+      prisma.employee.count({ where: { companyId: req.companyId } }),
+    ]);
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Suggest OKRs for ${co?.name || 'our company'} (${co?.industry || 'business'}).\n\nContext: ${leads} leads, $${Math.round((invoices._sum.total||0)/100)/10}K revenue, ${employees} employees.\nFocus area: ${focus || 'overall growth'}\nTimeframe: ${timeframe || 'Q3 2026'}\n${existingOkrs ? `Existing OKRs: ${existingOkrs}` : ''}\n\nReturn JSON only:\n{\n  "objectives": [\n    {\n      "objective": "objective statement",\n      "keyResults": [\n        { "kr": "key result", "metric": "measurable target", "current": "current value", "target": "goal value" }\n      ]\n    }\n  ],\n  "reasoning": "brief explanation of why these OKRs"\n}` }],
+      system: 'You are a strategic business consultant specializing in OKRs. Return only valid JSON. Make OKRs specific, measurable, and ambitious.',
+      companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1500,
+    });
+    const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
+    return success(res, parsed);
+  } catch (err) { next(err); }
+});
+
+// ─── POST /ai/meeting-agenda ──────────────────────────────────────────────────
+router.post('/meeting-agenda', async (req, res, next) => {
+  try {
+    const { title, attendees, duration, purpose, notes } = req.body;
+    if (!title) return error(res, 'Meeting title required', 400);
+    const co = await getCompanyKeys(req.companyId);
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Create a meeting agenda.\n\nMeeting: ${title}\nAttendees: ${attendees || 'team'}\nDuration: ${duration || '60 minutes'}\nPurpose: ${purpose || 'general discussion'}\n${notes ? `Notes: ${notes}` : ''}\n\nReturn JSON only:\n{\n  "agenda": [\n    { "item": "agenda item", "duration": "X min", "owner": "who leads this", "goal": "what to achieve" }\n  ],\n  "preMeetingTasks": ["task1 to do before meeting", "task2"],\n  "expectedOutcomes": ["outcome1", "outcome2"],\n  "followUpTemplate": "template for follow-up email after meeting"\n}` }],
+      system: 'You are an expert meeting facilitator. Return only valid JSON. Be time-efficient and outcome-focused.',
+      companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1200,
+    });
+    const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
+    return success(res, parsed);
+  } catch (err) { next(err); }
+});
+
+// ─── POST /ai/hr-insights ─────────────────────────────────────────────────────
+router.post('/hr-insights', async (req, res, next) => {
+  try {
+    const co = await getCompanyKeys(req.companyId);
+    const [employees, leaves, attendance] = await Promise.all([
+      prisma.employee.findMany({ where: { companyId: req.companyId }, include: { user: { select: { firstName: true, lastName: true } }, department: true }, take: 50 }),
+      prisma.leave.findMany({ where: { companyId: req.companyId, status: 'pending' }, take: 20 }),
+      prisma.attendance.count({ where: { companyId: req.companyId, date: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } } }),
+    ]);
+    const deptBreakdown = employees.reduce((acc, e) => { const d = e.department?.name || 'Unassigned'; acc[d] = (acc[d]||0)+1; return acc; }, {});
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Analyze our HR data and provide insights.\n\nCompany: ${co?.name}\nTotal Employees: ${employees.length}\nPending Leaves: ${leaves.length}\nAttendance Records (30d): ${attendance}\nDepartment Breakdown: ${JSON.stringify(deptBreakdown)}\n\nReturn JSON only:\n{\n  "healthScore": 0-100,\n  "insights": ["insight1", "insight2", "insight3"],\n  "alerts": ["urgent action1", "urgent action2"],\n  "recommendations": ["recommendation1", "recommendation2", "recommendation3"],\n  "trends": { "retention": "trend", "productivity": "trend", "engagement": "trend" },\n  "priorities": ["top priority1", "top priority2"]\n}` }],
+      system: 'You are an HR analytics expert. Return only valid JSON with actionable, data-driven insights.',
+      companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1200,
+    });
+    const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
+    return success(res, parsed);
+  } catch (err) { next(err); }
+});
+
+// ─── POST /ai/cashflow-forecast ───────────────────────────────────────────────
+router.post('/cashflow-forecast', async (req, res, next) => {
+  try {
+    const co = await getCompanyKeys(req.companyId);
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    const [invoices, expenses, income] = await Promise.all([
+      prisma.invoice.findMany({ where: { companyId: req.companyId, createdAt: { gte: sixMonthsAgo } }, select: { total: true, status: true, dueDate: true, createdAt: true } }),
+      prisma.expense.findMany({ where: { companyId: req.companyId, createdAt: { gte: sixMonthsAgo } }, select: { amount: true, date: true, category: true } }),
+      prisma.income.findMany({ where: { companyId: req.companyId, createdAt: { gte: sixMonthsAgo } }, select: { amount: true, date: true, category: true } }),
+    ]);
+    const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.total || 0), 0);
+    const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
+    const totalIncome = income.reduce((s, i) => s + (i.amount || 0), 0);
+    const overdueInvoices = invoices.filter(i => i.status !== 'paid' && i.dueDate && new Date(i.dueDate) < now);
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Analyze cash flow and forecast next 3 months.\n\nCompany: ${co?.name} (${co?.industry || 'business'})\nLast 6 months revenue: $${Math.round(totalRevenue)}\nLast 6 months expenses: $${Math.round(totalExpenses)}\nOther income: $${Math.round(totalIncome)}\nOverdue invoices: ${overdueInvoices.length} invoices\nNet profit: $${Math.round(totalRevenue + totalIncome - totalExpenses)}\n\nReturn JSON only:\n{\n  "currentCashHealth": "healthy|caution|critical",\n  "healthScore": 0-100,\n  "summary": "2-3 sentence overview",\n  "forecast": [\n    { "month": "July 2026", "projectedRevenue": 0, "projectedExpenses": 0, "netCashFlow": 0, "confidence": "high|medium|low" }\n  ],\n  "insights": ["insight1", "insight2"],\n  "risks": ["risk1", "risk2"],\n  "recommendations": ["rec1", "rec2", "rec3"]\n}` }],
+      system: 'You are a CFO and financial analyst. Return only valid JSON with realistic projections.',
+      companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1500,
+    });
+    const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
+    return success(res, parsed);
+  } catch (err) { next(err); }
+});
+
+// ─── POST /ai/helpdesk-triage ─────────────────────────────────────────────────
+router.post('/helpdesk-triage', async (req, res, next) => {
+  try {
+    const co = await getCompanyKeys(req.companyId);
+    const openTickets = await prisma.ticket.findMany({
+      where: { companyId: req.companyId, status: { in: ['open', 'in_progress'] } },
+      select: { title: true, description: true, priority: true, status: true, createdAt: true, category: true },
+      take: 30,
+      orderBy: { createdAt: 'desc' },
+    });
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Triage and analyze our open support tickets.\n\nOpen Tickets (${openTickets.length}):\n${openTickets.map((t, i) => `${i+1}. [${t.priority}] ${t.title} — ${(t.description||'').slice(0,100)}`).join('\n')}\n\nReturn JSON only:\n{\n  "urgentCount": 0,\n  "summary": "brief overview",\n  "priorityActions": ["urgent action1", "action2", "action3"],\n  "patterns": ["common issue pattern1", "pattern2"],\n  "sentimentSummary": "overall customer sentiment",\n  "suggestions": ["process improvement1", "suggestion2"],\n  "autoResponses": [\n    { "category": "category name", "template": "suggested auto-response template" }\n  ]\n}` }],
+      system: 'You are a customer success and support operations expert. Return only valid JSON.',
+      companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1500,
+    });
+    const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
+    return success(res, parsed);
+  } catch (err) { next(err); }
+});
+
+// ─── POST /ai/timesheet-insights ──────────────────────────────────────────────
+router.post('/timesheet-insights', async (req, res, next) => {
+  try {
+    const co = await getCompanyKeys(req.companyId);
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const logs = await prisma.timeLog.findMany({
+      where: { companyId: req.companyId, date: { gte: since } },
+      include: { task: { select: { title: true } }, project: { select: { name: true } }, user: { select: { firstName: true, lastName: true } } },
+      take: 100,
+    }).catch(() => []);
+    const totalHours = logs.reduce((s, l) => s + (l.hours || 0), 0);
+    const byProject = logs.reduce((acc, l) => { const p = l.project?.name || 'General'; acc[p] = (acc[p]||0) + (l.hours||0); return acc; }, {});
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Analyze our time tracking data for the last 30 days.\n\nTotal hours logged: ${Math.round(totalHours)}\nTeam members: ${[...new Set(logs.map(l => l.user?.firstName))].length}\nProjects: ${JSON.stringify(byProject)}\n\nReturn JSON only:\n{\n  "productivityScore": 0-100,\n  "summary": "brief overview",\n  "topInsights": ["insight1", "insight2", "insight3"],\n  "bottlenecks": ["bottleneck1", "bottleneck2"],\n  "recommendations": ["rec1", "rec2"],\n  "burnoutRisk": "low|medium|high",\n  "focusAreas": ["area1", "area2"]\n}` }],
+      system: 'You are a productivity and team management expert. Return only valid JSON with actionable insights.',
+      companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1000,
+    });
+    const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
+    return success(res, parsed);
+  } catch (err) { next(err); }
+});
+
+// ─── POST /ai/workflow-suggest ────────────────────────────────────────────────
+router.post('/workflow-suggest', async (req, res, next) => {
+  try {
+    const co = await getCompanyKeys(req.companyId);
+    const [leads, tickets, invoices, employees] = await Promise.all([
+      prisma.lead.count({ where: { companyId: req.companyId } }),
+      prisma.ticket.count({ where: { companyId: req.companyId, status: 'open' } }),
+      prisma.invoice.count({ where: { companyId: req.companyId, status: 'overdue' } }),
+      prisma.employee.count({ where: { companyId: req.companyId } }),
+    ]);
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Suggest automation workflows for ${co?.name} (${co?.industry || 'business'}).\n\nContext: ${leads} leads, ${tickets} open tickets, ${invoices} overdue invoices, ${employees} employees.\n\nReturn JSON only:\n{\n  "workflows": [\n    {\n      "name": "workflow name",\n      "trigger": "what triggers this",\n      "actions": ["action1", "action2", "action3"],\n      "impact": "high|medium|low",\n      "timeSavedPerWeek": "X hours",\n      "category": "sales|support|finance|hr|marketing"\n    }\n  ],\n  "topPriority": "which workflow to implement first and why"\n}` }],
+      system: 'You are a business process automation expert. Return only valid JSON. Focus on ROI and quick wins.',
+      companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1500,
+    });
+    const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
+    return success(res, parsed);
+  } catch (err) { next(err); }
+});
+
+// ─── POST /ai/document-summary ────────────────────────────────────────────────
+router.post('/document-summary', async (req, res, next) => {
+  try {
+    const { documentId, text } = req.body;
+    let content = text;
+    if (!content && documentId) {
+      const doc = await prisma.document.findFirst({ where: { id: documentId, companyId: req.companyId }, select: { name: true, content: true } });
+      content = doc?.content || doc?.name;
+    }
+    if (!content) return error(res, 'Document content required', 400);
+    const co = await getCompanyKeys(req.companyId);
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Summarize and extract key information from this document.\n\nContent:\n${String(content).slice(0, 4000)}\n\nReturn JSON only:\n{\n  "title": "document title if detectable",\n  "summary": "2-3 sentence overview",\n  "keyPoints": ["key point1", "key point2", "key point3", "key point4"],\n  "actionItems": ["action item1", "action item2"],\n  "entities": { "people": ["name1"], "companies": ["company1"], "dates": ["date1"], "amounts": ["amount1"] },\n  "sentiment": "positive|neutral|negative",\n  "suggestedTags": ["tag1", "tag2", "tag3"]\n}` }],
+      system: 'You are a document intelligence expert. Return only valid JSON. Be precise and concise.',
+      companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1200,
+    });
+    const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
+    return success(res, parsed);
+  } catch (err) { next(err); }
+});
+
+// ─── POST /ai/email-template ──────────────────────────────────────────────────
+router.post('/email-template', async (req, res, next) => {
+  try {
+    const { purpose, audience, tone, keyPoints } = req.body;
+    if (!purpose) return error(res, 'Purpose required', 400);
+    const co = await getCompanyKeys(req.companyId);
+    const result = await callAI({
+      messages: [{ role: 'user', content: `Write a professional email template.\n\nPurpose: ${purpose}\nAudience: ${audience || 'general'}\nTone: ${tone || 'professional'}\nKey points to include: ${keyPoints || 'not specified'}\nCompany: ${co?.name || 'our company'}\n\nReturn JSON only:\n{\n  "subject": "email subject line",\n  "previewText": "email preview text (50 chars)",\n  "body": "full email body with placeholders like {{firstName}}, {{companyName}}",\n  "cta": "call-to-action text",\n  "tips": ["personalization tip1", "tip2"]\n}` }],
+      system: 'You are an email marketing expert. Return only valid JSON. Write compelling, conversion-focused copy.',
+      companyAnthropicKey: co?.anthropicKey, companyOpenaiKey: co?.openaiKey, companyProvider: co?.aiProvider, maxTokens: 1200,
+    });
+    const parsed = JSON.parse(result.text.replace(/```json\n?|\n?```/g, '').trim());
+    return success(res, parsed);
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
