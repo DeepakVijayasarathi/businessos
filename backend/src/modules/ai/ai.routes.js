@@ -2597,6 +2597,18 @@ router.get('/usage-stats', async (req, res, next) => {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const cid = req.companyId;
 
+    // Check if ai_usage_logs table exists (migration may not have run yet)
+    try {
+      await prisma.$queryRaw`SELECT 1 FROM ai_usage_logs LIMIT 1`;
+    } catch (tableErr) {
+      // Table doesn't exist — return empty data with migration flag
+      return success(res, {
+        period: days, migrationRequired: true,
+        totals: { requests: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+        byModel: [], byModule: [], daily: [],
+      });
+    }
+
     const [logs, byModel, byModule, daily] = await Promise.all([
       // Aggregate totals
       prisma.aiUsageLog.aggregate({

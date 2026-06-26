@@ -11,6 +11,7 @@ import {
 
 interface UsageStats {
   period: number;
+  migrationRequired?: boolean;
   totals: {
     requests: number;
     inputTokens: number;
@@ -124,9 +125,8 @@ export default function AICostsPage() {
   const dailyData = (data?.daily || []).slice(-14);
   const maxCost = Math.max(...dailyData.map(d => d.cost), 0.001);
 
-  const tableExists = !isError;
   const errMsg = (error as any)?.response?.data?.message || '';
-  const needsMigration = isError && (errMsg.includes('does not exist') || errMsg.includes('relation') || errMsg.includes('P2021'));
+  const needsMigration = data?.migrationRequired || (isError && (errMsg.includes('does not exist') || errMsg.includes('relation') || errMsg.includes('P2021')));
 
   return (
     <div className="space-y-5 max-w-5xl">
@@ -228,7 +228,7 @@ export default function AICostsPage() {
         </div>
       )}
 
-      {data && tableExists && (
+      {data && !needsMigration && (
         <>
           {/* Summary cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
