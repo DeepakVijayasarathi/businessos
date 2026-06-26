@@ -265,6 +265,11 @@ function EmployeeModal({ departments, onClose }: { departments: any[]; onClose: 
   const qc = useQueryClient();
   const [form, setForm] = useState({ userId: '', employeeCode: `EMP${Date.now()}`, departmentId: '', jobTitle: '', jobType: 'full_time', status: 'active', startDate: new Date().toISOString().split('T')[0], salary: '' });
 
+  const { data: usersData } = useQuery({
+    queryKey: ['users-list'],
+    queryFn: async () => { const { data } = await api.get('/users?limit=200'); return data.data as any[]; },
+  });
+
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/hr/employees', data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['employees'] }); toast.success('Employee added'); onClose(); },
@@ -288,8 +293,14 @@ function EmployeeModal({ departments, onClose }: { departments: any[]; onClose: 
             <TextField id="emp-startDate" label="Start Date" type="date" required value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} />
             <TextField id="emp-salary" label="Salary" type="number" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} placeholder="0.00" />
           </div>
-          <p className="text-xs text-gray-500">Note: Employee must have an existing user account. Enter the user ID below.</p>
-          <TextField id="emp-userId" label="User ID" required value={form.userId} onChange={e => setForm({ ...form, userId: e.target.value })} placeholder="User UUID" />
+          <SelectField id="emp-userId" label="Select User" required value={form.userId} onChange={e => setForm({ ...form, userId: e.target.value })}>
+            <option value="">Select a user account</option>
+            {(usersData || []).map((u: any) => (
+              <option key={u.id} value={u.id}>
+                {u.firstName} {u.lastName} — {u.email}
+              </option>
+            ))}
+          </SelectField>
         </div>
         <ModalFooter>
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
