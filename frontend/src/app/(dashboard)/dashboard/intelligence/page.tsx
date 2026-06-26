@@ -18,7 +18,7 @@ interface Message {
 
 const PROMPTS = [
   { label: 'Business snapshot', text: 'Give me a full business summary for today — revenue, pipeline, team, top risks.', icon: TrendingUp, color: 'from-indigo-500 to-violet-500' },
-  { label: 'This week's priorities', text: 'What are my top 3 priorities this week based on current data?', icon: Target, color: 'from-violet-500 to-purple-500' },
+  { label: "This week's priorities", text: 'What are my top 3 priorities this week based on current data?', icon: Target, color: 'from-violet-500 to-purple-500' },
   { label: 'Cash flow risks', text: 'Analyze my cash position and flag any financial risks I should act on now.', icon: DollarSign, color: 'from-emerald-500 to-teal-500' },
   { label: 'Growth opportunities', text: 'Where are the biggest growth opportunities in my business right now?', icon: Lightbulb, color: 'from-amber-500 to-orange-500' },
   { label: 'Team health', text: 'How is the team doing? Any burnout risk or resourcing issues?', icon: Users, color: 'from-blue-500 to-cyan-500' },
