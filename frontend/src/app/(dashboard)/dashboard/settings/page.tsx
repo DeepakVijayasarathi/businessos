@@ -195,8 +195,7 @@ function SettingsInner() {
               { k: 'name', l: 'Company Name' }, { k: 'email', l: 'Email' },
               { k: 'phone', l: 'Phone' }, { k: 'website', l: 'Website' },
               { k: 'industry', l: 'Industry' }, { k: 'taxId', l: 'Tax ID' },
-              { k: 'gstNumber', l: 'GST Number' }, { k: 'currency', l: 'Currency' },
-              { k: 'timezone', l: 'Timezone' }, { k: 'language', l: 'Language' },
+              { k: 'gstNumber', l: 'GST Number' }, { k: 'language', l: 'Language' },
             ].map(({ k, l }) => (
               <div key={k}>
                 <label htmlFor={`company-${k}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{l}</label>
@@ -208,7 +207,128 @@ function SettingsInner() {
                 />
               </div>
             ))}
+
+            {/* Currency dropdown */}
+            <div>
+              <label htmlFor="company-currency" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Currency</label>
+              <select
+                id="company-currency"
+                value={companyForm.currency || 'USD'}
+                onChange={e => setCompanyForm({ ...companyForm, currency: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {[
+                  ['USD','USD — US Dollar'],['EUR','EUR — Euro'],['GBP','GBP — British Pound'],
+                  ['INR','INR — Indian Rupee'],['AUD','AUD — Australian Dollar'],['CAD','CAD — Canadian Dollar'],
+                  ['SGD','SGD — Singapore Dollar'],['AED','AED — UAE Dirham'],['JPY','JPY — Japanese Yen'],
+                  ['CNY','CNY — Chinese Yuan'],['BRL','BRL — Brazilian Real'],['MXN','MXN — Mexican Peso'],
+                  ['ZAR','ZAR — South African Rand'],['NGN','NGN — Nigerian Naira'],['KES','KES — Kenyan Shilling'],
+                  ['SAR','SAR — Saudi Riyal'],['QAR','QAR — Qatari Riyal'],['KWD','KWD — Kuwaiti Dinar'],
+                  ['CHF','CHF — Swiss Franc'],['SEK','SEK — Swedish Krona'],['NOK','NOK — Norwegian Krone'],
+                  ['DKK','DKK — Danish Krone'],['NZD','NZD — New Zealand Dollar'],['HKD','HKD — Hong Kong Dollar'],
+                  ['MYR','MYR — Malaysian Ringgit'],['THB','THB — Thai Baht'],['IDR','IDR — Indonesian Rupiah'],
+                  ['PHP','PHP — Philippine Peso'],['PKR','PKR — Pakistani Rupee'],['BDT','BDT — Bangladeshi Taka'],
+                  ['EGP','EGP — Egyptian Pound'],['TRY','TRY — Turkish Lira'],['RUB','RUB — Russian Ruble'],
+                  ['PLN','PLN — Polish Zloty'],['CZK','CZK — Czech Koruna'],['HUF','HUF — Hungarian Forint'],
+                ].map(([code, label]) => (
+                  <option key={code} value={code}>{label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Timezone dropdown */}
+            <div>
+              <label htmlFor="company-timezone" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Timezone</label>
+              <select
+                id="company-timezone"
+                value={companyForm.timezone || 'UTC'}
+                onChange={e => setCompanyForm({ ...companyForm, timezone: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {[
+                  ['UTC','UTC — Coordinated Universal Time'],
+                  ['America/New_York','UTC-5 — New York (EST/EDT)'],
+                  ['America/Chicago','UTC-6 — Chicago (CST/CDT)'],
+                  ['America/Denver','UTC-7 — Denver (MST/MDT)'],
+                  ['America/Los_Angeles','UTC-8 — Los Angeles (PST/PDT)'],
+                  ['America/Anchorage','UTC-9 — Anchorage (AKST)'],
+                  ['Pacific/Honolulu','UTC-10 — Honolulu (HST)'],
+                  ['America/Toronto','UTC-5 — Toronto (EST/EDT)'],
+                  ['America/Vancouver','UTC-8 — Vancouver (PST/PDT)'],
+                  ['America/Mexico_City','UTC-6 — Mexico City (CST)'],
+                  ['America/Sao_Paulo','UTC-3 — São Paulo (BRT)'],
+                  ['America/Argentina/Buenos_Aires','UTC-3 — Buenos Aires (ART)'],
+                  ['America/Bogota','UTC-5 — Bogotá (COT)'],
+                  ['America/Lima','UTC-5 — Lima (PET)'],
+                  ['America/Santiago','UTC-4 — Santiago (CLT)'],
+                  ['Europe/London','UTC+0 — London (GMT/BST)'],
+                  ['Europe/Dublin','UTC+0 — Dublin (IST)'],
+                  ['Europe/Lisbon','UTC+0 — Lisbon (WET)'],
+                  ['Europe/Paris','UTC+1 — Paris (CET/CEST)'],
+                  ['Europe/Berlin','UTC+1 — Berlin (CET/CEST)'],
+                  ['Europe/Madrid','UTC+1 — Madrid (CET/CEST)'],
+                  ['Europe/Rome','UTC+1 — Rome (CET/CEST)'],
+                  ['Europe/Amsterdam','UTC+1 — Amsterdam (CET/CEST)'],
+                  ['Europe/Brussels','UTC+1 — Brussels (CET/CEST)'],
+                  ['Europe/Zurich','UTC+1 — Zurich (CET/CEST)'],
+                  ['Europe/Stockholm','UTC+1 — Stockholm (CET/CEST)'],
+                  ['Europe/Oslo','UTC+1 — Oslo (CET/CEST)'],
+                  ['Europe/Copenhagen','UTC+1 — Copenhagen (CET/CEST)'],
+                  ['Europe/Warsaw','UTC+1 — Warsaw (CET/CEST)'],
+                  ['Europe/Prague','UTC+1 — Prague (CET/CEST)'],
+                  ['Europe/Vienna','UTC+1 — Vienna (CET/CEST)'],
+                  ['Europe/Helsinki','UTC+2 — Helsinki (EET/EEST)'],
+                  ['Europe/Athens','UTC+2 — Athens (EET/EEST)'],
+                  ['Europe/Bucharest','UTC+2 — Bucharest (EET/EEST)'],
+                  ['Europe/Kiev','UTC+2 — Kyiv (EET/EEST)'],
+                  ['Europe/Istanbul','UTC+3 — Istanbul (TRT)'],
+                  ['Europe/Moscow','UTC+3 — Moscow (MSK)'],
+                  ['Asia/Dubai','UTC+4 — Dubai (GST)'],
+                  ['Asia/Muscat','UTC+4 — Muscat (GST)'],
+                  ['Asia/Riyadh','UTC+3 — Riyadh (AST)'],
+                  ['Asia/Qatar','UTC+3 — Doha (AST)'],
+                  ['Asia/Kuwait','UTC+3 — Kuwait City (AST)'],
+                  ['Asia/Baghdad','UTC+3 — Baghdad (AST)'],
+                  ['Asia/Tehran','UTC+3:30 — Tehran (IRST)'],
+                  ['Asia/Kabul','UTC+4:30 — Kabul (AFT)'],
+                  ['Asia/Karachi','UTC+5 — Karachi (PKT)'],
+                  ['Asia/Colombo','UTC+5:30 — Colombo (IST)'],
+                  ['Asia/Kolkata','UTC+5:30 — India (IST)'],
+                  ['Asia/Kathmandu','UTC+5:45 — Kathmandu (NPT)'],
+                  ['Asia/Dhaka','UTC+6 — Dhaka (BST)'],
+                  ['Asia/Rangoon','UTC+6:30 — Yangon (MMT)'],
+                  ['Asia/Bangkok','UTC+7 — Bangkok (ICT)'],
+                  ['Asia/Jakarta','UTC+7 — Jakarta (WIB)'],
+                  ['Asia/Ho_Chi_Minh','UTC+7 — Ho Chi Minh City (ICT)'],
+                  ['Asia/Kuala_Lumpur','UTC+8 — Kuala Lumpur (MYT)'],
+                  ['Asia/Singapore','UTC+8 — Singapore (SGT)'],
+                  ['Asia/Shanghai','UTC+8 — Shanghai (CST)'],
+                  ['Asia/Hong_Kong','UTC+8 — Hong Kong (HKT)'],
+                  ['Asia/Taipei','UTC+8 — Taipei (CST)'],
+                  ['Asia/Manila','UTC+8 — Manila (PHT)'],
+                  ['Asia/Seoul','UTC+9 — Seoul (KST)'],
+                  ['Asia/Tokyo','UTC+9 — Tokyo (JST)'],
+                  ['Australia/Perth','UTC+8 — Perth (AWST)'],
+                  ['Australia/Darwin','UTC+9:30 — Darwin (ACST)'],
+                  ['Australia/Adelaide','UTC+9:30 — Adelaide (ACST/ACDT)'],
+                  ['Australia/Brisbane','UTC+10 — Brisbane (AEST)'],
+                  ['Australia/Sydney','UTC+10 — Sydney (AEST/AEDT)'],
+                  ['Australia/Melbourne','UTC+10 — Melbourne (AEST/AEDT)'],
+                  ['Pacific/Auckland','UTC+12 — Auckland (NZST/NZDT)'],
+                  ['Pacific/Fiji','UTC+12 — Fiji (FJT)'],
+                  ['Africa/Cairo','UTC+2 — Cairo (EET)'],
+                  ['Africa/Lagos','UTC+1 — Lagos (WAT)'],
+                  ['Africa/Nairobi','UTC+3 — Nairobi (EAT)'],
+                  ['Africa/Johannesburg','UTC+2 — Johannesburg (SAST)'],
+                  ['Africa/Casablanca','UTC+1 — Casablanca (WET)'],
+                  ['Africa/Accra','UTC+0 — Accra (GMT)'],
+                ].map(([tz, label]) => (
+                  <option key={tz} value={tz}>{label}</option>
+                ))}
+              </select>
+            </div>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="company-primaryColor" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Primary Color</label>
@@ -217,7 +337,15 @@ function SettingsInner() {
                 <input value={companyForm.primaryColor || '#6366f1'} onChange={e => setCompanyForm({ ...companyForm, primaryColor: e.target.value })} className="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
             </div>
+            <div>
+              <label htmlFor="company-secondaryColor" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Secondary Color</label>
+              <div className="flex items-center gap-3">
+                <input id="company-secondaryColor" type="color" value={companyForm.secondaryColor || '#8b5cf6'} onChange={e => setCompanyForm({ ...companyForm, secondaryColor: e.target.value })} className="w-10 h-10 rounded-lg cursor-pointer border border-gray-200" />
+                <input value={companyForm.secondaryColor || '#8b5cf6'} onChange={e => setCompanyForm({ ...companyForm, secondaryColor: e.target.value })} className="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+            </div>
           </div>
+
           <button onClick={() => saveMutation.mutate(companyForm)} disabled={saveMutation.isPending} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
             {saveMutation.isPending ? 'Saving...' : 'Save Settings'}
           </button>
