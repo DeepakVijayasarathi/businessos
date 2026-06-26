@@ -1,0 +1,809 @@
+{
+  "timestamp": "2026-06-26T00:28:28.645Z",
+  "issues": [
+    {
+      "screen": "CRM Activities",
+      "msg": "Button \"Add Activity\" not visible"
+    },
+    {
+      "screen": "HR Employees",
+      "msg": "Search input not visible"
+    },
+    {
+      "screen": "HR Recruitment",
+      "msg": "\"Save\" button disabled"
+    },
+    {
+      "screen": "Documents",
+      "msg": "Pluralization bug: \"1 files\" (should be \"1 file\")"
+    },
+    {
+      "screen": "Marketing",
+      "msg": "Tab \"Landing Pages\" not found"
+    },
+    {
+      "screen": "Marketing",
+      "msg": "Tab \"SEO\" not found"
+    },
+    {
+      "screen": "Email",
+      "msg": "Compose button not visible"
+    },
+    {
+      "screen": "Clients",
+      "msg": "No clients listed"
+    },
+    {
+      "screen": "Settings",
+      "msg": "AI Config: AI provider selector not visible"
+    },
+    {
+      "screen": "Settings",
+      "msg": "WhatsApp: WhatsApp token field not visible"
+    },
+    {
+      "screen": "Profile",
+      "msg": "First name field not found"
+    },
+    {
+      "screen": "Profile",
+      "msg": "Password change section not found"
+    }
+  ],
+  "passes": [
+    {
+      "screen": "Login",
+      "msg": "Logged in as admin@demo.com"
+    },
+    {
+      "screen": "Dashboard",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Dashboard",
+      "msg": "13 metric cards rendered"
+    },
+    {
+      "screen": "Dashboard",
+      "msg": "65 SVG chart(s) visible"
+    },
+    {
+      "screen": "Dashboard",
+      "msg": "Greeting rendered"
+    },
+    {
+      "screen": "CRM Contacts",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "CRM Contacts",
+      "msg": "Modal \"Add Contact\" opened"
+    },
+    {
+      "screen": "CRM Contacts",
+      "msg": "\"Save\" submitted"
+    },
+    {
+      "screen": "CRM Contacts",
+      "msg": "Search \"Deep QA\" executed"
+    },
+    {
+      "screen": "CRM Contacts",
+      "msg": "Table has 4 row(s)"
+    },
+    {
+      "screen": "CRM Leads",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "CRM Leads",
+      "msg": "Modal \"Add Lead\" opened"
+    },
+    {
+      "screen": "CRM Leads",
+      "msg": "\"Add Lead\" submitted"
+    },
+    {
+      "screen": "CRM Leads",
+      "msg": "Tab \"New\" clicked"
+    },
+    {
+      "screen": "CRM Leads",
+      "msg": "Tab \"Contacted\" clicked"
+    },
+    {
+      "screen": "CRM Leads",
+      "msg": "Tab \"Qualified\" clicked"
+    },
+    {
+      "screen": "CRM Leads",
+      "msg": "Tab \"Converted\" clicked"
+    },
+    {
+      "screen": "CRM Leads",
+      "msg": "Search \"Deep QA\" executed"
+    },
+    {
+      "screen": "CRM Leads",
+      "msg": "\"Score All\" button visible"
+    },
+    {
+      "screen": "CRM Pipeline",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "CRM Pipeline",
+      "msg": "5 pipeline column elements found"
+    },
+    {
+      "screen": "CRM Pipeline",
+      "msg": "\"Forecast\" button visible"
+    },
+    {
+      "screen": "CRM Pipeline",
+      "msg": "Modal \"Add Deal\" opened"
+    },
+    {
+      "screen": "CRM Pipeline",
+      "msg": "\"Create Deal\" submitted"
+    },
+    {
+      "screen": "CRM Companies",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "CRM Companies",
+      "msg": "Modal \"Add Company\" opened"
+    },
+    {
+      "screen": "CRM Companies",
+      "msg": "\"Save\" submitted"
+    },
+    {
+      "screen": "CRM Companies",
+      "msg": "Search \"Deep QA\" executed"
+    },
+    {
+      "screen": "CRM Activities",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "CRM Activities",
+      "msg": "Tab \"All\" clicked"
+    },
+    {
+      "screen": "CRM Activities",
+      "msg": "Tab \"call\" clicked"
+    },
+    {
+      "screen": "CRM Activities",
+      "msg": "Tab \"email\" clicked"
+    },
+    {
+      "screen": "CRM Activities",
+      "msg": "Tab \"meeting\" clicked"
+    },
+    {
+      "screen": "Helpdesk",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Helpdesk",
+      "msg": "Modal \"New Ticket\" opened"
+    },
+    {
+      "screen": "Helpdesk",
+      "msg": "\"Create Ticket\" submitted"
+    },
+    {
+      "screen": "Helpdesk",
+      "msg": "Priority filter works"
+    },
+    {
+      "screen": "Helpdesk",
+      "msg": "Search \"Deep QA\" executed"
+    },
+    {
+      "screen": "Knowledge Base",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Knowledge Base",
+      "msg": "0 category items in sidebar"
+    },
+    {
+      "screen": "Knowledge Base",
+      "msg": "Modal \"New Article\" opened"
+    },
+    {
+      "screen": "Knowledge Base",
+      "msg": "\"Save Article\" submitted"
+    },
+    {
+      "screen": "Knowledge Base",
+      "msg": "Tab \"Published\" clicked"
+    },
+    {
+      "screen": "Knowledge Base",
+      "msg": "Tab \"Draft\" clicked"
+    },
+    {
+      "screen": "Knowledge Base",
+      "msg": "Tab \"Archived\" clicked"
+    },
+    {
+      "screen": "Knowledge Base",
+      "msg": "Search \"Deep QA\" executed"
+    },
+    {
+      "screen": "Projects",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Projects",
+      "msg": "Modal \"New Project\" opened"
+    },
+    {
+      "screen": "Projects",
+      "msg": "\"Create Project\" submitted"
+    },
+    {
+      "screen": "Projects",
+      "msg": "1 project card element(s) visible"
+    },
+    {
+      "screen": "Projects",
+      "msg": "Project detail navigated"
+    },
+    {
+      "screen": "Finance Overview",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Finance Overview",
+      "msg": "6 summary card(s) visible"
+    },
+    {
+      "screen": "Invoices",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Invoices",
+      "msg": "Modal \"New Invoice\" opened"
+    },
+    {
+      "screen": "Invoices",
+      "msg": "\"Create Invoice\" submitted"
+    },
+    {
+      "screen": "Invoices",
+      "msg": "Tab \"Draft\" clicked"
+    },
+    {
+      "screen": "Invoices",
+      "msg": "Tab \"Sent\" clicked"
+    },
+    {
+      "screen": "Invoices",
+      "msg": "Tab \"Paid\" clicked"
+    },
+    {
+      "screen": "Invoices",
+      "msg": "Tab \"Overdue\" clicked"
+    },
+    {
+      "screen": "Invoices",
+      "msg": "Export CSV button visible"
+    },
+    {
+      "screen": "Income",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Income",
+      "msg": "Modal \"Add Income\" opened"
+    },
+    {
+      "screen": "Income",
+      "msg": "\"Record\" submitted"
+    },
+    {
+      "screen": "Income",
+      "msg": "Income record created"
+    },
+    {
+      "screen": "Expenses",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Expenses",
+      "msg": "Modal \"Add Expense\" opened"
+    },
+    {
+      "screen": "Expenses",
+      "msg": "\"Add Expense\" submitted"
+    },
+    {
+      "screen": "Expenses",
+      "msg": "Expense record created"
+    },
+    {
+      "screen": "Expenses",
+      "msg": "Tab \"Pending\" clicked"
+    },
+    {
+      "screen": "Expenses",
+      "msg": "Tab \"Approved\" clicked"
+    },
+    {
+      "screen": "Expenses",
+      "msg": "Tab \"Rejected\" clicked"
+    },
+    {
+      "screen": "Purchase Orders",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Purchase Orders",
+      "msg": "Modal \"New PO\" opened"
+    },
+    {
+      "screen": "Purchase Orders",
+      "msg": "\"Create PO\" submitted"
+    },
+    {
+      "screen": "Finance Reports",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Finance Reports",
+      "msg": "55 chart element(s) rendered"
+    },
+    {
+      "screen": "HR Employees",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "HR Employees",
+      "msg": "Modal \"Add Employee\" opened"
+    },
+    {
+      "screen": "HR Employees",
+      "msg": "\"Add Employee\" submitted"
+    },
+    {
+      "screen": "HR Employees",
+      "msg": "Tab \"Departments\" clicked"
+    },
+    {
+      "screen": "HR Employees",
+      "msg": "\"Add Department\" button visible in Departments tab"
+    },
+    {
+      "screen": "HR Attendance",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "HR Attendance",
+      "msg": "\"Check In\" button visible"
+    },
+    {
+      "screen": "HR Attendance",
+      "msg": "\"Check In\" disabled (already checked in today — correct behavior)"
+    },
+    {
+      "screen": "HR Attendance",
+      "msg": "\"Check Out\" button visible"
+    },
+    {
+      "screen": "HR Attendance",
+      "msg": "Month selector visible"
+    },
+    {
+      "screen": "HR Payroll",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "HR Payroll",
+      "msg": "\"Generate\" button visible"
+    },
+    {
+      "screen": "HR Payroll",
+      "msg": "1 payslip row(s) generated"
+    },
+    {
+      "screen": "HR Payroll",
+      "msg": "Download payslip button visible"
+    },
+    {
+      "screen": "HR Leave",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "HR Leave",
+      "msg": "Modal \"Apply Leave\" opened"
+    },
+    {
+      "screen": "HR Leave",
+      "msg": "\"Submit\" submitted"
+    },
+    {
+      "screen": "HR Leave",
+      "msg": "Tab \"All\" clicked"
+    },
+    {
+      "screen": "HR Leave",
+      "msg": "Tab \"Pending\" clicked"
+    },
+    {
+      "screen": "HR Leave",
+      "msg": "Tab \"Approved\" clicked"
+    },
+    {
+      "screen": "HR Leave",
+      "msg": "Tab \"Rejected\" clicked"
+    },
+    {
+      "screen": "HR Performance",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "HR Performance",
+      "msg": "Add review button visible"
+    },
+    {
+      "screen": "HR Recruitment",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "HR Recruitment",
+      "msg": "Post job button visible"
+    },
+    {
+      "screen": "HR Recruitment",
+      "msg": "Modal \"Post Job\" opened"
+    },
+    {
+      "screen": "Contracts",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Contracts",
+      "msg": "Modal \"New Contract\" opened"
+    },
+    {
+      "screen": "Contracts",
+      "msg": "\"Create Contract\" submitted"
+    },
+    {
+      "screen": "Appointments",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Appointments",
+      "msg": "Add appointment button visible"
+    },
+    {
+      "screen": "Appointments",
+      "msg": "Modal \"Book\" opened"
+    },
+    {
+      "screen": "Documents",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Documents",
+      "msg": "Modal \"New Folder\" opened"
+    },
+    {
+      "screen": "Documents",
+      "msg": "\"Create\" submitted"
+    },
+    {
+      "screen": "Documents",
+      "msg": "Upload button visible"
+    },
+    {
+      "screen": "Documents",
+      "msg": "Search \"patron\" executed"
+    },
+    {
+      "screen": "Analytics",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Analytics",
+      "msg": "59 SVG chart(s) rendered"
+    },
+    {
+      "screen": "Analytics",
+      "msg": "Period \"7d\" button works"
+    },
+    {
+      "screen": "Analytics",
+      "msg": "Period \"30d\" button works"
+    },
+    {
+      "screen": "Analytics",
+      "msg": "Period \"90d\" button works"
+    },
+    {
+      "screen": "Analytics",
+      "msg": "Period \"1y\" button works"
+    },
+    {
+      "screen": "AI Intelligence",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "AI Intelligence",
+      "msg": "Health score rendered"
+    },
+    {
+      "screen": "AI Intelligence",
+      "msg": "\"Refresh Analysis\" button visible"
+    },
+    {
+      "screen": "Marketing",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Marketing",
+      "msg": "Tab \"Campaigns\" works"
+    },
+    {
+      "screen": "Marketing",
+      "msg": "Tab \"Social\" works"
+    },
+    {
+      "screen": "Marketing",
+      "msg": "Tab \"Email\" works"
+    },
+    {
+      "screen": "Email",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Messages",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Messages",
+      "msg": "\"New Message\" button visible"
+    },
+    {
+      "screen": "Messages",
+      "msg": "0 conversation list item(s)"
+    },
+    {
+      "screen": "OKR & Goals",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "OKR",
+      "msg": "Add objective button visible"
+    },
+    {
+      "screen": "Timesheets",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Timesheets",
+      "msg": "\"Log Time\" button visible"
+    },
+    {
+      "screen": "Clients",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Clients",
+      "msg": "Client detail panel loaded"
+    },
+    {
+      "screen": "Notifications",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Notifications",
+      "msg": "\"Mark all read\" button visible"
+    },
+    {
+      "screen": "Workflow",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Workflow",
+      "msg": "Create workflow button visible"
+    },
+    {
+      "screen": "AI Chat",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "AI Chat",
+      "msg": "Chat input visible"
+    },
+    {
+      "screen": "Settings",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "Settings",
+      "msg": "Tab \"Company\" opened"
+    },
+    {
+      "screen": "Settings",
+      "msg": "Company: Company Name field visible"
+    },
+    {
+      "screen": "Settings",
+      "msg": "Tab \"AI Config\" opened"
+    },
+    {
+      "screen": "Settings",
+      "msg": "Tab \"Email (SMTP)\" opened"
+    },
+    {
+      "screen": "Settings",
+      "msg": "Email (SMTP): SMTP host field visible"
+    },
+    {
+      "screen": "Settings",
+      "msg": "Tab \"WhatsApp\" opened"
+    },
+    {
+      "screen": "Settings",
+      "msg": "Tab \"Roles\" opened"
+    },
+    {
+      "screen": "Settings",
+      "msg": "Roles: \"New Role\" button visible"
+    },
+    {
+      "screen": "Settings",
+      "msg": "Tab \"API Keys\" opened"
+    },
+    {
+      "screen": "Settings",
+      "msg": "API Keys: \"Generate\" button visible"
+    },
+    {
+      "screen": "Settings",
+      "msg": "Tab \"Audit Log\" opened"
+    },
+    {
+      "screen": "Settings",
+      "msg": "Audit Log: audit log entries visible"
+    },
+    {
+      "screen": "Profile",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "AI Agent Panel",
+      "msg": "Page loaded without errors"
+    },
+    {
+      "screen": "AI Agent",
+      "msg": "Panel opened with correct header"
+    },
+    {
+      "screen": "AI Agent",
+      "msg": "Panel closed with Escape"
+    },
+    {
+      "screen": "Sidebar",
+      "msg": "25 unique nav links found"
+    },
+    {
+      "screen": "Sidebar",
+      "msg": "All nav links resolve without errors"
+    }
+  ],
+  "jsErrors": [],
+  "screenshots": [
+    "000_01_dashboard.png",
+    "001_02_crm_contacts.png",
+    "002_02b_crm_contacts_modal.png",
+    "003_02c_crm_contacts_saved.png",
+    "004_03_crm_leads.png",
+    "005_03b_crm_leads_modal.png",
+    "006_03c_crm_leads_final.png",
+    "007_04_crm_pipeline.png",
+    "008_04b_pipeline_forecast.png",
+    "009_04c_pipeline_deal_added.png",
+    "010_05_crm_companies.png",
+    "011_05b_crm_companies_saved.png",
+    "012_06_crm_activities.png",
+    "013_06b_crm_activities.png",
+    "014_07_helpdesk.png",
+    "015_07b_helpdesk_modal.png",
+    "016_07c_helpdesk_saved.png",
+    "017_08_kb.png",
+    "018_08b_kb_modal.png",
+    "019_08c_kb_saved.png",
+    "020_09_projects.png",
+    "021_09b_projects_modal.png",
+    "022_09c_projects_saved.png",
+    "023_09d_project_detail.png",
+    "024_10_finance_overview.png",
+    "025_11_invoices.png",
+    "026_11b_invoices_modal.png",
+    "027_11c_invoices_saved.png",
+    "028_11d_invoices_final.png",
+    "029_12_income.png",
+    "030_12b_income_modal.png",
+    "031_12c_income_final.png",
+    "032_13_expenses.png",
+    "033_13b_expenses_modal.png",
+    "034_13c_expenses_final.png",
+    "035_14_purchase_orders.png",
+    "036_14b_po_modal.png",
+    "037_14c_po_final.png",
+    "038_15_finance_reports.png",
+    "039_16_hr_employees.png",
+    "040_16b_hr_employees_modal.png",
+    "041_16c_hr_employees_saved.png",
+    "042_16d_hr_employees_final.png",
+    "043_17_hr_attendance.png",
+    "044_17b_hr_attendance_checkin.png",
+    "044_17c_hr_attendance_final.png",
+    "045_17c_hr_attendance_final.png",
+    "045_18_hr_payroll.png",
+    "046_18_hr_payroll.png",
+    "046_18b_hr_payroll_generated.png",
+    "047_18b_hr_payroll_generated.png",
+    "047_19_hr_leave.png",
+    "048_19_hr_leave.png",
+    "048_19b_hr_leave_modal.png",
+    "049_19b_hr_leave_modal.png",
+    "049_19c_hr_leave_saved.png",
+    "050_19c_hr_leave_saved.png",
+    "050_20_hr_performance.png",
+    "051_20_hr_performance.png",
+    "051_21_hr_recruitment.png",
+    "052_21_hr_recruitment.png",
+    "052_22_contracts.png",
+    "053_22_contracts.png",
+    "053_22b_contracts_modal.png",
+    "054_22b_contracts_modal.png",
+    "054_22c_contracts_saved.png",
+    "055_22c_contracts_saved.png",
+    "055_23_appointments.png",
+    "056_23_appointments.png",
+    "056_23b_appointments_modal.png",
+    "057_23b_appointments_modal.png",
+    "057_23c_appointments_final.png",
+    "058_24_documents.png",
+    "059_24b_documents_folder_modal.png",
+    "060_24c_documents_folder_created.png",
+    "061_25_analytics.png",
+    "062_25b_analytics_periods.png",
+    "063_26_intelligence.png",
+    "064_26b_intelligence_refreshed.png",
+    "065_27_marketing.png",
+    "066_27_marketing_campaigns.png",
+    "067_27_marketing_social.png",
+    "068_27_marketing_email.png",
+    "069_28_email.png",
+    "070_29_messages.png",
+    "071_30_okr.png",
+    "072_30b_okr.png",
+    "073_31_timesheets.png",
+    "074_32_clients.png",
+    "075_32b_clients_detail.png",
+    "076_33_notifications.png",
+    "077_34_workflow.png",
+    "078_35_ai_chat.png",
+    "079_36_settings.png",
+    "080_36_settings_company.png",
+    "081_36_settings_ai_config.png",
+    "082_36_settings_email__smtp_.png",
+    "083_36_settings_whatsapp.png",
+    "084_36_settings_roles.png",
+    "085_36_settings_api_keys.png",
+    "086_36_settings_audit_log.png",
+    "087_37_profile.png",
+    "088_38_ai_agent_open.png"
+  ]
+}

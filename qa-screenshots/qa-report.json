@@ -1,122 +1,70 @@
 {
   "issues": [
     {
-      "screen": "knowledgebase",
-      "msg": "Button \"New Article\" not found on page"
-    },
-    {
-      "screen": "projects",
-      "msg": "Button \"New Project\" not found on page"
-    },
-    {
-      "screen": "invoices",
-      "msg": "Button \"New Invoice\" not found on page"
-    },
-    {
-      "screen": "income",
-      "msg": "Button \"Add Income\" not found on page"
-    },
-    {
-      "screen": "expenses",
-      "msg": "Button \"Add Expense\" not found on page"
-    },
-    {
-      "screen": "hr_employees",
-      "msg": "Button \"Add Employee\" not found on page"
-    },
-    {
-      "screen": "hr_leave",
-      "msg": "Button \"Apply Leave\" not found on page"
-    },
-    {
-      "screen": "documents",
-      "msg": "Button \"New Folder\" not found on page"
-    },
-    {
-      "screen": "settings",
-      "msg": "Tab \"Roles\" not found"
-    },
-    {
-      "screen": "settings",
-      "msg": "Tab \"API Keys\" not found"
-    },
-    {
-      "screen": "settings",
-      "msg": "Tab \"Notifications\" not found"
-    },
-    {
-      "screen": "settings",
-      "msg": "Tab \"Integrations\" not found"
-    },
-    {
-      "screen": "settings",
-      "msg": "Tab \"Billing\" not found"
-    },
-    {
-      "screen": "settings",
-      "msg": "Tab \"General\" not found"
+      "screen": "Expenses",
+      "msg": "\"Add Expense\" disabled — required fields missing"
     }
   ],
   "jsErrors": [],
   "screenshots": [
-    "000_login_initial.png",
-    "000_login_page.png",
-    "001_login_filled.png",
-    "002_login_result.png",
-    "003_dashboard_home_load.png",
-    "003_dashboard_load.png",
-    "004_crm_contacts_load.png",
-    "005_crm_contacts_modal_open.png",
-    "005_crm_pipeline_load.png",
-    "006_crm_contacts_modal_saved.png",
-    "006_crm_pipeline_modal_open.png",
-    "007_crm_pipeline_load.png",
-    "007_crm_pipeline_modal_saved.png",
-    "008_crm_leads_load.png",
-    "008_crm_pipeline_modal_open.png",
-    "009_crm_leads_modal_open.png",
-    "009_crm_pipeline_modal_saved.png",
-    "010_crm_leads_load.png",
-    "010_crm_leads_modal_saved.png",
-    "011_crm_companies_load.png",
-    "011_crm_leads_modal_open.png",
-    "012_crm_companies_modal_open.png",
-    "012_crm_leads_modal_saved.png",
-    "013_crm_companies_load.png",
-    "013_crm_companies_modal_saved.png",
-    "014_crm_companies_modal_open.png",
-    "014_helpdesk_load.png",
-    "015_crm_companies_modal_saved.png",
-    "015_helpdesk_modal_open.png",
-    "016_helpdesk_load.png",
-    "016_helpdesk_modal_saved.png",
-    "017_helpdesk_modal_open.png",
-    "017_knowledgebase_load.png",
-    "018_helpdesk_modal_saved.png",
-    "018_knowledgebase_modal_open.png",
-    "019_knowledgebase_load.png",
-    "019_knowledgebase_modal_saved.png",
-    "020_projects_load.png",
-    "021_finance_load.png",
-    "021_projects_modal_open.png",
-    "022_invoices_load.png",
-    "022_projects_modal_saved.png",
-    "023_finance_load.png",
-    "023_income_load.png",
-    "024_expenses_load.png",
-    "024_invoices_load.png",
-    "025_hr_employees_load.png",
-    "025_invoices_modal_open.png",
-    "026_hr_attendance_load.png",
-    "027_hr_payroll_load.png",
-    "028_hr_leave_load.png",
-    "029_analytics_load.png",
-    "030_analytics_loaded.png",
-    "031_intelligence_load.png",
-    "032_intelligence_loaded.png",
-    "033_documents_load.png",
-    "034_settings_load.png",
-    "035_profile_load.png",
-    "036_notifications_page_load.png"
+    "000_01_login_page.png",
+    "001_02_login_result.png",
+    "002_03_dashboard_loaded.png",
+    "003_04_crm_contacts_loaded.png",
+    "004_modal_crm_contacts_open.png",
+    "005_modal_crm_contacts_saved.png",
+    "006_05_crm_pipeline_loaded.png",
+    "007_modal_crm_pipeline_open.png",
+    "008_modal_crm_pipeline_saved.png",
+    "009_06_crm_leads_loaded.png",
+    "010_modal_crm_leads_open.png",
+    "011_modal_crm_leads_saved.png",
+    "012_07_crm_companies_loaded.png",
+    "013_modal_crm_companies_open.png",
+    "014_modal_crm_companies_saved.png",
+    "015_08_helpdesk_loaded.png",
+    "016_modal_helpdesk_open.png",
+    "017_modal_helpdesk_saved.png",
+    "018_09_knowledgebase_loaded.png",
+    "019_modal_knowledgebase_open.png",
+    "020_modal_knowledgebase_saved.png",
+    "021_10_projects_loaded.png",
+    "022_modal_projects_open.png",
+    "023_modal_projects_saved.png",
+    "024_11_finance_loaded.png",
+    "025_12_invoices_loaded.png",
+    "026_modal_invoices_open.png",
+    "027_modal_invoices_saved.png",
+    "028_13_income_loaded.png",
+    "029_modal_income_open.png",
+    "030_modal_income_saved.png",
+    "031_14_expenses_loaded.png",
+    "032_modal_expenses_open.png",
+    "033_modal_expenses_fail.png",
+    "034_15_hr_employees_loaded.png",
+    "035_modal_hr_employees_open.png",
+    "036_modal_hr_employees_saved.png",
+    "037_16_hr_attendance_loaded.png",
+    "038_17_hr_payroll_loaded.png",
+    "039_18_hr_leave_loaded.png",
+    "040_modal_hr_leave_open.png",
+    "041_modal_hr_leave_saved.png",
+    "042_19_analytics_loaded.png",
+    "043_19b_analytics_data.png",
+    "044_20_intelligence_loaded.png",
+    "045_20b_intelligence_settled.png",
+    "046_21_documents_loaded.png",
+    "047_modal_documents_open.png",
+    "048_modal_documents_saved.png",
+    "049_22_settings_loaded.png",
+    "050_settings_tab_ai_config.png",
+    "051_settings_tab_email__smtp_.png",
+    "052_settings_tab_whatsapp.png",
+    "053_settings_tab_roles.png",
+    "054_settings_tab_api_keys.png",
+    "055_settings_tab_audit_log.png",
+    "056_settings_tab_company.png",
+    "057_23_messages_loaded.png",
+    "058_24_clients_loaded.png"
   ]
 }
