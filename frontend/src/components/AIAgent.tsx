@@ -425,6 +425,7 @@ export function AIAgent() {
                     {/* Generated images */}
                     {msg.actions?.filter(a => a.result?.imageUrl).map((a, j) => (
                       <div key={j} className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 max-w-[300px] shadow-sm">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={`${API_BASE}${a.result.imageUrl}`} alt="AI generated" className="w-full object-cover" loading="lazy" />
                         <a
                           href={`${API_BASE}${a.result.imageUrl}`}

@@ -423,7 +423,7 @@ export default function SocialStudioPage() {
                 </div>
                 <div>
                   <h3 className="font-bold text-gray-900 dark:text-white">AI will craft platform-optimized posts</h3>
-                  <p className="text-sm text-gray-500 mt-1">Enter your topic and hit Generate — the AI writes separate content tailored to each platform's style and character limit.</p>
+                  <p className="text-sm text-gray-500 mt-1">Enter your topic and hit Generate — the AI writes separate content tailored to each platform&apos;s style and character limit.</p>
                 </div>
                 <div className="flex flex-wrap justify-center gap-2 mt-2">
                   {PLATFORMS.slice(0, 4).map(p => {
