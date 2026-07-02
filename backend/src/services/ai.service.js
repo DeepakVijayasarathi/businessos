@@ -1,5 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const OpenAI = require('openai');
+const { toFile } = require('openai');
+const fs = require('fs');
 const config = require('../config');
 const { decrypt } = require('../utils/helpers');
 
@@ -106,4 +108,27 @@ function operational(message, statusCode) {
   return err;
 }
 
-module.exports = { callAI, generateImage };
+// Edits an existing image with a prompt via gpt-image-1 (dall-e-3 has no
+// comparable prompt-based edit). Returns { buffer } — the edited PNG.
+async function editImage({ prompt, imagePath, companyOpenaiKey }) {
+  const rawKey = (companyOpenaiKey ? decrypt(companyOpenaiKey) : null) || config.ai.openaiKey;
+  if (!rawKey) throw operational('AI image editing requires an OpenAI API key — add one in Settings > AI Config', 400);
+  if (!fs.existsSync(imagePath)) throw operational('Original image file not found on the server', 404);
+
+  const client = new OpenAI({ apiKey: rawKey });
+  try {
+    const response = await client.images.edit({
+      model: 'gpt-image-1',
+      image: await toFile(fs.createReadStream(imagePath), 'image.png', { type: 'image/png' }),
+      prompt,
+      n: 1,
+    });
+    const b64 = response?.data?.[0]?.b64_json;
+    if (!b64) throw operational('OpenAI returned no image — please try again', 502);
+    return { buffer: Buffer.from(b64, 'base64') };
+  } catch (err) {
+    throw err.isOperational ? err : mapOpenAIImageError(err);
+  }
+}
+
+module.exports = { callAI, generateImage, editImage };

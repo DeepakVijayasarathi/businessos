@@ -11,7 +11,7 @@ const { slugify, paginate, paginateMeta, pick } = require('../../utils/helpers')
 
 const PAGE_WRITABLE_FIELDS = ['name', 'content', 'seoTitle', 'seoDesc', 'isPublished'];
 const FORM_WRITABLE_FIELDS = ['landingPageId', 'name', 'fields', 'successMessage', 'redirectUrl', 'isActive'];
-const { generateImage, callAI } = require('../../services/ai.service');
+const { generateImage, editImage, callAI } = require('../../services/ai.service');
 const logger = require('../../config/logger');
 
 const uploadDir = process.env.UPLOAD_PATH || './uploads';
@@ -196,6 +196,47 @@ router.post('/posters/generate-image', authenticate, sameCompany, async (req, re
     if (err.message?.includes('OpenAI API key')) return error(res, err.message, 400);
     next(err);
   }
+});
+
+// POST /posters/edit-image — modify an existing generated/uploaded image with a prompt
+router.post('/posters/edit-image', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const { imageUrl, prompt } = req.body;
+    if (!prompt || !prompt.trim()) return error(res, 'Describe the change you want to make', 400);
+    if (!imageUrl) return error(res, 'imageUrl is required', 400);
+
+    // Only basename — never trust a client-supplied path
+    const filename = path.basename(new URL(imageUrl, 'http://x').pathname);
+    if (!/^[\w-]+\.(png|jpg|jpeg|webp)$/i.test(filename)) return error(res, 'Invalid image reference', 400);
+    const imagePath = path.join(uploadDir, filename);
+
+    const company = await prisma.company.findUnique({ where: { id: req.companyId }, select: { openaiKey: true } });
+    const { buffer } = await editImage({ prompt: prompt.trim(), imagePath, companyOpenaiKey: company?.openaiKey });
+
+    const newFilename = `${uuidv4()}.png`;
+    fs.writeFileSync(path.join(uploadDir, newFilename), buffer);
+    return success(res, { url: `/uploads/${newFilename}` }, 'Image edited');
+  } catch (err) { next(err); }
+});
+
+// PUT /posters/:id — update a saved poster (e.g. swap in an edited image)
+router.put('/posters/:id', authenticate, sameCompany, async (req, res, next) => {
+  try {
+    const existing = await prisma.poster.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Poster not found');
+    const { title, subtitle, imageUrl, primaryColor, secondaryColor } = req.body;
+    const poster = await prisma.poster.update({
+      where: { id: req.params.id },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(subtitle !== undefined && { subtitle }),
+        ...(imageUrl !== undefined && { imageUrl }),
+        ...(primaryColor !== undefined && { primaryColor }),
+        ...(secondaryColor !== undefined && { secondaryColor }),
+      },
+    });
+    return success(res, poster, 'Poster updated');
+  } catch (err) { next(err); }
 });
 
 router.post('/posters', authenticate, sameCompany, async (req, res, next) => {

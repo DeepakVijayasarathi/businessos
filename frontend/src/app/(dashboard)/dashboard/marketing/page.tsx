@@ -1107,6 +1107,7 @@ function ActivityModal({ onClose }: { onClose: () => void }) {
 
 function PosterGallery({ posters, isLoading, onDelete }: { posters: any[]; isLoading: boolean; onDelete: (id: string) => void }) {
   const [showDesigner, setShowDesigner] = useState(false);
+  const [editPoster, setEditPoster] = useState<any>(null);
   return (
     <div>
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1122,7 +1123,12 @@ function PosterGallery({ posters, isLoading, onDelete }: { posters: any[]; isLoa
         ) : (
           posters.map((poster: any) => (
             <div key={poster.id} className="glass-card rounded-2xl p-4 group relative">
-              <button onClick={() => onDelete(poster.id)} className="absolute top-2 right-2 z-10 p-1.5 bg-white/90 dark:bg-gray-900/90 rounded-lg text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
+              <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {poster.imageUrl && (
+                  <button onClick={() => setEditPoster(poster)} title="Edit image with AI" className="p-1.5 bg-white/90 dark:bg-gray-900/90 rounded-lg text-gray-400 hover:text-indigo-600"><Sparkles className="w-3.5 h-3.5" /></button>
+                )}
+                <button onClick={() => onDelete(poster.id)} className="p-1.5 bg-white/90 dark:bg-gray-900/90 rounded-lg text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
               <div className="h-32 rounded-xl overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-gray-900">
                 <div style={{ transform: 'scale(0.4)', transformOrigin: 'center' }}>
                   <PosterPreview template={poster.templateKey} data={{ title: poster.title, subtitle: poster.subtitle || '', primaryColor: poster.primaryColor, secondaryColor: poster.secondaryColor, imageUrl: poster.imageUrl }} />
@@ -1136,7 +1142,77 @@ function PosterGallery({ posters, isLoading, onDelete }: { posters: any[]; isLoa
       </div>
       {!isLoading && posters.length === 0 && <p className="text-center text-sm text-gray-400 mt-4">No posters yet — create your first one above</p>}
       {showDesigner && <PosterDesigner onClose={() => setShowDesigner(false)} />}
+      {editPoster && <PosterEditModal poster={editPoster} onClose={() => setEditPoster(null)} />}
     </div>
+  );
+}
+
+function PosterEditModal({ poster, onClose }: { poster: any; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [prompt, setPrompt] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  const handleEdit = async () => {
+    if (!prompt.trim()) { toast.error('Describe the change you want'); return; }
+    setEditing(true);
+    try {
+      const { data: res } = await api.post('/marketing/posters/edit-image', {
+        imageUrl: previewUrl || poster.imageUrl,
+        prompt: prompt.trim(),
+      });
+      setPreviewUrl(`${base}${res.data.url}`);
+      setPrompt('');
+      toast.success('Image edited — save to keep it');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Image edit failed');
+    } finally { setEditing(false); }
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.put(`/marketing/posters/${poster.id}`, { imageUrl: previewUrl }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['posters'] }); toast.success('Poster updated'); onClose(); },
+    onError: () => toast.error('Failed to save poster'),
+  });
+
+  return (
+    <Modal onClose={onClose} title="Edit Image with AI" subtitle={`Describe how to change "${poster.title}"`} icon={Sparkles} iconColor="purple">
+      <div className="p-6 space-y-4">
+        <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={previewUrl || poster.imageUrl} alt={poster.title} className="max-h-64 w-auto object-contain" />
+        </div>
+        <TextAreaField
+          id="poster-edit-prompt"
+          label="What should change?"
+          rows={3}
+          value={prompt}
+          onChange={e => setPrompt(e.target.value)}
+          placeholder="e.g. Make the background blue, add a discount badge in the corner, change the text style to neon…"
+        />
+        <button
+          type="button"
+          onClick={handleEdit}
+          disabled={editing || !prompt.trim()}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+        >
+          {editing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          {editing ? 'Editing image…' : 'Apply Edit'}
+        </button>
+      </div>
+      <ModalFooter>
+        <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
+        <button
+          type="button"
+          disabled={!previewUrl || saveMutation.isPending}
+          onClick={() => saveMutation.mutate()}
+          className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50"
+        >
+          {saveMutation.isPending ? 'Saving…' : 'Save Poster'}
+        </button>
+      </ModalFooter>
+    </Modal>
   );
 }
 
