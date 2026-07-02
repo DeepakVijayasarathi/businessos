@@ -45,17 +45,36 @@ async function callAI({ messages, system, companyAnthropicKey, companyOpenaiKey,
  */
 async function generateImage({ prompt, companyOpenaiKey, size = '1024x1024' }) {
   const rawKey = (companyOpenaiKey ? decrypt(companyOpenaiKey) : null) || config.ai.openaiKey;
-  if (!rawKey) throw new Error('AI image generation requires an OpenAI API key — add one in Settings > AI Config');
+  if (!rawKey) throw operational('AI image generation requires an OpenAI API key — add one in Settings > AI Config', 400);
 
   const client = new OpenAI({ apiKey: rawKey });
-  const response = await client.images.generate({
-    model: 'dall-e-3',
-    prompt,
-    size,
-    n: 1,
-    quality: 'standard',
-  });
-  return { url: response.data[0].url };
+  let response;
+  try {
+    response = await client.images.generate({
+      model: 'dall-e-3',
+      prompt,
+      size,
+      n: 1,
+      quality: 'standard',
+    });
+  } catch (err) {
+    // Surface the real OpenAI failure to the client instead of a generic 500
+    if (err.status === 401) throw operational('OpenAI API key is invalid or revoked — update it in Settings > AI Config', 400);
+    if (err.code === 'content_policy_violation') throw operational('The image description was rejected by OpenAI content policy — please rephrase it', 400);
+    if (err.code === 'billing_hard_limit_reached' || err.status === 429) throw operational('OpenAI quota or billing limit reached — check your OpenAI account billing', 402);
+    throw operational(`Image generation failed: ${err.message}`, err.status && err.status < 500 ? err.status : 502);
+  }
+  const url = response?.data?.[0]?.url;
+  if (!url) throw operational('OpenAI returned no image — please try again', 502);
+  return { url };
+}
+
+// Mark an error as safe to show to the client (errorHandler hides non-operational messages)
+function operational(message, statusCode) {
+  const err = new Error(message);
+  err.statusCode = statusCode;
+  err.isOperational = true;
+  return err;
 }
 
 module.exports = { callAI, generateImage };
