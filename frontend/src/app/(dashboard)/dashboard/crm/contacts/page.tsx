@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { formatDate } from '@/lib/utils';
+import { formatDate, sanitizeName, sanitizePhone } from '@/lib/utils';
 import { Plus, Search, Mail, Phone, Building2, User, Trash2, Edit, Upload } from 'lucide-react';
 import { useRef } from 'react';
 import toast from 'react-hot-toast';
@@ -154,6 +154,7 @@ function ContactModal({ contact, onClose }: { contact: any; onClose: () => void 
   });
 
   const f = (k: string) => ({ value: (form as any)[k], onChange: (e: any) => setForm({ ...form, [k]: e.target.value }) });
+  const fName = (k: string) => ({ value: (form as any)[k], onChange: (e: any) => setForm({ ...form, [k]: sanitizeName(e.target.value) }) });
 
   return (
     <Modal onClose={onClose} title={contact ? 'Edit Contact' : 'New Contact'} subtitle={contact ? 'Update contact details' : 'Add a new contact to your CRM'} icon={User} iconColor="blue">
@@ -161,10 +162,10 @@ function ContactModal({ contact, onClose }: { contact: any; onClose: () => void 
         <div className="p-6 space-y-4">
           {!contact && <SmartFill type="contact" onFill={d => setForm(f => ({ ...f, ...d }))} />}
           <div className="grid grid-cols-2 gap-4">
-            <TextField id="contact-firstName" label="First Name" required {...f('firstName')} />
-            <TextField id="contact-lastName" label="Last Name" {...f('lastName')} />
+            <TextField id="contact-firstName" label="First Name" required {...fName('firstName')} />
+            <TextField id="contact-lastName" label="Last Name" {...fName('lastName')} />
             <TextField id="contact-email" label="Email" type="email" {...f('email')} />
-            <TextField id="contact-phone" label="Phone" {...f('phone')} />
+            <TextField id="contact-phone" label="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: sanitizePhone(e.target.value) })} />
           </div>
           <TextField id="contact-jobTitle" label="Job Title" {...f('jobTitle')} />
           <TextAreaField id="contact-notes" label="Notes" rows={3} {...f('notes')} />

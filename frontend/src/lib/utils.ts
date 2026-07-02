@@ -48,6 +48,15 @@ export function formatRelativeTime(date: string | Date): string {
   return formatDate(date);
 }
 
+// Input sanitizers for form fields — strip characters as the user types
+export function sanitizeName(value: string): string {
+  return value.replace(/[0-9]/g, '');
+}
+
+export function sanitizePhone(value: string): string {
+  return value.replace(/[^0-9+\-() ]/g, '');
+}
+
 export function truncate(str: string, length = 50): string {
   return str.length > length ? `${str.slice(0, length)}...` : str;
 }

@@ -78,6 +78,31 @@ async function run() {
       name: 'social_accounts: companyId index',
       sql: `CREATE INDEX IF NOT EXISTS social_accounts_company_idx ON social_accounts ("companyId")`,
     },
+    // ── leave_types dedupe (seed used to re-create them on every restart) ──────
+    {
+      name: 'leave_types: re-point requests at oldest duplicate',
+      sql: `
+        WITH ranked AS (
+          SELECT id, FIRST_VALUE(id) OVER (
+            PARTITION BY "companyId", LOWER(name) ORDER BY "createdAt" ASC, id ASC
+          ) AS keep_id
+          FROM leave_types
+        )
+        UPDATE leave_requests lr SET "leaveTypeId" = r.keep_id
+        FROM ranked r
+        WHERE lr."leaveTypeId" = r.id AND r.id <> r.keep_id`,
+    },
+    {
+      name: 'leave_types: delete duplicates',
+      sql: `
+        WITH ranked AS (
+          SELECT id, FIRST_VALUE(id) OVER (
+            PARTITION BY "companyId", LOWER(name) ORDER BY "createdAt" ASC, id ASC
+          ) AS keep_id
+          FROM leave_types
+        )
+        DELETE FROM leave_types WHERE id IN (SELECT id FROM ranked WHERE id <> keep_id)`,
+    },
     {
       name: 'social_accounts: unique companyId+platform',
       sql: `

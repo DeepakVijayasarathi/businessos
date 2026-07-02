@@ -2316,10 +2316,11 @@ router.post('/meeting-agenda', async (req, res, next) => {
 router.post('/hr-insights', async (req, res, next) => {
   try {
     const co = await getCompanyKeys(req.companyId);
+    // LeaveRequest and Attendance have no companyId column — scope through the employee relation
     const [employees, leaves, attendance] = await Promise.all([
       prisma.employee.findMany({ where: { companyId: req.companyId }, include: { user: { select: { firstName: true, lastName: true } }, department: true }, take: 50 }),
-      prisma.leave.findMany({ where: { companyId: req.companyId, status: 'pending' }, take: 20 }),
-      prisma.attendance.count({ where: { companyId: req.companyId, date: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } } }),
+      prisma.leaveRequest.findMany({ where: { employee: { companyId: req.companyId }, status: 'pending' }, take: 20 }),
+      prisma.attendance.count({ where: { employee: { companyId: req.companyId }, date: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } } }),
     ]);
     const deptBreakdown = employees.reduce((acc, e) => { const d = e.department?.name || 'Unassigned'; acc[d] = (acc[d]||0)+1; return acc; }, {});
     const result = await callAI({

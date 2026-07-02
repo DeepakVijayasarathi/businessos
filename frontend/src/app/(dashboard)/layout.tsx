@@ -57,7 +57,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-indigo-600 focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">
             Skip to content
           </a>
-          <main id="main-content" className="flex-1 overflow-y-auto p-6">
+          {/* pb-28 keeps page footers/pagination clear of the floating AI Agent button */}
+          <main id="main-content" className="flex-1 overflow-y-auto p-6 pb-28">
             {children}
           </main>
         </div>

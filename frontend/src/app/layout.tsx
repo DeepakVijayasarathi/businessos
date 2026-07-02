@@ -30,12 +30,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               containerStyle={{ top: 80 }}
               toastOptions={{
                 duration: 4000,
+                // Note: --background etc. hold raw HSL tuples — must wrap in hsl()
                 style: {
-                  background: 'var(--background)',
-                  color: 'var(--foreground)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '0.75rem',
-                  fontSize: '14px',
+                  background: 'hsl(var(--card))',
+                  color: 'hsl(var(--card-foreground))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '12px',
+                  fontSize: '13.5px',
+                  fontWeight: 500,
+                  padding: '12px 16px',
+                  maxWidth: '400px',
+                  boxShadow: '0 10px 40px -10px rgba(0,0,0,0.25)',
+                },
+                success: {
+                  iconTheme: { primary: '#10b981', secondary: '#ffffff' },
+                  style: { borderLeft: '3px solid #10b981' },
+                },
+                error: {
+                  duration: 5000,
+                  iconTheme: { primary: '#ef4444', secondary: '#ffffff' },
+                  style: { borderLeft: '3px solid #ef4444' },
                 },
               }}
             />

@@ -125,8 +125,20 @@ router.post('/bulk', requirePermission('hr.*'), async (req, res, next) => {
 // Leave types
 router.get('/leave-types', async (req, res, next) => {
   try {
-    const types = await prisma.leaveType.findMany({ where: { companyId: req.companyId } });
-    return success(res, types);
+    const types = await prisma.leaveType.findMany({
+      where: { companyId: req.companyId },
+      orderBy: { createdAt: 'asc' },
+    });
+    // Seed historically re-created these on every container restart — dedupe
+    // by name (keep the oldest, which is the one existing requests point to).
+    const seen = new Set();
+    const unique = types.filter(t => {
+      const key = t.name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return success(res, unique);
   } catch (err) { next(err); }
 });
 
@@ -159,9 +171,22 @@ router.get('/leaves', async (req, res, next) => {
 
 router.post('/leaves', async (req, res, next) => {
   try {
-    const { employeeId, leaveTypeId, startDate, endDate, reason } = req.body;
-    const employee = await prisma.employee.findFirst({ where: { id: employeeId, companyId: req.companyId } });
-    if (!employee) return notFound(res, 'Employee not found');
+    const { leaveTypeId, startDate, endDate, reason } = req.body;
+
+    // Self-service: default to the caller's own employee record when no
+    // employeeId is supplied (the Apply Leave form doesn't send one).
+    let employee;
+    if (req.body.employeeId) {
+      employee = await prisma.employee.findFirst({ where: { id: req.body.employeeId, companyId: req.companyId } });
+    } else {
+      employee = await getOwnEmployee(req);
+    }
+    if (!employee) return notFound(res, 'No employee record found — add yourself as an employee in HR first');
+    const employeeId = employee.id;
+
+    if (!leaveTypeId) return error(res, 'Please select a leave type', 400);
+    const leaveType = await prisma.leaveType.findFirst({ where: { id: leaveTypeId, companyId: req.companyId } });
+    if (!leaveType) return error(res, 'Leave type not found', 400);
 
     const start = new Date(startDate);
     const end = new Date(endDate);

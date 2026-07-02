@@ -55,6 +55,24 @@ router.get('/stats', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /crm/leads/export — CSV export (must precede /:id or it matches as a lead id)
+router.get('/export', async (req, res, next) => {
+  try {
+    const leads = await prisma.lead.findMany({
+      where: { companyId: req.companyId },
+      orderBy: { createdAt: 'desc' },
+    });
+    const headers = ['firstName', 'lastName', 'email', 'phone', 'company', 'jobTitle', 'source', 'status', 'score', 'notes', 'createdAt'];
+    const csv = [
+      headers.join(','),
+      ...leads.map(l => headers.map(h => `"${String(l[h] ?? '').replace(/"/g, '""')}"`).join(',')),
+    ].join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="leads.csv"');
+    res.send(csv);
+  } catch (err) { next(err); }
+});
+
 // GET /crm/leads/:id
 router.get('/:id', async (req, res, next) => {
   try {
@@ -135,24 +153,6 @@ router.post('/:id/convert', auditLog('crm.leads', 'lead'), async (req, res, next
     });
 
     return success(res, result, 'Lead converted to contact');
-  } catch (err) { next(err); }
-});
-
-// GET /crm/leads/export — CSV export
-router.get('/export', async (req, res, next) => {
-  try {
-    const leads = await prisma.lead.findMany({
-      where: { companyId: req.companyId },
-      orderBy: { createdAt: 'desc' },
-    });
-    const headers = ['firstName', 'lastName', 'email', 'phone', 'company', 'jobTitle', 'source', 'status', 'score', 'notes', 'createdAt'];
-    const csv = [
-      headers.join(','),
-      ...leads.map(l => headers.map(h => `"${String(l[h] ?? '').replace(/"/g, '""')}"`).join(',')),
-    ].join('\n');
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="leads.csv"');
-    res.send(csv);
   } catch (err) { next(err); }
 });
 

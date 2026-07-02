@@ -3,18 +3,21 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { formatDate, statusColor } from '@/lib/utils';
-import { Plus, Search, Mail, Phone, Building2, UserSquare, Users, UserPlus, Upload, Sparkles, Loader2, X, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Mail, Phone, Building2, UserSquare, Users, UserPlus, Upload, Sparkles, Loader2, X, TrendingUp, AlertTriangle, Edit, Trash2 } from 'lucide-react';
 import { useRef } from 'react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 import { TextField, SelectField, TextAreaField } from '@/components/ui/FormField';
 import { ExportButton } from '@/components/ui/ExportButton';
+import { SampleCsvLink } from '@/components/ui/SampleCsvLink';
+import { sanitizeName } from '@/lib/utils';
 
 export default function EmployeesPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [tab, setTab] = useState<'employees' | 'departments'>('employees');
   const [showModal, setShowModal] = useState(false);
+  const [editEmployee, setEditEmployee] = useState<any>(null);
   const [showDeptModal, setShowDeptModal] = useState(false);
   const qc = useQueryClient();
   const importRef = useRef<HTMLInputElement>(null);
@@ -67,6 +70,12 @@ export default function EmployeesPage() {
     queryFn: async () => { const { data } = await api.get('/hr/departments'); return data.data; },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/hr/employees/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['employees'] }); toast.success('Employee deleted'); },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to delete employee'),
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -81,11 +90,18 @@ export default function EmployeesPage() {
               {insightLoading ? 'Analyzing…' : 'AI Insights'}
             </button>
             <ExportButton endpoint="/hr/employees/export" filename="employees.csv" params={{ search: debouncedSearch }} />
-            <button onClick={() => importRef.current?.click()} className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800">
-              <Upload className="w-4 h-4" /> Import CSV
-            </button>
+            <div className="flex flex-col items-center gap-1">
+              <button onClick={() => importRef.current?.click()} className="flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800">
+                <Upload className="w-4 h-4" /> Import CSV
+              </button>
+              <SampleCsvLink
+                filename="employees-sample.csv"
+                headers={['firstName', 'lastName', 'email', 'employeeCode', 'jobTitle', 'salary', 'startDate']}
+                rows={[['John', 'Doe', 'john.doe@example.com', 'EMP001', 'Software Engineer', '75000', '2026-01-15']]}
+              />
+            </div>
             <input ref={importRef} type="file" accept=".csv" onChange={handleImport} className="hidden" />
-            <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
+            <button onClick={() => { setEditEmployee(null); setShowModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
               <Plus className="w-4 h-4" /> Add Employee
             </button>
           </div>
@@ -157,7 +173,11 @@ export default function EmployeesPage() {
                 <p>No employees found</p>
               </div>
             ) : employees?.data?.map((emp: any) => (
-              <div key={emp.id} className="glass-card rounded-2xl p-5 hover:shadow-lg transition-all">
+              <div key={emp.id} className="glass-card rounded-2xl p-5 hover:shadow-lg transition-all group relative">
+                <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => { setEditEmployee(emp); setShowModal(true); }} aria-label="Edit employee" className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"><Edit className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => { if (confirm(`Delete employee ${emp.user?.firstName}? This also removes their attendance and payslip records.`)) deleteMutation.mutate(emp.id); }} aria-label="Delete employee" className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
                     {emp.user?.firstName?.[0]}{emp.user?.lastName?.[0]}
@@ -231,7 +251,7 @@ export default function EmployeesPage() {
         </div>
       )}
 
-      {showModal && <EmployeeModal departments={departments || []} onClose={() => setShowModal(false)} />}
+      {showModal && <EmployeeModal employee={editEmployee} departments={departments || []} onClose={() => setShowModal(false)} />}
       {showDeptModal && <DepartmentModal onClose={() => setShowDeptModal(false)} />}
     </div>
   );
@@ -261,23 +281,40 @@ function DepartmentModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function EmployeeModal({ departments, onClose }: { departments: any[]; onClose: () => void }) {
+function EmployeeModal({ employee, departments, onClose }: { employee?: any; departments: any[]; onClose: () => void }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ userId: '', employeeCode: `EMP${Date.now()}`, departmentId: '', jobTitle: '', jobType: 'full_time', status: 'active', startDate: new Date().toISOString().split('T')[0], salary: '' });
+  const isEdit = !!employee;
+  const [userMode, setUserMode] = useState<'existing' | 'new'>('existing');
+  const [form, setForm] = useState({
+    userId: employee?.userId || '',
+    employeeCode: employee?.employeeCode || `EMP${Date.now()}`,
+    departmentId: employee?.departmentId || '',
+    jobTitle: employee?.jobTitle || '',
+    jobType: employee?.jobType || 'full_time',
+    status: employee?.status || 'active',
+    startDate: employee?.startDate ? String(employee.startDate).split('T')[0] : new Date().toISOString().split('T')[0],
+    salary: employee?.salary ? String(employee.salary) : '',
+  });
+  const [newUser, setNewUser] = useState({ firstName: '', lastName: '', email: '' });
 
   const { data: usersData } = useQuery({
     queryKey: ['users-list'],
     queryFn: async () => { const { data } = await api.get('/users?limit=200'); return data.data as any[]; },
+    enabled: !isEdit,
   });
 
   const mutation = useMutation({
-    mutationFn: (data: any) => api.post('/hr/employees', data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['employees'] }); toast.success('Employee added'); onClose(); },
-    onError: () => toast.error('Failed to add employee'),
+    mutationFn: (data: any) => {
+      if (isEdit) return api.put(`/hr/employees/${employee.id}`, data);
+      const payload = userMode === 'new' ? { ...data, userId: undefined, newUser } : data;
+      return api.post('/hr/employees', payload);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['employees'] }); toast.success(isEdit ? 'Employee updated' : 'Employee added'); onClose(); },
+    onError: (err: any) => toast.error(err?.response?.data?.message || (isEdit ? 'Failed to update employee' : 'Failed to add employee')),
   });
 
   return (
-    <Modal onClose={onClose} title="Add Employee" subtitle="Add a new employee to your organization" icon={UserPlus} iconColor="blue">
+    <Modal onClose={onClose} title={isEdit ? 'Edit Employee' : 'Add Employee'} subtitle={isEdit ? `Update ${employee.user?.firstName}'s details` : 'Add a new employee to your organization'} icon={UserPlus} iconColor="blue">
       <form onSubmit={e => { e.preventDefault(); mutation.mutate(form); }}>
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -293,18 +330,49 @@ function EmployeeModal({ departments, onClose }: { departments: any[]; onClose: 
             <TextField id="emp-startDate" label="Start Date" type="date" required value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} />
             <TextField id="emp-salary" label="Salary" type="number" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} placeholder="0.00" />
           </div>
-          <SelectField id="emp-userId" label="Select User" required value={form.userId} onChange={e => setForm({ ...form, userId: e.target.value })}>
-            <option value="">Select a user account</option>
-            {(usersData || []).map((u: any) => (
-              <option key={u.id} value={u.id}>
-                {u.firstName} {u.lastName} — {u.email}
-              </option>
-            ))}
-          </SelectField>
+          {isEdit && (
+            <SelectField id="emp-status" label="Status" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+              {['active', 'inactive', 'on_leave', 'terminated'].map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+            </SelectField>
+          )}
+
+          {!isEdit && (
+            <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 w-fit">
+                {([['existing', 'Existing user'], ['new', 'Create new user']] as const).map(([mode, label]) => (
+                  <button key={mode} type="button" onClick={() => setUserMode(mode)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${userMode === mode ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {userMode === 'existing' ? (
+                <SelectField id="emp-userId" label="Select User" required value={form.userId} onChange={e => setForm({ ...form, userId: e.target.value })}>
+                  <option value="">Select a user account</option>
+                  {(usersData || []).map((u: any) => (
+                    <option key={u.id} value={u.id}>
+                      {u.firstName} {u.lastName} — {u.email}
+                    </option>
+                  ))}
+                </SelectField>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <TextField id="emp-newFirstName" label="First Name" required value={newUser.firstName} onChange={e => setNewUser({ ...newUser, firstName: sanitizeName(e.target.value) })} />
+                  <TextField id="emp-newLastName" label="Last Name" value={newUser.lastName} onChange={e => setNewUser({ ...newUser, lastName: sanitizeName(e.target.value) })} />
+                  <div className="col-span-2">
+                    <TextField id="emp-newEmail" label="Email" type="email" required value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <ModalFooter>
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">Cancel</button>
-          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">{mutation.isPending ? 'Adding...' : 'Add Employee'}</button>
+          <button type="submit" disabled={mutation.isPending} className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium disabled:opacity-50">
+            {mutation.isPending ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Employee'}
+          </button>
         </ModalFooter>
       </form>
     </Modal>

@@ -49,6 +49,7 @@ const pipelineRoutes = require('./modules/crm/pipeline/pipeline.routes');
 const crmActivitiesRoutes = require('./modules/crm/activities/activities.routes');
 const projectsRoutes = require('./modules/projects/projects.routes');
 const employeesRoutes = require('./modules/hr/employees/employees.routes');
+const departmentsRoutes = require('./modules/hr/departments/departments.routes');
 const hrRoutes = require('./modules/hr/attendance/attendance.routes');
 const financeRoutes = require('./modules/finance/finance.routes');
 const paymentsRoutes = require('./modules/finance/payments.routes');
@@ -205,6 +206,7 @@ app.use(`${v1}/crm/activities`, crmActivitiesRoutes);
 app.use(`${v1}/crm`, pipelineRoutes);
 app.use(`${v1}/projects`, projectsRoutes);
 app.use(`${v1}/hr/employees`, employeesRoutes);
+app.use(`${v1}/hr/departments`, departmentsRoutes);
 // Mounted at /hr/attendance (not bare /hr) to match what the frontend has
 // always called for attendance/leave/payroll (e.g. /hr/attendance/check-in,
 // /hr/attendance/leaves, /hr/attendance/payslips/generate) — this router was

@@ -84,12 +84,25 @@ router.get('/kanban/:pipelineId', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Deal date fields arrive as "YYYY-MM-DD" or "" from HTML date inputs
+function normalizeDealInput(data) {
+  for (const k of ['expectedCloseAt', 'closedAt']) {
+    if (data[k] === '' || data[k] === null) delete data[k];
+    else if (data[k]) data[k] = new Date(data[k]);
+  }
+  if (data.crmCompanyId === '') data.crmCompanyId = null;
+  if (data.value === '') delete data.value;
+  return data;
+}
+
 router.post('/deals', auditLog('crm.deals', 'deal'), async (req, res, next) => {
   try {
+    if (!req.body.title && req.body.name) req.body.title = req.body.name; // frontend historically sends `name`
+    if (req.body.expectedCloseDate && !req.body.expectedCloseAt) req.body.expectedCloseAt = req.body.expectedCloseDate;
     if (!req.body.title) return error(res, 'Deal title is required', 400);
     if (!req.body.pipelineId || !req.body.stageId) return error(res, 'pipelineId and stageId are required', 400);
     const deal = await prisma.deal.create({
-      data: { ...pick(req.body, DEAL_WRITABLE_FIELDS), companyId: req.companyId },
+      data: { ...normalizeDealInput(pick(req.body, DEAL_WRITABLE_FIELDS)), companyId: req.companyId },
       include: { stage: true },
     });
     return created(res, deal, 'Deal created');

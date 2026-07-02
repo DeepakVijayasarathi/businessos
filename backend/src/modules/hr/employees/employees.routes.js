@@ -121,6 +121,73 @@ router.post('/me/face', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Performance Reviews — must be declared before /:id to avoid route shadowing.
+// The PerformanceReview model has: employeeId, reviewerId (plain user id, no
+// relation), period, rating, goals (Json), strengths, improvements, comments.
+router.get('/performance-reviews', async (req, res, next) => {
+  try {
+    const { employeeId, page = 1, limit = 20 } = req.query;
+    const { take, skip } = paginate(page, limit);
+    const where = { employee: { companyId: req.companyId }, ...(employeeId && { employeeId }) };
+    const [reviews, total] = await Promise.all([
+      prisma.performanceReview.findMany({
+        where, take, skip, orderBy: { createdAt: 'desc' },
+        include: { employee: { include: { user: { select: { firstName: true, lastName: true } } } } },
+      }),
+      prisma.performanceReview.count({ where }),
+    ]);
+    // reviewerId has no Prisma relation — resolve names in one query
+    const reviewerIds = [...new Set(reviews.map(r => r.reviewerId).filter(Boolean))];
+    const reviewers = reviewerIds.length
+      ? await prisma.user.findMany({ where: { id: { in: reviewerIds } }, select: { id: true, firstName: true, lastName: true } })
+      : [];
+    const reviewerMap = Object.fromEntries(reviewers.map(u => [u.id, u]));
+    const shaped = reviews.map(r => ({
+      ...r,
+      overallRating: r.rating,
+      reviewDate: r.createdAt,
+      achievements: r.strengths,
+      reviewer: reviewerMap[r.reviewerId] || null,
+    }));
+    return res.json({ success: true, data: shaped, meta: paginateMeta(total, page, limit) });
+  } catch (err) { next(err); }
+});
+
+router.post('/performance-reviews', async (req, res, next) => {
+  try {
+    const { employeeId, period } = req.body;
+    if (!employeeId) return error(res, 'employeeId is required', 400);
+    const employee = await prisma.employee.findFirst({ where: { id: employeeId, companyId: req.companyId } });
+    if (!employee) return notFound(res, 'Employee not found');
+    const rating = parseFloat(req.body.overallRating ?? req.body.rating);
+    const review = await prisma.performanceReview.create({
+      data: {
+        employeeId,
+        reviewerId: req.userId,
+        period: period || 'General',
+        rating: isFinite(rating) ? rating : 0,
+        goals: req.body.goals ? [String(req.body.goals)] : [],
+        strengths: req.body.achievements || req.body.strengths || null,
+        improvements: req.body.improvements || null,
+        comments: req.body.comments || null,
+        status: req.body.status || 'submitted',
+      },
+    });
+    return created(res, review, 'Performance review created');
+  } catch (err) { next(err); }
+});
+
+router.delete('/performance-reviews/:id', async (req, res, next) => {
+  try {
+    const existing = await prisma.performanceReview.findFirst({
+      where: { id: req.params.id, employee: { companyId: req.companyId } },
+    });
+    if (!existing) return notFound(res, 'Review not found');
+    await prisma.performanceReview.delete({ where: { id: req.params.id } });
+    return success(res, {}, 'Review deleted');
+  } catch (err) { next(err); }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     const employee = await prisma.employee.findFirst({
@@ -147,13 +214,46 @@ function coerceEmployeeDates(data) {
   return data;
 }
 
+// HTML forms send "" for untouched optional fields — empty strings break
+// Prisma FKs (departmentId), Decimals (salary), and DateTimes (endDate).
+function normalizeEmployeeInput(data) {
+  for (const k of ['departmentId', 'managerId', 'endDate', 'jobTitle', 'nationalId', 'taxId', 'address', 'city', 'country']) {
+    if (data[k] === '') data[k] = null;
+  }
+  if (data.salary === '' || data.salary === undefined) delete data.salary;
+  return coerceEmployeeDates(data);
+}
+
 router.post('/', auditLog('hr.employees', 'employee'), async (req, res, next) => {
   try {
-    if (!req.body.userId) return error(res, 'userId is required', 400);
+    let { userId } = req.body;
+
+    // Inline user creation: { newUser: { firstName, lastName, email } }
+    if (!userId && req.body.newUser?.email && req.body.newUser?.firstName) {
+      const { firstName, lastName, email } = req.body.newUser;
+      const existing = await prisma.user.findFirst({ where: { email } });
+      if (existing) {
+        if (existing.companyId !== req.companyId) return error(res, 'A user with this email already exists in another workspace', 409);
+        userId = existing.id;
+      } else {
+        const tempPw = crypto.randomBytes(10).toString('base64url');
+        const hashed = await bcrypt.hash(tempPw, 12);
+        const user = await prisma.user.create({
+          data: { firstName, lastName: lastName || '', email, password: hashed, companyId: req.companyId },
+        });
+        userId = user.id;
+      }
+    }
+
+    if (!userId) return error(res, 'Select an existing user or enter details for a new one', 400);
     if (!req.body.employeeCode) return error(res, 'employeeCode is required', 400);
     if (!req.body.startDate) return error(res, 'startDate is required', 400);
+
+    const alreadyEmployee = await prisma.employee.findFirst({ where: { userId } });
+    if (alreadyEmployee) return error(res, 'This user is already registered as an employee', 409);
+
     const employee = await prisma.employee.create({
-      data: { ...coerceEmployeeDates(pick(req.body, EMPLOYEE_WRITABLE_FIELDS)), companyId: req.companyId },
+      data: { ...normalizeEmployeeInput(pick(req.body, EMPLOYEE_WRITABLE_FIELDS)), userId, companyId: req.companyId },
       include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } },
     });
     return created(res, employee, 'Employee created');
@@ -164,8 +264,19 @@ router.put('/:id', auditLog('hr.employees', 'employee'), async (req, res, next) 
   try {
     const existing = await prisma.employee.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
     if (!existing) return notFound(res, 'Employee not found');
-    const employee = await prisma.employee.update({ where: { id: req.params.id }, data: coerceEmployeeDates(pick(req.body, EMPLOYEE_WRITABLE_FIELDS)) });
+    const data = normalizeEmployeeInput(pick(req.body, EMPLOYEE_WRITABLE_FIELDS));
+    delete data.userId; // never re-link an employee to a different user
+    const employee = await prisma.employee.update({ where: { id: req.params.id }, data });
     return success(res, employee, 'Employee updated');
+  } catch (err) { next(err); }
+});
+
+router.delete('/:id', auditLog('hr.employees', 'employee'), async (req, res, next) => {
+  try {
+    const existing = await prisma.employee.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
+    if (!existing) return notFound(res, 'Employee not found');
+    await prisma.employee.delete({ where: { id: req.params.id } });
+    return success(res, {}, 'Employee deleted');
   } catch (err) { next(err); }
 });
 
@@ -229,82 +340,6 @@ router.post('/import', upload.single('file'), async (req, res, next) => {
       }
     }
     return success(res, { created: createdCount, skipped }, `${createdCount} employees imported`);
-  } catch (err) { next(err); }
-});
-
-// Departments
-router.get('/departments/list', async (req, res, next) => {
-  try {
-    const departments = await prisma.department.findMany({
-      where: { companyId: req.companyId },
-      include: { _count: { select: { employees: true } } },
-    });
-    return success(res, departments);
-  } catch (err) { next(err); }
-});
-
-router.post('/departments', async (req, res, next) => {
-  try {
-    const dept = await prisma.department.create({
-      data: { ...req.body, companyId: req.companyId },
-    });
-    return created(res, dept, 'Department created');
-  } catch (err) { next(err); }
-});
-
-// Performance Reviews
-router.get('/performance-reviews', async (req, res, next) => {
-  try {
-    const { employeeId, page = 1, limit = 20 } = req.query;
-    const { take, skip } = paginate(page, limit);
-    const where = { companyId: req.companyId, ...(employeeId && { employeeId }) };
-    const [reviews, total] = await Promise.all([
-      prisma.performanceReview.findMany({
-        where, take, skip, orderBy: { reviewDate: 'desc' },
-        include: { employee: { include: { user: { select: { firstName: true, lastName: true } } } }, reviewer: { select: { firstName: true, lastName: true } } },
-      }),
-      prisma.performanceReview.count({ where }),
-    ]);
-    return res.json({ success: true, data: reviews, meta: paginateMeta(total, page, limit) });
-  } catch (err) { next(err); }
-});
-
-router.post('/performance-reviews', async (req, res, next) => {
-  try {
-    const review = await prisma.performanceReview.create({
-      data: {
-        companyId: req.companyId,
-        employeeId: req.body.employeeId,
-        reviewerId: req.userId,
-        reviewDate: new Date(req.body.reviewDate || Date.now()),
-        period: req.body.period,
-        overallRating: req.body.overallRating ? parseFloat(req.body.overallRating) : null,
-        goals: req.body.goals || null,
-        achievements: req.body.achievements || null,
-        improvements: req.body.improvements || null,
-        comments: req.body.comments || null,
-        status: req.body.status || 'draft',
-      },
-    });
-    return created(res, review, 'Performance review created');
-  } catch (err) { next(err); }
-});
-
-router.put('/performance-reviews/:id', async (req, res, next) => {
-  try {
-    const existing = await prisma.performanceReview.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
-    if (!existing) return notFound(res, 'Review not found');
-    const review = await prisma.performanceReview.update({ where: { id: req.params.id }, data: req.body });
-    return success(res, review, 'Review updated');
-  } catch (err) { next(err); }
-});
-
-router.delete('/performance-reviews/:id', async (req, res, next) => {
-  try {
-    const existing = await prisma.performanceReview.findFirst({ where: { id: req.params.id, companyId: req.companyId } });
-    if (!existing) return notFound(res, 'Review not found');
-    await prisma.performanceReview.delete({ where: { id: req.params.id } });
-    return success(res, {}, 'Review deleted');
   } catch (err) { next(err); }
 });
 

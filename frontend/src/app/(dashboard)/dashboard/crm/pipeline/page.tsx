@@ -201,9 +201,17 @@ function DealModal({ pipelineId, stageId, stages, onClose }: { pipelineId: strin
   });
 
   const mutation = useMutation({
-    mutationFn: (data: any) => api.post('/crm/deals', { ...data, pipelineId, value: data.value ? parseFloat(data.value) : null, probability: parseInt(data.probability) }),
+    mutationFn: (data: any) => api.post('/crm/deals', {
+      title: data.name,
+      stageId: data.stageId,
+      notes: data.notes,
+      pipelineId,
+      value: data.value ? parseFloat(data.value) : null,
+      probability: parseInt(data.probability),
+      ...(data.expectedCloseDate && { expectedCloseAt: data.expectedCloseDate }),
+    }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['kanban'] }); toast.success('Deal created'); onClose(); },
-    onError: () => toast.error('Failed to create deal'),
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to create deal'),
   });
 
   return (

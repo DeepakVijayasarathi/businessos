@@ -200,7 +200,8 @@ async function main() {
   ];
 
   for (const lead of leadData) {
-    await prisma.lead.create({ data: { ...lead, companyId: demoCompany.id } }).catch(() => {});
+    const exists = await prisma.lead.findFirst({ where: { email: lead.email, companyId: demoCompany.id } }).catch(() => null);
+    if (!exists) await prisma.lead.create({ data: { ...lead, companyId: demoCompany.id } }).catch(() => {});
   }
   console.log(`✅ Demo leads created`);
 
@@ -233,22 +234,31 @@ async function main() {
     create: { id: 'demo-dept', name: 'Engineering', companyId: demoCompany.id },
   });
 
-  // Demo ticket categories
-  await Promise.all([
-    prisma.ticketCategory.create({ data: { companyId: demoCompany.id, name: 'Technical', color: '#6366f1' } }).catch(() => {}),
-    prisma.ticketCategory.create({ data: { companyId: demoCompany.id, name: 'Billing', color: '#f59e0b' } }).catch(() => {}),
-    prisma.ticketCategory.create({ data: { companyId: demoCompany.id, name: 'General', color: '#10b981' } }).catch(() => {}),
-  ]);
+  // Demo ticket categories — find-or-create so restarts don't duplicate
+  for (const cat of [
+    { name: 'Technical', color: '#6366f1' },
+    { name: 'Billing', color: '#f59e0b' },
+    { name: 'General', color: '#10b981' },
+  ]) {
+    const exists = await prisma.ticketCategory.findFirst({ where: { companyId: demoCompany.id, name: cat.name } }).catch(() => null);
+    if (!exists) await prisma.ticketCategory.create({ data: { ...cat, companyId: demoCompany.id } }).catch(() => {});
+  }
 
-  // Demo leave types
-  await Promise.all([
-    prisma.leaveType.create({ data: { companyId: demoCompany.id, name: 'Annual Leave', daysAllowed: 21, isPaid: true } }).catch(() => {}),
-    prisma.leaveType.create({ data: { companyId: demoCompany.id, name: 'Sick Leave', daysAllowed: 10, isPaid: true } }).catch(() => {}),
-    prisma.leaveType.create({ data: { companyId: demoCompany.id, name: 'Unpaid Leave', daysAllowed: 30, isPaid: false } }).catch(() => {}),
-  ]);
+  // Demo leave types — find-or-create so restarts don't duplicate
+  for (const lt of [
+    { name: 'Annual Leave', daysAllowed: 21, isPaid: true },
+    { name: 'Sick Leave', daysAllowed: 10, isPaid: true },
+    { name: 'Unpaid Leave', daysAllowed: 30, isPaid: false },
+  ]) {
+    const exists = await prisma.leaveType.findFirst({ where: { companyId: demoCompany.id, name: lt.name } }).catch(() => null);
+    if (!exists) await prisma.leaveType.create({ data: { ...lt, companyId: demoCompany.id } }).catch(() => {});
+  }
 
-  // Demo knowledge article
-  await prisma.knowledgeArticle.create({
+  // Demo knowledge article — find-or-create so restarts don't duplicate
+  const existingArticle = await prisma.knowledgeArticle.findFirst({
+    where: { companyId: demoCompany.id, slug: 'getting-started-businessos-ai' },
+  }).catch(() => null);
+  if (!existingArticle) await prisma.knowledgeArticle.create({
     data: {
       companyId: demoCompany.id,
       title: 'Getting Started with BusinessOS AI',

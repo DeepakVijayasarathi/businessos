@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { formatDate } from '@/lib/utils';
+import { formatDate, sanitizePhone } from '@/lib/utils';
 import { Plus, Building2, Search, Globe, Trash2, Edit, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
@@ -105,14 +105,24 @@ function CompanyModal({ company, onClose }: { company: any; onClose: () => void 
     phone: company?.phone || '',
     email: company?.email || '',
     address: company?.address || '',
-    employees: company?.employees || '',
-    annualRevenue: company?.annualRevenue || '',
-    description: company?.description || '',
+    employees: company?.size || '',
+    annualRevenue: company?.revenue ? String(company.revenue) : '',
+    description: company?.notes || '',
   });
   const mutation = useMutation({
-    mutationFn: (data: any) => company ? api.put(`/crm/companies/${company.id}`, data) : api.post('/crm/companies', data),
+    // Backend CrmCompany fields are size / revenue / notes — map the form names
+    mutationFn: (data: any) => {
+      const payload = {
+        name: data.name, industry: data.industry, website: data.website,
+        phone: data.phone, email: data.email, address: data.address,
+        size: data.employees ? String(data.employees) : null,
+        revenue: data.annualRevenue ? parseFloat(data.annualRevenue) : null,
+        notes: data.description || null,
+      };
+      return company ? api.put(`/crm/companies/${company.id}`, payload) : api.post('/crm/companies', payload);
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['crm-companies'] }); toast.success(company ? 'Company updated' : 'Company created'); onClose(); },
-    onError: () => toast.error('Failed to save company'),
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to save company'),
   });
   const f = (k: string) => ({ value: (form as any)[k], onChange: (e: any) => setForm({ ...form, [k]: e.target.value }) });
 
@@ -125,7 +135,7 @@ function CompanyModal({ company, onClose }: { company: any; onClose: () => void 
             <TextField id="company-industry" label="Industry" {...f('industry')} placeholder="Technology, Finance..." />
             <TextField id="company-employees" label="Employees" type="number" {...f('employees')} />
             <TextField id="company-email" label="Email" type="email" {...f('email')} />
-            <TextField id="company-phone" label="Phone" {...f('phone')} />
+            <TextField id="company-phone" label="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: sanitizePhone(e.target.value) })} />
           </div>
           <TextField id="company-website" label="Website" type="url" {...f('website')} placeholder="https://" />
           <TextField id="company-address" label="Address" {...f('address')} />

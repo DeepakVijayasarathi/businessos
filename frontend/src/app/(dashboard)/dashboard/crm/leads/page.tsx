@@ -2,7 +2,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { formatRelativeTime, statusColor } from '@/lib/utils';
+import { formatRelativeTime, statusColor, sanitizeName, sanitizePhone } from '@/lib/utils';
+import { SampleCsvLink } from '@/components/ui/SampleCsvLink';
 import { Plus, Search, Filter, Mail, Phone, Building2, Star, Trash2, Edit2, UserPlus, Download, Upload, Zap, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
@@ -36,7 +37,7 @@ export default function LeadsPage() {
       a.download = 'leads.csv';
       a.click();
       URL.revokeObjectURL(url);
-    });
+    }).catch(() => toast.error('Export failed'));
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,12 +103,19 @@ export default function LeadsPage() {
           >
             <Download className="w-4 h-4" /> Export CSV
           </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <Upload className="w-4 h-4" /> Import CSV
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Upload className="w-4 h-4" /> Import CSV
+            </button>
+            <SampleCsvLink
+              filename="leads-sample.csv"
+              headers={['firstName', 'lastName', 'email', 'phone', 'company', 'jobTitle', 'source', 'status']}
+              rows={[['Jane', 'Smith', 'jane@acme.com', '+1-555-0100', 'Acme Corp', 'CTO', 'website', 'new']]}
+            />
+          </div>
           <button
             onClick={() => scoreAllMutation.mutate()}
             disabled={scoreAllMutation.isPending}
@@ -345,10 +353,10 @@ function LeadModal({ lead, onClose }: { lead: any; onClose: () => void }) {
             <SmartFill type="lead" onFill={d => setForm(f => ({ ...f, ...d }))} />
           )}
           <div className="grid grid-cols-2 gap-4">
-            <TextField id="lead-firstName" label="First Name" required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} />
-            <TextField id="lead-lastName" label="Last Name" value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} />
+            <TextField id="lead-firstName" label="First Name" required value={form.firstName} onChange={e => setForm({ ...form, firstName: sanitizeName(e.target.value) })} />
+            <TextField id="lead-lastName" label="Last Name" value={form.lastName} onChange={e => setForm({ ...form, lastName: sanitizeName(e.target.value) })} />
             <TextField id="lead-email" label="Email" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-            <TextField id="lead-phone" label="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+            <TextField id="lead-phone" label="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: sanitizePhone(e.target.value) })} />
             <TextField id="lead-company" label="Company" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} />
             <TextField id="lead-jobTitle" label="Job Title" value={form.jobTitle} onChange={e => setForm({ ...form, jobTitle: e.target.value })} />
           </div>
