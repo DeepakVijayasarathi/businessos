@@ -105,8 +105,9 @@ router.get('/me/face', async (req, res, next) => {
 router.post('/me/face', async (req, res, next) => {
   try {
     const { descriptor } = req.body;
-    if (!Array.isArray(descriptor) || descriptor.length !== 128) {
-      return error(res, 'Invalid face descriptor — expected array of 128 numbers', 400);
+    if (!Array.isArray(descriptor) || descriptor.length !== 128 ||
+        !descriptor.every(v => typeof v === 'number' && isFinite(v))) {
+      return error(res, 'Invalid face descriptor — expected array of 128 finite numbers', 400);
     }
     const employee = await prisma.employee.findFirst({
       where: { userId: req.userId, companyId: req.companyId },

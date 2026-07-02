@@ -18,6 +18,7 @@ interface Props {
 }
 
 function euclidean(a: Float32Array, b: number[]): number {
+  if (b.length !== a.length) return Infinity;
   let sum = 0;
   for (let i = 0; i < a.length; i++) sum += (a[i] - b[i]) ** 2;
   return Math.sqrt(sum);
@@ -29,6 +30,8 @@ export default function FaceVerification({ onClose, onSuccess, actionMode = 'che
   const faceapiRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const processingRef = useRef(false);
 
   const [phase, setPhase] = useState<'loading' | 'register' | 'verify' | 'done' | 'error'>('loading');
   const [loadMsg, setLoadMsg] = useState('Loading AI face models…');
@@ -65,6 +68,7 @@ export default function FaceVerification({ onClose, onSuccess, actionMode = 'che
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
+        if (cancelled) return;
 
         // Check if user has a registered face
         const { data } = await api.get('/hr/employees/me/face');
@@ -86,6 +90,7 @@ export default function FaceVerification({ onClose, onSuccess, actionMode = 'che
     return () => {
       cancelled = true;
       if (intervalRef.current) clearInterval(intervalRef.current);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
       streamRef.current?.getTracks().forEach(t => t.stop());
     };
   }, []);
@@ -94,7 +99,7 @@ export default function FaceVerification({ onClose, onSuccess, actionMode = 'che
     intervalRef.current = setInterval(async () => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      if (!video || !canvas || video.readyState < 2) return;
+      if (!video || !canvas || video.readyState < 2 || processingRef.current) return;
 
       const detections = await faceapi
         .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
@@ -128,6 +133,7 @@ export default function FaceVerification({ onClose, onSuccess, actionMode = 'che
   }
 
   async function handleRegister() {
+    processingRef.current = true;
     setProcessing(true);
     setStatusMsg('Capturing face…');
     try {
@@ -144,11 +150,13 @@ export default function FaceVerification({ onClose, onSuccess, actionMode = 'che
     } catch (e: any) {
       setStatusMsg(e?.response?.data?.message || 'Registration failed — please try again.');
     } finally {
+      processingRef.current = false;
       setProcessing(false);
     }
   }
 
   async function handleVerify() {
+    processingRef.current = true;
     setProcessing(true);
     setStatusMsg('Capturing your face…');
     setMatchScore(null);
@@ -183,10 +191,11 @@ export default function FaceVerification({ onClose, onSuccess, actionMode = 'che
       setPhase('done');
       setStatusMsg(actionMode === 'check-in' ? 'Checked in successfully!' : 'Checked out successfully!');
       toast.success(actionMode === 'check-in' ? 'Checked in via face' : 'Checked out via face');
-      setTimeout(() => { onSuccess(); onClose(); }, 1500);
+      successTimerRef.current = setTimeout(() => { onSuccess(); onClose(); }, 1500);
     } catch (e: any) {
       setStatusMsg(e?.response?.data?.message || 'Verification failed — please try again.');
     } finally {
+      processingRef.current = false;
       setProcessing(false);
     }
   }

@@ -2597,11 +2597,15 @@ router.get('/usage-stats', async (req, res, next) => {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const cid = req.companyId;
 
-    // Check if ai_usage_logs table exists (migration may not have run yet)
+    // Check if ai_usage_logs table exists (migration may not have run yet).
+    // Only suppress 42P01 (undefined_table) — all other errors (conn failure,
+    // permission denied, etc.) should propagate as real errors.
     try {
       await prisma.$queryRaw`SELECT 1 FROM ai_usage_logs LIMIT 1`;
     } catch (tableErr) {
-      // Table doesn't exist — return empty data with migration flag
+      if (tableErr.code !== '42P01' && !tableErr.message?.includes('does not exist')) {
+        throw tableErr;
+      }
       return success(res, {
         period: days, migrationRequired: true,
         totals: { requests: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },

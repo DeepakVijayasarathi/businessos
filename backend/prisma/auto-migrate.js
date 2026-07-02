@@ -56,27 +56,39 @@ async function run() {
       sql: `ALTER TABLE employees ADD COLUMN IF NOT EXISTS "faceDescriptor" JSONB`,
     },
 
-    // ── social_accounts (from previous release) ────────────────────────────
+    // ── social_accounts ────────────────────────────────────────────────────────
     {
       name: 'create social_accounts table',
       sql: `
         CREATE TABLE IF NOT EXISTS social_accounts (
-          id           TEXT         NOT NULL DEFAULT gen_random_uuid()::text PRIMARY KEY,
-          "companyId"  TEXT         NOT NULL,
-          platform     TEXT         NOT NULL,
-          "accountName" TEXT        NOT NULL,
-          "accessToken" TEXT,
-          "refreshToken" TEXT,
-          "tokenExpiry" TIMESTAMP(3),
-          metadata     JSONB,
-          "isActive"   BOOLEAN      NOT NULL DEFAULT true,
-          "createdAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "updatedAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+          id             TEXT         NOT NULL DEFAULT gen_random_uuid()::text PRIMARY KEY,
+          "companyId"    TEXT         NOT NULL,
+          platform       TEXT         NOT NULL,
+          "accountName"  TEXT         NOT NULL,
+          "accountId"    TEXT,
+          "accessToken"  TEXT,
+          "accessSecret" TEXT,
+          "pageId"       TEXT,
+          "isActive"     BOOLEAN      NOT NULL DEFAULT true,
+          "createdAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
         )`,
     },
     {
       name: 'social_accounts: companyId index',
       sql: `CREATE INDEX IF NOT EXISTS social_accounts_company_idx ON social_accounts ("companyId")`,
+    },
+    {
+      name: 'social_accounts: unique companyId+platform',
+      sql: `
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'social_accounts_company_platform_key'
+          ) THEN
+            ALTER TABLE social_accounts
+              ADD CONSTRAINT social_accounts_company_platform_key UNIQUE ("companyId", platform);
+          END IF;
+        END $$`,
     },
   ];
 
@@ -105,7 +117,6 @@ async function run() {
 run()
   .catch(err => {
     console.error('[migrate] Fatal:', err.message);
-    // Exit with 0 so the server still starts even if migration fails
-    process.exit(0);
+    process.exit(1);
   })
   .finally(() => prisma.$disconnect());
