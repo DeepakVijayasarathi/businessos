@@ -182,16 +182,14 @@ router.post('/posters/generate-image', authenticate, sameCompany, async (req, re
     if (!prompt || !prompt.trim()) return error(res, 'A description of the poster is required', 400);
 
     const company = await prisma.company.findUnique({ where: { id: req.companyId }, select: { openaiKey: true } });
-    const { url: remoteUrl } = await generateImage({
+    const { buffer } = await generateImage({
       prompt: prompt.trim(),
       companyOpenaiKey: company?.openaiKey,
       size: ['1024x1024', '1024x1792', '1792x1024'].includes(size) ? size : '1024x1024',
     });
 
-    // OpenAI's image URL expires after ~1 hour — download and persist locally.
-    const imgResponse = await axios.get(remoteUrl, { responseType: 'arraybuffer', timeout: 30000 });
     const filename = `${uuidv4()}.png`;
-    fs.writeFileSync(path.join(uploadDir, filename), imgResponse.data);
+    fs.writeFileSync(path.join(uploadDir, filename), buffer);
 
     return success(res, { url: `/uploads/${filename}` }, 'Image generated');
   } catch (err) {

@@ -43,30 +43,59 @@ async function callAI({ messages, system, companyAnthropicKey, companyOpenaiKey,
  * has no Claude equivalent, so this always uses an OpenAI key regardless of
  * the company's chat provider preference.
  */
+// gpt-image-1 sizes differ from dall-e-3's — map the legacy values
+const GPT_IMAGE_SIZES = { '1024x1024': '1024x1024', '1024x1792': '1024x1536', '1792x1024': '1536x1024' };
+
+function mapOpenAIImageError(err) {
+  if (err.status === 401) return operational('OpenAI API key is invalid or revoked — update it in Settings > AI Config', 400);
+  if (err.code === 'content_policy_violation' || err.code === 'moderation_blocked') return operational('The image description was rejected by OpenAI content policy — please rephrase it', 400);
+  if (err.code === 'billing_hard_limit_reached' || err.status === 429) return operational('OpenAI quota or billing limit reached — check your OpenAI account billing', 402);
+  return operational(`Image generation failed: ${err.message}`, err.status && err.status < 500 ? err.status : 502);
+}
+
+// Returns { buffer } — a PNG Buffer ready to write to disk.
 async function generateImage({ prompt, companyOpenaiKey, size = '1024x1024' }) {
   const rawKey = (companyOpenaiKey ? decrypt(companyOpenaiKey) : null) || config.ai.openaiKey;
   if (!rawKey) throw operational('AI image generation requires an OpenAI API key — add one in Settings > AI Config', 400);
 
   const client = new OpenAI({ apiKey: rawKey });
-  let response;
+
+  // Newer OpenAI keys only have gpt-image-1 (returns base64); older keys may
+  // only have dall-e-3 (returns a temporary URL). Try gpt-image-1 first and
+  // fall back when the model isn't available on this key.
   try {
-    response = await client.images.generate({
+    const response = await client.images.generate({
+      model: 'gpt-image-1',
+      prompt,
+      size: GPT_IMAGE_SIZES[size] || '1024x1024',
+      n: 1,
+    });
+    const b64 = response?.data?.[0]?.b64_json;
+    if (!b64) throw operational('OpenAI returned no image — please try again', 502);
+    return { buffer: Buffer.from(b64, 'base64') };
+  } catch (err) {
+    const modelMissing = err.status === 400 || err.status === 403 || err.status === 404;
+    if (!(modelMissing && /model|does not exist|not found|verified/i.test(err.message || ''))) {
+      throw err.isOperational ? err : mapOpenAIImageError(err);
+    }
+  }
+
+  // Fallback: dall-e-3
+  try {
+    const response = await client.images.generate({
       model: 'dall-e-3',
       prompt,
       size,
       n: 1,
       quality: 'standard',
+      response_format: 'b64_json',
     });
+    const b64 = response?.data?.[0]?.b64_json;
+    if (!b64) throw operational('OpenAI returned no image — please try again', 502);
+    return { buffer: Buffer.from(b64, 'base64') };
   } catch (err) {
-    // Surface the real OpenAI failure to the client instead of a generic 500
-    if (err.status === 401) throw operational('OpenAI API key is invalid or revoked — update it in Settings > AI Config', 400);
-    if (err.code === 'content_policy_violation') throw operational('The image description was rejected by OpenAI content policy — please rephrase it', 400);
-    if (err.code === 'billing_hard_limit_reached' || err.status === 429) throw operational('OpenAI quota or billing limit reached — check your OpenAI account billing', 402);
-    throw operational(`Image generation failed: ${err.message}`, err.status && err.status < 500 ? err.status : 502);
+    throw err.isOperational ? err : mapOpenAIImageError(err);
   }
-  const url = response?.data?.[0]?.url;
-  if (!url) throw operational('OpenAI returned no image — please try again', 502);
-  return { url };
 }
 
 // Mark an error as safe to show to the client (errorHandler hides non-operational messages)
