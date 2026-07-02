@@ -186,6 +186,10 @@ app.use('/uploads', (req, res, next) => {
     res.setHeader('Content-Disposition', 'attachment');
   }
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  // Helmet defaults to Cross-Origin-Resource-Policy: same-origin, which blocks
+  // the frontend (port 3000) from embedding images served here (port 5000) —
+  // the browser silently refuses to render them in <img>/CSS backgrounds.
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
 }, express.static(path.join(__dirname, '../uploads')));
 
